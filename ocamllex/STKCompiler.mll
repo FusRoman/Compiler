@@ -2,14 +2,13 @@
   let nbarg = Array.length Sys.argv
 
   let src = Sys.argv.(1)
-  let lexbuf = Lexing.lexing_from_channel (open_in src)
+  let lexbuf = Lexing.from_channel (open_in src)
 
   let output_file =
     if nbarg >= 2 then
-      Sys.argv.(2)
+      Sys.argv.(1)
     else
       "a.asmr"
-  in
   let output = open_out output_file
 
   type pushable = 
@@ -20,11 +19,11 @@
   exception Compilation_Error of int * string
 
   let fmt = Printf.sprintf
-  let put = Printf.fprintf output
+  (*let put = Printf.fprintf output*)
 
   let register_str num_reg =
     if num_reg < 0 || num_reg >= 32 then
-      raise (Compilation_Error (0 (*num_line*), fmt "Invalid register number: %d" num_reg))
+      raise (Compilation_Error (0, fmt "Invalid register number: %d" num_reg))
     else
       "$r" ^ (string_of_int num_reg)
 
@@ -44,25 +43,25 @@
     let put_specific () =
       match pushable with
       | Tag s ->
-        put "ADDRESS $r0 %s\n" s; 0
+        Printf.fprintf output "ADDRESS $r0 %s\n" s; 0
       | Int s ->
-        put "CONST $r0 %s\n" s; 0
+        Printf.fprintf output "CONST $r0 %s\n" s; 0
       | Reg x -> x
     in
     (*put "READ %s %s\n" sp spa;*)
-    put "DECR %s\n" sp;
-    put "WRITE %s %s\n" spa sp;
+    Printf.fprintf output "DECR %s\n" sp;
+    Printf.fprintf output "WRITE %s %s\n" spa sp;
     let x = put_specific () in
-    put "WRITE %s %s\n" sp (register_str x)
+    Printf.fprintf output "WRITE %s %s\n" sp (register_str x)
 
   let pop dest =
     let rec pop_rec l =
       match l with
       | [] -> 
-        put "WRITE %s %s\n" spa sp
+        Printf.fprintf output "WRITE %s %s\n" spa sp
       | x::s ->
-        put "READ %s %s\n" (register_str x) sp;
-        put "INCR %s\n" sp;
+        Printf.fprintf output "READ %s %s\n" (register_str x) sp;
+        Printf.fprintf output "INCR %s\n" sp;
         pop_rec s
     in
     (*put "READ %s %s\n" sp spa;*)
@@ -89,11 +88,11 @@ rule dater =
   | comment     { dater lexbuf }
   | blank       { dater lexbuf }
   | tag blank* ':' blank* integer {
-    put "%s\n" (lexeme lexbuf);
+    Printf.fprintf output "%s\n" (Lexing.lexeme lexbuf);
     dater lexbuf
   }
   | _           {
-    raise (Compilation_error (0, "Syntax error : only tag definitions are allowed after '.data'"))
+    raise (Compilation_Error (0, "Syntax error : only tag definitions are allowed after '.data'"))
   }
 
 and texter = 
@@ -106,71 +105,71 @@ and texter =
 
   (* rajouter des espaces blancs éventuels entre tag et : ? \b* *)
   | tag blank* ':'   { 
-    put "%s\n" (lexeme lexbuf);
+    Printf.fprintf output "%s\n" (Lexing.lexeme lexbuf);
     texter lexbuf 
   } 
   | tag         { 
-    push (Tag (lexeme lexbuf));
+    push (Tag (Lexing.lexeme lexbuf));
     texter lexbuf
   }
   | integer     { 
-    push (Int (lexeme lexbuf));
+    push (Int (Lexing.lexeme lexbuf));
     texter lexbuf 
   }
 
   (*  instruction qui n'affecte pas la pile *)
   | "NOP"       { 
-    put "NOP\n";
+    Printf.fprintf output "NOP\n";
     texter lexbuf
   }
   | "EXIT"      { 
-    put "EXIT\n";
+    Printf.fprintf output "EXIT\n";
     texter lexbuf
   }
 
   (* affiche le caractère au sommet de la pile *)
   | "PRINT"     { 
     pop [0];
-    put "PRINT $r0\n";
+    Printf.fprintf output "PRINT $r0\n";
     texter lexbuf
   }
 
   (* instructions mémoire *)
   | "READ"      {
     pop_n 2;
-    put "READ $r0 $r1\n";
+    Printf.fprintf output "READ $r0 $r1\n";
     push (Reg 0);
     texter lexbuf
   }
 
   | "WRITE"     {
     pop_n 2;
-    put "WRITE $r0 $r1\n";
+    Printf.fprintf output "WRITE $r0 $r1\n";
     texter lexbuf
   }
 
   (* instruction jump *)
   | "JUMP"      {
     pop_n 1;
-    put "JUMP $r0\n";
+    Printf.fprintf output "JUMP $r0\n";
     texter lexbuf
   }
   | "JUMPWHEN"  {
     pop_n 2;
-    put "JUMPWHEN $r0 $r1\n";
+    Printf.fprintf output "JUMPWHEN $r0 $r1\n";
     texter lexbuf
   }
 
   (* instructions unaires *)
   | "MINUS"     {  
     pop_n 1;
-    put "MINUS $r0\n";
+    Printf.fprintf output "MINUS $r0\n";
     push (Reg 0);
     texter lexbuf
   }
   | "NOT"       {
     pop_n 1;
-    put "NEG $r0\n";
+    Printf.fprintf output "NEG $r0\n";
     push (Reg 0);
     texter lexbuf
   }
@@ -181,7 +180,7 @@ and texter =
   | "LE"  | "GT"  | "GE"   | "AND"
   | "OR"        {
     pop_n 2;
-    put "%s $r0 $r0 $r1" (lexeme lexbuf);
+    Printf.fprintf output "%s $r0 $r0 $r1" (Lexing.lexeme lexbuf);
     push (Reg 0);
     texter lexbuf
   }
@@ -199,16 +198,16 @@ and lexer =
 
 {
   let _ =
-    put "ADDRESS %s stack_pointer\n" spa;
+    Printf.fprintf output "ADDRESS %s stack_pointer\n" spa;
     try
       lexer lexbuf
     with
     | End_of_file ->
       (* si succès -> *)
       (* rajouter la ligne stack_pointer à 2^16 dans data *)
-      put "stack_pointer: 65536\n";
+      Printf.fprintf output "stack_pointer: 65536\n";
       close_out output;
       Printf.printf "Compilation STK -> ASM successful (00:00:00)\n"
-    | Compilation_Error (l, Printf.sprintf->
-      Printf.printf "[ERROR] Line %d: %s\n%s\n" l (lexeme lexbuf) msg
+    | Compilation_Error (l, msg) ->
+      Printf.printf "[ERROR] Line %d: %s\n%s\n" l (Lexing.lexeme lexbuf) msg
 }
