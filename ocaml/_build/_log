@@ -1,0 +1,8 @@
+### Starting build.
+# Target: STKCompiler.ml.depends, tags: { extension:ml, file:STKCompiler.ml, ocaml, ocamldep, quiet }
+/home/fusroman/.opam/4.06.0/bin/ocamldep.opt -modules STKCompiler.ml > STKCompiler.ml.depends
++ /home/fusroman/.opam/4.06.0/bin/ocamldep.opt -modules STKCompiler.ml > STKCompiler.ml.depends
+File "ocamllex/STKCompiler.mll", line 12, characters 2-4:
+Error: Syntax error
+Command exited with code 2.
+# Compilation unsuccessful.
