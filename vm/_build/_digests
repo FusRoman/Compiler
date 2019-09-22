@@ -1,0 +1,4 @@
+"Rule: ocaml: cmo* -> byte (%=VM )": "\174\020\174\031\195\21151\183\027v\188?$\184\205"
+"Resource: /home/guilhem/Documents/Programs/OCaml/Compilation/Compiler/vm/VM.ml": "'7\135p\005\185,\243\143\203\001W\179\204\030q"
+"Rule: ocaml: ml -> cmo & cmi (%=VM )": "z`w\027=\133\194\187\n:x)\241\157O\029"
+"Rule: ocaml dependencies ml (%=VM )": "\2177q\222\022A\250\017\004\128\016EB\210\250\217"

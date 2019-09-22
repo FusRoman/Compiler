@@ -16,6 +16,11 @@ loop:
     122
     LE
     JUMPWHEN
+end:
+    10
+    PRINT
+    stack_pointer
+    PRINT
     10
     PRINT
     EXIT

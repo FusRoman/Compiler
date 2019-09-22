@@ -1,0 +1,221 @@
+ADDRESS $r15 stack_pointer
+READ $r14 $r15
+DECR $r14 1
+ADDRESS $r0 a
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+WRITE $r15 $r14
+READ $r1 $r0
+DECR $r14 1
+WRITE $r14 $r1
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+CONST $r0 10
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+ADDRESS $r0 stack_pointer
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+WRITE $r15 $r14
+READ $r1 $r0
+DECR $r14 1
+WRITE $r14 $r1
+READ $r0 $r14
+INCR $r14 1
+MINUS $r0 $r0
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 65535
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 49
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+CONST $r0 10
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+ADDRESS $r0 a
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+WRITE $r15 $r14
+READ $r1 $r0
+DECR $r14 1
+WRITE $r14 $r1
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+CONST $r0 10
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+ADDRESS $r0 stack_pointer
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+WRITE $r15 $r14
+READ $r1 $r0
+DECR $r14 1
+WRITE $r14 $r1
+READ $r0 $r14
+INCR $r14 1
+MINUS $r0 $r0
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 65535
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 49
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+CONST $r0 10
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+ADDRESS $r0 a
+WRITE $r14 $r0
+DECR $r14 1
+ADDRESS $r0 stack_pointer
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+WRITE $r15 $r14
+READ $r1 $r0
+DECR $r14 1
+WRITE $r14 $r1
+READ $r0 $r14
+INCR $r14 1
+MINUS $r0 $r0
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 65535
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 49
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+CONST $r0 10
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+ADDRESS $r0 a
+WRITE $r14 $r0
+DECR $r14 1
+ADDRESS $r0 stack_pointer
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+WRITE $r15 $r14
+READ $r1 $r0
+DECR $r14 1
+WRITE $r14 $r1
+READ $r0 $r14
+INCR $r14 1
+MINUS $r0 $r0
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 65535
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+DECR $r14 1
+CONST $r0 49
+WRITE $r14 $r0
+READ $r1 $r14
+INCR $r14 1
+READ $r0 $r14
+INCR $r14 1
+ADD $r0 $r0 $r1
+DECR $r14 1
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+DECR $r14 1
+CONST $r0 10
+WRITE $r14 $r0
+READ $r0 $r14
+INCR $r14 1
+PRINT $r0
+EXIT
+a:
+97
+stack_pointer:
+65536

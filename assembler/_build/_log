@@ -1,0 +1,8 @@
+### Starting build.
+# Target: Assembler.ml.depends, tags: { extension:ml, file:Assembler.ml, ocaml, ocamldep, quiet }
+/home/guilhem/.opam/4.07.0/bin/ocamldep.opt -modules Assembler.ml > Assembler.ml.depends
+# Target: Assembler.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:Assembler.cmo, file:Assembler.ml, implem, ocaml, quiet }
+/home/guilhem/.opam/4.07.0/bin/ocamlc.opt -c -o Assembler.cmo Assembler.ml
+# Target: Assembler.byte, tags: { byte, dont_link_with, extension:byte, file:Assembler.byte, link, ocaml, program, quiet }
+/home/guilhem/.opam/4.07.0/bin/ocamlc.opt Assembler.cmo -o Assembler.byte
+# Compilation successful.

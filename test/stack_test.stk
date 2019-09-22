@@ -1,0 +1,81 @@
+.text
+  a
+  READ
+  PRINT
+  10
+  PRINT
+
+  # Devrait afficher 0
+  # Début READ : 1 élément dans la liste
+  # On le pop (=> taille pile : 0)
+  # On met à jour stack_pointer (= 65536)
+  # Puis seulement on READ
+  # Ensuite on fait 65536 - stack_pointer + 48
+  # (48 : code ASCII de 0)
+  # (voir commentaires dans STKCompiler.mll)
+  # En réalité on fait 65535 - stack_pointer + 49
+  # car si 65535 est bien interprété en tant que tel par la VM,
+  # la 65536 est interprété comme -65536 ce qui fausse les calculs
+  stack_pointer
+  READ
+  MINUS
+  65535
+  ADD
+  49
+  ADD
+  PRINT
+
+  10
+  PRINT
+  a
+  READ
+  PRINT
+  10
+  PRINT
+
+  # Même raisonnement qu'avant
+  # La pile avant et après la séquence 10; PRINT; a; READ; PRINT; 10; PRINT
+  # a exactement le même état
+  stack_pointer
+  READ
+  MINUS
+  65535
+  ADD
+  49
+  ADD
+  PRINT
+
+  10
+  PRINT
+
+  # Devrait afficher 1 cette fois
+  a
+  stack_pointer
+  READ
+  MINUS
+  65535
+  ADD
+  49
+  ADD
+  PRINT
+
+  10
+  PRINT
+  
+  # 2 (le a précédent n'a pas été pop)
+  a
+  stack_pointer
+  READ
+  MINUS
+  65535
+  ADD
+  49
+  ADD
+  PRINT
+
+  10
+  PRINT
+  EXIT
+
+.data
+  a: 97

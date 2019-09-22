@@ -1,17 +1,56 @@
 #!/bin/sh
 
-echo 'Compiling ocamllex/STKCompiler.mll...'
+echo "build.sh [<file>]"
+echo "Compiles STKCompiler.mll and <file>, then run it"
+echo "<file> : name of a STK file without extension"
+echo "If not given, test/prog1.stk will be compiled and run instead."
+echo ""
+
+if [ $# -eq 0 ]
+then
+  set "test/prog1"
+fi 
+
+echo "Compiling ocamllex/STKCompiler.mll..."
 ocamllex ocamllex/STKCompiler.mll
-echo 'Done\nCompiling ocaml/STKCompiler.ml...'
+if [ $? -eq 0 ]
+then
+  echo "\nCompiling ocaml/STKCompiler.ml..."
+else
+  echo "Compilation of ocamllex/STKCompiler.mll failed."
+  exit 1
+fi
+
 mv ocamllex/STKCompiler.ml ocaml/STKCompiler.ml
 cd ocaml
 ocamlbuild STKCompiler.ml STKCompiler.byte
-echo 'Done\nCompiling test/prog1.stk...'
+if [ $? -eq 0 ]
+then
+  echo "\nCompiling ${1}.stk..."
+else
+  echo "Compilation of ocaml/STKCompiler.ml failed."
+  exit 1
+fi
+
 mv _build/STKCompiler.byte ../STKCompiler.byte
 cd ..
-./STKCompiler.byte test/prog1.stk prog1.asm
-echo 'Done\nCompiling prog1.asm...'
-./assembler/Assembler.byte prog1.asm
-echo 'Done\nExecuting prog1.btc...'
-./vm/VM.byte prog1.btc
-echo 'Done!'
+./STKCompiler.byte $1.stk
+if [ $? -eq 0 ]
+then
+  echo "\nCompiling ${1}.asm..."
+else
+  echo "Compilation of ${1}.stk failed."
+  exit 1
+fi
+
+./assembler/Assembler.byte $1.asm
+if [ $? -eq 0 ]
+then
+  echo "Done\n\nExecuting ${1}.btc..."
+else
+  echo "Compilation of ${1}.asm failed."
+  exit 1
+fi
+
+./vm/VM.byte $1.btc
+exit $?
