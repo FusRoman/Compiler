@@ -1,0 +1,5 @@
+Bug report
+
+--- STKCompiler ---
+
+When removing an element from the stack, the accumulator register (acc) is updated to store the previous one. This naturally causes an out-of-bounds exception when removing the last element. Initializing stack_pointer at 65535 instead of 65536 would fix the problem, but the final word would never be used. Having to check if the stack is empty every time in runtime would nullify - if not worse - the benefits of the accumulation register.

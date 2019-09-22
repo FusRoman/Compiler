@@ -1,8 +1,8 @@
 ### Starting build.
 # Target: VM.ml.depends, tags: { extension:ml, file:VM.ml, ocaml, ocamldep, quiet }
-/home/guilhem/.opam/4.07.0/bin/ocamldep.opt -modules VM.ml > VM.ml.depends
+/home/guilhem/.opam/4.07.0/bin/ocamldep.opt -modules VM.ml > VM.ml.depends # cached
 # Target: VM.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:VM.cmo, file:VM.ml, implem, ocaml, quiet }
-/home/guilhem/.opam/4.07.0/bin/ocamlc.opt -c -o VM.cmo VM.ml
+/home/guilhem/.opam/4.07.0/bin/ocamlc.opt -c -o VM.cmo VM.ml # cached
 # Target: VM.byte, tags: { byte, dont_link_with, extension:byte, file:VM.byte, link, ocaml, program, quiet }
-/home/guilhem/.opam/4.07.0/bin/ocamlc.opt VM.cmo -o VM.byte
+/home/guilhem/.opam/4.07.0/bin/ocamlc.opt VM.cmo -o VM.byte # cached
 # Compilation successful.

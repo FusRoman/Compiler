@@ -1,3 +1,5 @@
+open Printf
+
 (** Constantes de l'architecture : mémoire de taille 2^16, et 16 registres *)
 let memory_size = 65536
 let nb_registers = 16
@@ -28,36 +30,49 @@ let exec_instruction i =
      fait un cas par code *)
   match op_code i with
     | 0 -> (* NOP : ne rien faire *)
-      ()
+      printf "NOP\n"
 
     | 1 -> (* EXIT : arrêter l'exécution *)
+    printf "EXIT\n";
       exit 0
 
     | 2 -> (* PRINT : afficher un caractère *)
     begin
+      printf "PRINT: ";
       try
         print_char (char_of_int registers.(op1 i))
       with
       | Invalid_argument msg ->
         raise (Invalid_argument (Printf.sprintf "char_of_int: invalid value %d" registers.(op1 i)))
-    end
+    end;
+    printf "\n"
 
     | 3 -> (* CONST : charger une constante dans un registre *)
+      printf "CONST %d %d\n" (dest i) (const_op i);
       registers.(dest i) <- const_op i
         
     | 4 -> (* READ : lire une valeur en mémoire *)
+      printf "READ %d %d\n" (dest i) (op1 i);
+      begin
+        if dest i = 13 && op1 i = 14 then
+          printf "\tRegister 13: %d\n\tRegister14: %d\n" registers.(dest i) registers.(op1 i) 
+      end;
       registers.(dest i) <- memory.(registers.(op1 i))
 
     | 5 -> (* WRITE : écrire une valeur en mémoire *)
+      printf "WRITE %d %d\n" (dest i) (op1 i);
       memory.(registers.(dest i)) <- registers.(op1 i)
 
     | 6 -> (* READLAB : lire à une adresse immédiate *)
+      printf "DIRECTREAD %d %d\n" (dest i) (const_op i);
       registers.(dest i) <- memory.(const_op i)
 
     | 7 -> (* WRITELAB : écrire à une adresse immédiate *)
+      printf "DIRECTWRITE %d %d\n" (dest i) (const_op i);
       memory.(const_op i) <- registers.(dest i)
         
     | 8 -> (* JUMP : donner une nouvelle valeur au PC *)
+      printf "JUMP %d\n" (op1 i);
       program_counter := registers.(op1 i) - 1
     (* Le PC sera incrémenté de 1 après exécution de l'instruction, d'où
        décalage de la valeur lue. Alternativement on pourrait imposer comme
@@ -65,6 +80,7 @@ let exec_instruction i =
        précédent l'instruction cible souhaitée. *)
 
     | 9 -> (* JUMPWHEN : donner éventuellement une nouvelle valeur au PC *)
+      printf "JUMP %d WHEN %d\n" (op1 i) (op2 i);
       if registers.(op2 i) <> 0
       then program_counter := registers.(op1 i) - 1
 
@@ -73,9 +89,9 @@ let exec_instruction i =
 
     | op when 12 <= op && op <= 14 -> (* Op arithmétique unaire *)
       let unop = match op with
-        | 12 -> fun x -> x (* MOVE *)
-        | 13 -> (~-)       (* MINUS *)
-        | 14 -> lnot       (* NOT *)
+        | 12 -> printf "MOVE %d %d\n" (dest i) (op1 i); fun x -> x (* MOVE *)
+        | 13 -> printf "MINUS %d %d\n" (dest i) (op1 i); (~-)       (* MINUS *)
+        | 14 -> printf "NOT %d %d\n" (dest i) (op1 i); lnot       (* NOT *)
         | _ -> assert false
       in
       registers.(dest i) <- unop registers.(op1 i)
@@ -86,7 +102,7 @@ let exec_instruction i =
     | op when 16 <= op && op <= 28 -> (* Op arithmétique binaire *)
       let bti f = fun a b -> if f a b then 1 else 0 in
       let binop = match op with
-        | 16 -> (+)   (* ADD *)
+        | 16 -> printf "ADD %d %d %d\n" (dest i) (op1 i) (op2 i); (+)   (* ADD *)
         | 17 -> (-)   (* SUB *)
         | 18 -> ( * ) (* MULT *)
         | 19 -> (/)   (* DIV *)
@@ -94,7 +110,7 @@ let exec_instruction i =
         | 21 -> bti (=)  (* EQ *)
         | 22 -> bti (<>) (* NEQ *)
         | 23 -> bti (<)  (* LT *)
-        | 24 -> bti (<=) (* LE *)
+        | 24 -> printf "LE %d %d %d\n" (dest i) (op1 i) (op2 i); bti (<=) (* LE *)
         | 25 -> bti (>)  (* GT *)
         | 26 -> bti (>=) (* GE *)
         | 27 -> (land) (* AND *)
@@ -105,8 +121,8 @@ let exec_instruction i =
 
     | 30 | 31 as op ->
       let binop = match op with
-        | 30 -> (+) (* INCR *)
-        | 31 -> (-) (* DECR *)
+        | 30 -> printf "INCR %d %d\n" (dest i) (const_op i); (+) (* INCR *)
+        | 31 -> printf "DECR %d %d\n" (dest i) (const_op i); (-) (* DECR *)
         | _ -> assert false
       in
       registers.(dest i) <- binop registers.(dest i) (const_op i)
