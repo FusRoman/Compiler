@@ -1,0 +1,23 @@
+.text
+loop:
+    c
+    READ
+    PRINT
+    c
+    c
+    READ
+    1
+    ADD
+    c
+    WRITE
+    loop
+    c
+    READ
+    25
+    LE
+    JUMPWHEN
+    EXIT
+
+.data
+    c: 0
+    

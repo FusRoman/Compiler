@@ -1,1 +1,25 @@
-ADDRESS $r31 stack_pointer
+.text
+loop:
+    c
+    READ
+    PRINT
+    c
+    c
+    c
+    READ
+    1
+    ADD
+    WRITE
+    loop
+    c
+    READ
+    122
+    LE
+    JUMPWHEN
+    10
+    PRINT
+    EXIT
+
+.data
+    c: 97
+    

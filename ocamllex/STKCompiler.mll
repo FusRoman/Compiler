@@ -1,31 +1,46 @@
 {
+  open Printf
+
   let nbarg = Array.length Sys.argv
 
   let src = Sys.argv.(1)
   let lexbuf = Lexing.from_channel (open_in src)
 
   let output_file =
-    if nbarg >= 2 then
-      Sys.argv.(1)
+    if nbarg >= 3 then
+      Sys.argv.(2)
     else
-      "a.asmr"
+      "a.asm"
   let output = open_out output_file
 
-  type pushable = 
-    | Tag of string 
-    | Int of string 
-    | Reg of int
 
-  exception Compilation_Error of int * string
+  type position = {
+    lnum: int;
+    line: string
+  }
 
-  let fmt = Printf.sprintf
-  (*let put = Printf.fprintf output*)
+  exception Compilation_Error of position * string
+
+  let first_position = {lnum = 1; line = ""}
+
+  let next_line position = {
+    lnum = position.lnum + 1;
+    line = ""
+  }
+
+  let next_lexeme position =
+    {position with line = position.line ^ (Lexing.lexeme lexbuf)}
+
+
+  let fmt = sprintf
+  (*let put = fprintf output*)
 
   let register_str num_reg =
-    if num_reg < 0 || num_reg >= 32 then
-      raise (Compilation_Error (0, fmt "Invalid register number: %d" num_reg))
+    if num_reg < 0 || num_reg >= 16 then
+      raise (Failure (fmt "Invalid register number: %d" num_reg))
     else
       "$r" ^ (string_of_int num_reg)
+
 
   (* 
     On a le contrôle complet des registres puisque STK n'en utilise pas.
@@ -33,35 +48,44 @@
     auxquels on assigne un rôle spécial. 
   *)
   (* Registre dans lequel on mettra l'adresse de là où on stocke 'stack_pointer' *)
-  let spa = register_str 31
+  let spa = register_str 15
 
   (* Registre contenant la valeur de stack_pointer, autrement dit le sommet de la pile *)
-  let sp = register_str 30
+  let sp = register_str 14
+
+  (* Registre accumulateur *)
+  let acc = register_str 13
+
+
+  type pushable = 
+    | Tag of string 
+    | Int of string 
+    | Reg of int
 
   (* Faudra peut-être modifier la signature *)
   let push pushable =
     let put_specific () =
       match pushable with
       | Tag s ->
-        Printf.fprintf output "ADDRESS $r0 %s\n" s; 0
+        fprintf output "ADDRESS $r0 %s\n" s; 0
       | Int s ->
-        Printf.fprintf output "CONST $r0 %s\n" s; 0
+        fprintf output "CONST $r0 %s\n" s; 0
       | Reg x -> x
     in
     (*put "READ %s %s\n" sp spa;*)
-    Printf.fprintf output "DECR %s\n" sp;
-    Printf.fprintf output "WRITE %s %s\n" spa sp;
+    fprintf output "DECR %s 1\n" sp;
     let x = put_specific () in
-    Printf.fprintf output "WRITE %s %s\n" sp (register_str x)
+    fprintf output "WRITE %s %s\n" sp (register_str x);
+    fprintf output "WRITE %s %s\n" spa sp
 
   let pop dest =
     let rec pop_rec l =
       match l with
       | [] -> 
-        Printf.fprintf output "WRITE %s %s\n" spa sp
+        fprintf output "WRITE %s %s\n" spa sp
       | x::s ->
-        Printf.fprintf output "READ %s %s\n" (register_str x) sp;
-        Printf.fprintf output "INCR %s\n" sp;
+        fprintf output "READ %s %s\n" (register_str x) sp;
+        fprintf output "INCR %s 1\n" sp;
         pop_rec s
     in
     (*put "READ %s %s\n" sp spa;*)
@@ -77,101 +101,141 @@
     pop (make_list 0 [])
 }
 
-let letter = ['a'-'z' 'A'-'Z' '_']
+let letter = ['a'-'z' '_'] (* comprenait initialement A-Z, 
+    mais les commandes avec fautes de frappes seraient alors interprétées comme des tags *)
 let tag = letter(letter|['0'-'9'])*
 let integer = '-'?['0'-'9']+
-let blank = [' ' '\t' '\n'] (* Il devrait y avoir un caractère spécial *)
+let blank = [' ' '\t'] (* Il devrait y avoir un caractère spécial *)
 let comment = '#'_*'\n'
 
-rule dater = 
+rule dater_tag pos =
   parse
-  | comment     { dater lexbuf }
-  | blank       { dater lexbuf }
-  | tag blank* ':' blank* integer {
-    Printf.fprintf output "%s\n" (Lexing.lexeme lexbuf);
-    dater lexbuf
+  | comment     { dater_tag (next_lexeme pos) lexbuf }
+  | blank       { dater_tag (next_lexeme pos) lexbuf }
+  | ':'         {
+    error pos "Syntax error: unexpected ':'" lexbuf
   }
-  | _           {
-    raise (Compilation_Error (0, "Syntax error : only tag definitions are allowed after '.data'"))
+  | tag         {
+    let tag = Lexing.lexeme lexbuf in
+    fprintf output "%s:\n" tag;
+    dater_points (next_lexeme pos) tag lexbuf
+  }
+  | integer     {
+    error pos (fmt "Syntax error: found `%s` without a tag" (Lexing.lexeme lexbuf)) lexbuf
+  }
+  | '\n'        { dater_tag (next_line pos) lexbuf }
+  | eof         {}
+  | _           { 
+    error (next_lexeme pos) "Syntax error: only tag definitions are allowed after '.data'" lexbuf
   }
 
-and texter = 
+and dater_points pos previous =
   parse
-  | ".data"     { dater lexbuf }
+  | comment     { dater_points (next_lexeme pos) previous lexbuf }
+  | blank       { dater_points (next_lexeme pos) previous lexbuf }
+  | ':'         { dater_data (next_lexeme pos) previous lexbuf }
+  | tag         {
+   error (next_lexeme pos) (fmt "Syntax error: tag '%s' was not given a value" previous) lexbuf
+  }
+  | integer     {
+    error (next_lexeme pos) (fmt "Syntax error: found data '%s' directly after tag '%s'. You may have forgotten ':'." (Lexing.lexeme lexbuf) previous) lexbuf
+  }
+  | '\n'        { dater_points (next_line pos) previous lexbuf }
+  | eof         {
+    raise (Compilation_Error(pos, fmt "Syntax error: tag '%s' was not given a value" previous))
+  }
+  | _           { 
+    error (next_lexeme pos) (fmt "Syntax error while looking for ':' after declaration of tag '%s'" previous) lexbuf
+  }
+
+and dater_data pos previous =
+  parse
+  | comment     { dater_data (next_lexeme pos) previous lexbuf }
+  | blank       { dater_data (next_lexeme pos) previous lexbuf }
+  | ':'         { 
+    error (next_lexeme pos) "Syntax error: duplicate ':'" lexbuf
+  }
+  | tag         {
+   error (next_lexeme pos) (fmt "Syntax error: found tag '%s', expected a value" (Lexing.lexeme lexbuf)) lexbuf
+  }
+  | integer     {
+    fprintf output "%s\n" (Lexing.lexeme lexbuf);
+    dater_tag (next_lexeme pos) lexbuf
+  }
+  | '\n'        { dater_data (next_line pos) previous lexbuf }
+  | eof         {
+    raise (Compilation_Error(pos, fmt "Syntax error: tag '%s' was not given a value" previous))
+  }
+  | _           { 
+    error (next_lexeme pos) (fmt "Syntax error while looking for the value of tag '%s'" previous) lexbuf
+  }
+
+and texter pos = 
+  parse
+  | ".data"     { dater_tag (next_lexeme pos) lexbuf }
 
   (* detection des espaces blanc *)
-  | comment     { texter lexbuf }
-  | blank       { texter lexbuf }
-
-  (* rajouter des espaces blancs éventuels entre tag et : ? \b* *)
-  | tag blank* ':'   { 
-    Printf.fprintf output "%s\n" (Lexing.lexeme lexbuf);
-    texter lexbuf 
-  } 
-  | tag         { 
-    push (Tag (Lexing.lexeme lexbuf));
-    texter lexbuf
-  }
-  | integer     { 
-    push (Int (Lexing.lexeme lexbuf));
-    texter lexbuf 
-  }
+  | comment     { texter (next_lexeme pos) lexbuf }
+  | blank       { texter (next_lexeme pos) lexbuf }
+  | '\n'        { texter (next_line pos) lexbuf }
 
   (*  instruction qui n'affecte pas la pile *)
   | "NOP"       { 
-    Printf.fprintf output "NOP\n";
-    texter lexbuf
+    fprintf output "NOP\n";
+    texter (next_lexeme pos) lexbuf
   }
   | "EXIT"      { 
-    Printf.fprintf output "EXIT\n";
-    texter lexbuf
+    fprintf output "EXIT\n";
+    texter (next_lexeme pos) lexbuf
   }
 
   (* affiche le caractère au sommet de la pile *)
   | "PRINT"     { 
     pop [0];
-    Printf.fprintf output "PRINT $r0\n";
-    texter lexbuf
+    fprintf output "PRINT $r0\n";
+    texter (next_lexeme pos) lexbuf
   }
 
   (* instructions mémoire *)
   | "READ"      {
-    pop_n 2;
-    Printf.fprintf output "READ $r0 $r1\n";
-    push (Reg 0);
-    texter lexbuf
+    pop_n 1;
+    fprintf output "READ $r1 $r0\n";
+    push (Reg 1);
+    texter (next_lexeme pos) lexbuf
   }
 
   | "WRITE"     {
+    fprintf output "# - THE write - begin ------------------------------------\n";
     pop_n 2;
-    Printf.fprintf output "WRITE $r0 $r1\n";
-    texter lexbuf
+    fprintf output "WRITE $r0 $r1\n";
+    fprintf output "# - THE write - end --------------------------------------\n";
+    texter (next_lexeme pos) lexbuf
   }
 
   (* instruction jump *)
   | "JUMP"      {
     pop_n 1;
-    Printf.fprintf output "JUMP $r0\n";
-    texter lexbuf
+    fprintf output "JUMP $r0\n";
+    texter (next_lexeme pos) lexbuf
   }
   | "JUMPWHEN"  {
     pop_n 2;
-    Printf.fprintf output "JUMPWHEN $r0 $r1\n";
-    texter lexbuf
+    fprintf output "JUMP $r0 WHEN $r1\n";
+    texter (next_lexeme pos) lexbuf
   }
 
   (* instructions unaires *)
   | "MINUS"     {  
     pop_n 1;
-    Printf.fprintf output "MINUS $r0\n";
+    fprintf output "MINUS $r0\n";
     push (Reg 0);
-    texter lexbuf
+    texter (next_lexeme pos) lexbuf
   }
   | "NOT"       {
     pop_n 1;
-    Printf.fprintf output "NEG $r0\n";
+    fprintf output "NEG $r0\n";
     push (Reg 0);
-    texter lexbuf
+    texter (next_lexeme pos) lexbuf
   }
 
   (* instructions arithmétiques *)
@@ -180,34 +244,70 @@ and texter =
   | "LE"  | "GT"  | "GE"   | "AND"
   | "OR"        {
     pop_n 2;
-    Printf.fprintf output "%s $r0 $r0 $r1" (Lexing.lexeme lexbuf);
+    fprintf output "%s $r0 $r0 $r1\n" (Lexing.lexeme lexbuf);
     push (Reg 0);
-    texter lexbuf
+    texter (next_lexeme pos) lexbuf
   }
 
-  | _           {
-    raise (Compilation_Error (0, "Syntax error lol"))
+  (* rajouter des espaces blancs éventuels entre tag et : ? \b* *)
+  | tag blank* ':'   { 
+    fprintf output "%s\n" (Lexing.lexeme lexbuf);
+    texter (next_lexeme pos) lexbuf 
+  } 
+  | tag         {
+    push (Tag (Lexing.lexeme lexbuf));
+    texter (next_lexeme pos) lexbuf
+  }
+  | integer     { 
+    push (Int (Lexing.lexeme lexbuf));
+    texter (next_lexeme pos) lexbuf 
   }
 
-and lexer =
+  | eof         {
+    (* Ce n'est pas forcément une erreur de compilation *)
+  }
+
+  | _           { 
+    error (next_lexeme pos) "Syntax error" lexbuf
+  }
+
+and lexer pos =
   parse
-  | ".text"   { texter lexbuf }
-  | comment   { lexer lexbuf }
-  | blank     { lexer lexbuf }
-  | _         {raise (Compilation_Error (0, (fmt "Syntax error while looking for '.text'")))}
+  | ".text"   { texter (next_lexeme pos) lexbuf }
+  | comment   { lexer (next_lexeme pos) lexbuf }
+  | blank     { lexer (next_lexeme pos) lexbuf }
+  | '\n'      { lexer (next_line pos) lexbuf }
+  | eof       {
+    raise (Compilation_Error (pos, "Reached unexpected end of file"))
+  }
+  | _         { 
+    error (next_lexeme pos) (fmt "Syntax error while looking for '.text'") lexbuf
+  }
+
+and error pos msg =
+  parse
+  | '\n'      
+  | eof       { raise (Compilation_Error(pos, msg)) }
+  | _         { 
+    error (next_lexeme pos) msg lexbuf
+  }
+
 
 {
   let _ =
-    Printf.fprintf output "ADDRESS %s stack_pointer\n" spa;
+    let beginning = Sys.time () in
+    printf "Compiling %s...\n" src; 
+    fprintf output "ADDRESS %s stack_pointer\n" spa;
+    fprintf output "READ %s %s\n" sp spa;
     try
-      lexer lexbuf
-    with
-    | End_of_file ->
+      lexer first_position lexbuf;
       (* si succès -> *)
-      (* rajouter la ligne stack_pointer à 2^16 dans data *)
-      Printf.fprintf output "stack_pointer: 65536\n";
+      fprintf output "stack_pointer:\n65536";
       close_out output;
-      Printf.printf "Compilation STK -> ASM successful (00:00:00)\n"
-    | Compilation_Error (l, msg) ->
-      Printf.printf "[ERROR] Line %d: %s\n%s\n" l (Lexing.lexeme lexbuf) msg
+      printf "Compilation STK -> ASM successful (%fs)\n" (Sys.time () -. beginning)
+    with
+    | Compilation_Error (pos, msg) ->
+      printf "[ERROR] Line %d:\n%s\n%s\n" pos.lnum pos.line msg
+    | Failure msg ->
+      printf "[ERROR] The compilation failed. Error : %s\n" msg
 }
