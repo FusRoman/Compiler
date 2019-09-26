@@ -50,24 +50,14 @@
   (* 
     Liste des registres spéciaux
   *)
-  (* Registre dans lequel on mettra l'adresse de là où on stocke 'stack_pointer' *)
-  let spa = register_str 15
-  (* Registre contenant la valeur de stack_pointer, autrement dit le sommet de la pile *)
-  let sp = register_str 14
   (* 
-    Comme spa n'est jamais modifié, on peut n'y mettre l'adresse de stack_pointer qu'une seule fois, au début du programme. 
-    De même, sp n'est jamais modifié en dehors du code pour la gestion de la pile. 
-    On n'aura donc jamais besoin de le mettre à jour avec la valeur pointée par spa, sauf une fois au début.
-    Il est par contre nécessaire de mettre à jour stack_pointer afin que les langages plus haut niveau puissent l'utiliser.
-    On peut quand même faire économiser les 'WRITE spa sp' en remarquant que le seul moyen qu'a le STK d'accéder à sa valeur
-    est d'empiler d'abord stack_pointer, puis READ. Il peut y avoir des étapes intermédiaires (comme tag; READ; PRINT),
-    donc on ne peut pas juste tester la séquence 'stack_pointer; READ'. Un 'WRITE spa sp' par READ du STK, 
-    bien qu'étant non nécessaire dans certains cas, représente déjà une amélioration satisfaisante.
-
-    Si la pile déborde et finit par inclure stack_pointer, alors stack_pointer ne sera certes plus à jour,
-    mais le programme aurait été dysfonctionnel quand bien même on mette des 'WRITE spa sp' à la fin de chaque push et pop.
-    Donc peu importe dans ce cas.
+    Registre dans lequel on met l'adresse du sommet de la pile
+    Auparavant, stack_pointer était une donnée automatiquement rajoutée à la fin des fichiers ASM,
+    de façon à ce que les programmes plus haut niveau puissent y accéder.
+    Mais ceci est en fait réalisable en traitant le tag 'stack_pointer' comme un cas particulier dans ce fichier.
+    On peut ainsi stocker stack_pointer dans un registre, ce qui est plus pratique.
   *)
+  let sp = register_str 15
 
   (* 
     Registre accumulateur
@@ -80,13 +70,13 @@
     En guise de solution, nous avons simplement laissé un mot inutilisé à la fin, de façon à ne jamais sortir 
     en-dehors de la mémoire. C'est pourquoi la ligne rajoutée à la fin du fichier compilé inclut 65535 et pas 65536.
   *)
-  let acc = register_str 13
+  let acc = register_str 14
 
 
   type pushable = 
     | Tag of string 
     | Int of string 
-    | Reg of int
+    | Reg of string
 
   (*
     Un programme doit dans les faits démarrer par un push ; avant, il ne peut faire que des NOP ou des EXIT.
@@ -101,8 +91,8 @@
           fprintf output "ADDRESS %s %s\n" acc s
         | Int s ->
           fprintf output "CONST %s %s\n" acc s
-        | Reg x ->
-          fprintf output "MOVE %s %s\n" acc (register_str x)
+        | Reg s ->
+          fprintf output "MOVE %s %s\n" acc s
     in
     let _ =
       if pos.acc_empty then
@@ -167,6 +157,25 @@
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" dest1 sp;
     dest1
+
+  (* Buggé ! *)
+  let extract_tag s =
+    let length = String.length s in
+    let i = ref 0 in
+    let nonwhite = ref true in
+    while !i < length && !nonwhite do
+      let c = String.get s !i in
+      if c <> ' ' && c <> '\t' 
+        && c <> '\n' && c <> ':' then
+        incr i
+      else
+        nonwhite := false
+    done;
+    if !i = 0 then
+      (* Ne devrait jamais arriver *)
+      raise (Failure (fmt "Failed while extracting the tag name in '%s'" s))
+    else
+      String.sub s 0 !i
 }
 
 let letter = ['a'-'z' '_'] (* comprenait initialement A-Z, 
@@ -293,14 +302,6 @@ and texter pos =
     texter (next_lexeme pos) lexbuf
   }
 
-  | "READ"      {
-    (* on doit mettre à jour la valeur de stack_pointer, au cas où c'est ce qu'on veut lire *)
-    no_push pos error;
-    fprintf output "WRITE %s %s\n" spa sp;
-    fprintf output "READ %s %s\n" acc acc; 
-    texter (next_lexeme pos) lexbuf
-  }
-
   | "WRITE"     {
     pop2_no_return 0 (fun dest1 -> 
         fprintf output "WRITE %s %s\n" dest1 acc)
@@ -315,7 +316,7 @@ and texter pos =
     texter (next_lexeme pos) lexbuf
   }
 
-  | "MINUS" | "NOT"       {
+  | "READ" | "MINUS" | "NOT"       {
     no_push pos error;
     fprintf output "%s %s %s\n" (Lexing.lexeme lexbuf) acc acc;
     texter (next_lexeme pos) lexbuf
@@ -332,13 +333,30 @@ and texter pos =
 
   (* Définition de tag *)
   | tag blank* ':'   {
-    fprintf output "%s\n" (Lexing.lexeme lexbuf);
-    texter (next_lexeme pos) lexbuf 
+    let tag = extract_tag (Lexing.lexeme lexbuf) in
+    if tag = "stack_pointer" then
+      error pos tag 
+        "'stack_pointer' is a reserved word and can not be used to name new tags" lexbuf
+    else
+    begin
+      fprintf output "%s:\n" tag;
+      texter (next_lexeme pos) lexbuf
+    end
   } 
 
   (* Empilement de tag *)
   | tag         {
-    let pos' = push (Tag (Lexing.lexeme lexbuf)) pos in
+    (* Traiter le cas particulier stack_pointer ?
+    => empiler la valeur du registre 
+       ou calculer la vraie taille de la pile en incluant les registres intermédiaires (info plus utile haut niveau) ? *)
+    let tag = Lexing.lexeme lexbuf in
+    let pos' = 
+      if tag = "stack_pointer" then
+        (* pour l'instant, juste la valeur du registre *)
+        push (Reg sp) pos
+      else
+        push (Tag tag) pos
+    in
     texter (next_lexeme pos') lexbuf
   }
 
@@ -382,11 +400,9 @@ and error pos token msg =
 {
   let _ =
     let beginning = Sys.time () in
-    fprintf output "ADDRESS %s stack_pointer\n" spa;
-    fprintf output "READ %s %s\n" sp spa;
+    fprintf output "CONST %s 65535\n" sp;
     try
       lexer first_position lexbuf;
-      fprintf output "stack_pointer:\n65535";
       close_out output;
       printf "Compilation STK -> ASM successful (%fs)\n" (Sys.time () -. beginning);
       exit 0

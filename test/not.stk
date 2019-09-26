@@ -1,0 +1,13 @@
+.text
+not             : # :)
+    0
+    NOT
+    97
+    ADD
+    PRINT
+
+    10
+    PRINT
+    EXIT
+    not
+    JUMP

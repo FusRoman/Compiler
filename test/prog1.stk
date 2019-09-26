@@ -19,7 +19,11 @@ loop:
 end:
     10
     PRINT
+    65535
     stack_pointer
+    SUB
+    48
+    ADD
     PRINT
     10
     PRINT
