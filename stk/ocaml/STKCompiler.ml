@@ -1,4 +1,4 @@
-# 1 "ocamllex/STKCompiler.mll"
+# 1 "stk/STKCompiler.mll"
  
   open Printf
 
@@ -24,7 +24,7 @@
     acc_empty: bool
   }
 
-  exception Compilation_Error of position * string
+  exception Compilation_Error of position * string * string
 
   let first_position = {lnum = 1; line = ""; acc_empty = true}
 
@@ -70,7 +70,17 @@
     Donc peu importe dans ce cas.
   *)
 
-  (* Registre accumulateur *)
+  (* 
+    Registre accumulateur
+    Stocke ce qui devrait être le sommet de la pile pour limiter les interactions avec cette dernière.
+
+    Lorsqu'on retire un élément de la pile, les programmes mettront automatiquement l'élément précédent dans acc. 
+    Cela pose un problème lorsqu'il n'y en a pas, i.e. qu'on a vidé la pile. La machine virtuelle lance une exception
+    out of bounds. Faire un test en runtime à chaque fois pour vérifier si la pile est vide annule tous les bénéfices 
+    du registre accumulateur, et vérifier à la compilation si ce test en runtime est nécessaire ou pas est impossible.
+    En guise de solution, nous avons simplement laissé un mot inutilisé à la fin, de façon à ne jamais sortir 
+    en-dehors de la mémoire. C'est pourquoi la ligne rajoutée à la fin du fichier compilé inclut 65535 et pas 65536.
+  *)
   let acc = register_str 13
 
 
@@ -79,6 +89,12 @@
     | Int of string 
     | Reg of int
 
+  (*
+    Un programme doit dans les faits démarrer par un push ; avant, il ne peut faire que des NOP ou des EXIT.
+    A partir du premier élément dans la pile, il devient possible de faire un JUMP et vérifier que la pile est 
+    nécessairement vide à un certain endroit du programme est trop compliqué (voire impossible).
+    En revanche, pour le premier push, on sait que la pile est nécessairement vide donc on peut agir en conséquence.
+  *)
   let push pushable pos =
     let fill_acc () =
         match pushable with
@@ -101,6 +117,12 @@
     fprintf output "DECR %s 1\n" sp;
     {pos with acc_empty = false}
 
+  (* Si on tombe sur un pop avant le premier push, on sait qu'il y a erreur. *)
+  let no_push pos error =
+    if pos.acc_empty then
+      error (next_lexeme pos) (Lexing.lexeme lexbuf)
+        "No push instruction before first popping" lexbuf
+
   (*
     Utilisé par les instructions qui prennent un élément sur la pile et n'en remettent pas (PRINT et JUMP).
     Diminue la pile de 1 et met le nouveau sommet dans acc.
@@ -108,8 +130,8 @@
     Pour les instructions à 1 argument et retournant un résultat, il suffit de stocker le résultat dans acc ;
     aucun appel à une fonction pop n'est nécessaire dans ce cas.
   *)
-  (* Est-ce que j'aurais fait l'INCR et le READ dans le mauvais sens ? *)
-  let pop1 () =
+  let pop1 pos error =
+    no_push pos error;
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" acc sp
 
@@ -123,7 +145,8 @@
       qu'on considère. Au moment de l'appel, sp pointera vers le nouveau sommet de la pile.
     - On met à jour acc avec la nouvelle valeur du sommet de la pile.
   *)
-  let pop2_no_return dest1 instr =
+  let pop2_no_return dest1 instr pos  error=
+    no_push pos error;
     let dest1 = register_str dest1 in
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" dest1 sp;
@@ -139,13 +162,14 @@
     sp pointera de nouveau le sommet de la pile sans avoir été modifié.
     Retourne la représentation du registre dest1.
   *)
-  let pop2_return dest1 =
+  let pop2_return dest1 pos error =
+    no_push pos error;
     let dest1 = register_str dest1 in
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" dest1 sp;
     dest1
 
-# 149 "ocamllex/STKCompiler.ml"
+# 173 "stk/STKCompiler.ml"
 let __ocaml_lex_tables = {
   Lexing.lex_base =
    "\000\000\248\255\249\255\011\000\021\000\031\000\252\255\253\255\
@@ -420,54 +444,56 @@ let rec dater_tag pos lexbuf =
 and __ocaml_lex_dater_tag_rec pos lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 159 "ocamllex/STKCompiler.mll"
+# 183 "stk/STKCompiler.mll"
                 ( dater_tag (next_line pos) lexbuf )
-# 426 "ocamllex/STKCompiler.ml"
+# 450 "stk/STKCompiler.ml"
 
   | 1 ->
-# 160 "ocamllex/STKCompiler.mll"
+# 184 "stk/STKCompiler.mll"
                 ( dater_tag (next_lexeme pos) lexbuf )
-# 431 "ocamllex/STKCompiler.ml"
+# 455 "stk/STKCompiler.ml"
 
   | 2 ->
-# 161 "ocamllex/STKCompiler.mll"
+# 185 "stk/STKCompiler.mll"
                 ( dater_tag (next_line pos) lexbuf )
-# 436 "ocamllex/STKCompiler.ml"
+# 460 "stk/STKCompiler.ml"
 
   | 3 ->
-# 163 "ocamllex/STKCompiler.mll"
+# 187 "stk/STKCompiler.mll"
                 (
-    error pos "Syntax error: unexpected ':'" lexbuf
+    error pos (Lexing.lexeme lexbuf) "Syntax error: unexpected ':'" lexbuf
   )
-# 443 "ocamllex/STKCompiler.ml"
+# 467 "stk/STKCompiler.ml"
 
   | 4 ->
-# 167 "ocamllex/STKCompiler.mll"
+# 191 "stk/STKCompiler.mll"
                 (
     let tag = Lexing.lexeme lexbuf in
     fprintf output "%s:\n" tag;
     dater_points (next_lexeme pos) tag lexbuf
   )
-# 452 "ocamllex/STKCompiler.ml"
+# 476 "stk/STKCompiler.ml"
 
   | 5 ->
-# 173 "ocamllex/STKCompiler.mll"
+# 197 "stk/STKCompiler.mll"
                 (
-    error pos (fmt "Syntax error: found `%s` without a tag" (Lexing.lexeme lexbuf)) lexbuf
+    let token = Lexing.lexeme lexbuf in
+    error pos token (fmt "Syntax error: found `%s` without a tag" token) lexbuf
   )
-# 459 "ocamllex/STKCompiler.ml"
+# 484 "stk/STKCompiler.ml"
 
   | 6 ->
-# 177 "ocamllex/STKCompiler.mll"
+# 202 "stk/STKCompiler.mll"
                 ()
-# 464 "ocamllex/STKCompiler.ml"
+# 489 "stk/STKCompiler.ml"
 
   | 7 ->
-# 179 "ocamllex/STKCompiler.mll"
+# 204 "stk/STKCompiler.mll"
                 ( 
-    error (next_lexeme pos) "Syntax error: only tag definitions are allowed after '.data'" lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      "Syntax error: only tag definitions are allowed after '.data'" lexbuf
   )
-# 471 "ocamllex/STKCompiler.ml"
+# 497 "stk/STKCompiler.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_dater_tag_rec pos lexbuf __ocaml_lex_state
@@ -477,52 +503,59 @@ and dater_points pos previous lexbuf =
 and __ocaml_lex_dater_points_rec pos previous lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 187 "ocamllex/STKCompiler.mll"
+# 213 "stk/STKCompiler.mll"
                 ( dater_points (next_line pos) previous lexbuf )
-# 483 "ocamllex/STKCompiler.ml"
+# 509 "stk/STKCompiler.ml"
 
   | 1 ->
-# 188 "ocamllex/STKCompiler.mll"
+# 214 "stk/STKCompiler.mll"
                 ( dater_points (next_lexeme pos) previous lexbuf )
-# 488 "ocamllex/STKCompiler.ml"
+# 514 "stk/STKCompiler.ml"
 
   | 2 ->
-# 189 "ocamllex/STKCompiler.mll"
+# 215 "stk/STKCompiler.mll"
                 ( dater_points (next_line pos) previous lexbuf )
-# 493 "ocamllex/STKCompiler.ml"
+# 519 "stk/STKCompiler.ml"
 
   | 3 ->
-# 190 "ocamllex/STKCompiler.mll"
+# 216 "stk/STKCompiler.mll"
                 ( dater_data (next_lexeme pos) previous lexbuf )
-# 498 "ocamllex/STKCompiler.ml"
+# 524 "stk/STKCompiler.ml"
 
   | 4 ->
-# 192 "ocamllex/STKCompiler.mll"
+# 218 "stk/STKCompiler.mll"
                 (
-   error (next_lexeme pos) (fmt "Syntax error: tag '%s' was not given a value" previous) lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error: tag '%s' was not given a value" previous) lexbuf
   )
-# 505 "ocamllex/STKCompiler.ml"
+# 532 "stk/STKCompiler.ml"
 
   | 5 ->
-# 196 "ocamllex/STKCompiler.mll"
+# 223 "stk/STKCompiler.mll"
                 (
-    error (next_lexeme pos) (fmt "Syntax error: found data '%s' directly after tag '%s'. You may have forgotten ':'." (Lexing.lexeme lexbuf) previous) lexbuf
+    let token = Lexing.lexeme lexbuf in
+    error (next_lexeme pos) token (fmt 
+        "Syntax error: found data '%s' directly after tag '%s'. You may have forgotten ':'." 
+        token previous) 
+      lexbuf
   )
-# 512 "ocamllex/STKCompiler.ml"
+# 543 "stk/STKCompiler.ml"
 
   | 6 ->
-# 200 "ocamllex/STKCompiler.mll"
+# 231 "stk/STKCompiler.mll"
                 (
-    raise (Compilation_Error(pos, fmt "Syntax error: tag '%s' was not given a value" previous))
+    raise (Compilation_Error(pos, (Lexing.lexeme lexbuf), 
+      fmt "Syntax error: tag '%s' was not given a value" previous))
   )
-# 519 "ocamllex/STKCompiler.ml"
+# 551 "stk/STKCompiler.ml"
 
   | 7 ->
-# 204 "ocamllex/STKCompiler.mll"
+# 236 "stk/STKCompiler.mll"
                 ( 
-    error (next_lexeme pos) (fmt "Syntax error while looking for ':' after declaration of tag '%s'" previous) lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error while looking for ':' after declaration of tag '%s'" previous) lexbuf
   )
-# 526 "ocamllex/STKCompiler.ml"
+# 559 "stk/STKCompiler.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_dater_points_rec pos previous lexbuf __ocaml_lex_state
@@ -532,55 +565,59 @@ and dater_data pos previous lexbuf =
 and __ocaml_lex_dater_data_rec pos previous lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 212 "ocamllex/STKCompiler.mll"
+# 245 "stk/STKCompiler.mll"
                 ( dater_data (next_line pos) previous lexbuf )
-# 538 "ocamllex/STKCompiler.ml"
+# 571 "stk/STKCompiler.ml"
 
   | 1 ->
-# 213 "ocamllex/STKCompiler.mll"
+# 246 "stk/STKCompiler.mll"
                 ( dater_data (next_lexeme pos) previous lexbuf )
-# 543 "ocamllex/STKCompiler.ml"
+# 576 "stk/STKCompiler.ml"
 
   | 2 ->
-# 214 "ocamllex/STKCompiler.mll"
+# 247 "stk/STKCompiler.mll"
                 ( dater_data (next_line pos) previous lexbuf )
-# 548 "ocamllex/STKCompiler.ml"
+# 581 "stk/STKCompiler.ml"
 
   | 3 ->
-# 216 "ocamllex/STKCompiler.mll"
+# 249 "stk/STKCompiler.mll"
                 ( 
-    error (next_lexeme pos) "Syntax error: duplicate ':'" lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf) "Syntax error: duplicate ':'" lexbuf
   )
-# 555 "ocamllex/STKCompiler.ml"
+# 588 "stk/STKCompiler.ml"
 
   | 4 ->
-# 220 "ocamllex/STKCompiler.mll"
+# 253 "stk/STKCompiler.mll"
                 (
-   error (next_lexeme pos) (fmt "Syntax error: found tag '%s', expected a value" (Lexing.lexeme lexbuf)) lexbuf
+    let token = Lexing.lexeme lexbuf in
+    error (next_lexeme pos) token
+      (fmt "Syntax error: found tag '%s', expected a value" token) lexbuf
   )
-# 562 "ocamllex/STKCompiler.ml"
+# 597 "stk/STKCompiler.ml"
 
   | 5 ->
-# 224 "ocamllex/STKCompiler.mll"
+# 259 "stk/STKCompiler.mll"
                 (
     fprintf output "%s\n" (Lexing.lexeme lexbuf);
     dater_tag (next_lexeme pos) lexbuf
   )
-# 570 "ocamllex/STKCompiler.ml"
+# 605 "stk/STKCompiler.ml"
 
   | 6 ->
-# 229 "ocamllex/STKCompiler.mll"
+# 264 "stk/STKCompiler.mll"
                 (
-    raise (Compilation_Error(pos, fmt "Syntax error: tag '%s' was not given a value" previous))
+    raise (Compilation_Error(pos, (Lexing.lexeme lexbuf),
+      fmt "Syntax error: tag '%s' was not given a value" previous))
   )
-# 577 "ocamllex/STKCompiler.ml"
+# 613 "stk/STKCompiler.ml"
 
   | 7 ->
-# 233 "ocamllex/STKCompiler.mll"
+# 269 "stk/STKCompiler.mll"
                 ( 
-    error (next_lexeme pos) (fmt "Syntax error while looking for the value of tag '%s'" previous) lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error while looking for the value of tag '%s'" previous) lexbuf
   )
-# 584 "ocamllex/STKCompiler.ml"
+# 621 "stk/STKCompiler.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_dater_data_rec pos previous lexbuf __ocaml_lex_state
@@ -590,134 +627,126 @@ and texter pos lexbuf =
 and __ocaml_lex_texter_rec pos lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 241 "ocamllex/STKCompiler.mll"
+# 278 "stk/STKCompiler.mll"
                 ( dater_tag (next_lexeme pos) lexbuf )
-# 596 "ocamllex/STKCompiler.ml"
+# 633 "stk/STKCompiler.ml"
 
   | 1 ->
-# 244 "ocamllex/STKCompiler.mll"
+# 281 "stk/STKCompiler.mll"
                 ( texter (next_line pos) lexbuf )
-# 601 "ocamllex/STKCompiler.ml"
+# 638 "stk/STKCompiler.ml"
 
   | 2 ->
-# 245 "ocamllex/STKCompiler.mll"
+# 282 "stk/STKCompiler.mll"
                 ( texter (next_lexeme pos) lexbuf )
-# 606 "ocamllex/STKCompiler.ml"
+# 643 "stk/STKCompiler.ml"
 
   | 3 ->
-# 246 "ocamllex/STKCompiler.mll"
+# 283 "stk/STKCompiler.mll"
                 ( texter (next_line pos) lexbuf )
-# 611 "ocamllex/STKCompiler.ml"
+# 648 "stk/STKCompiler.ml"
 
   | 4 ->
-# 248 "ocamllex/STKCompiler.mll"
+# 285 "stk/STKCompiler.mll"
                         ( 
     fprintf output "%s\n" (Lexing.lexeme lexbuf);
     texter (next_lexeme pos) lexbuf
   )
-# 619 "ocamllex/STKCompiler.ml"
+# 656 "stk/STKCompiler.ml"
 
   | 5 ->
-# 253 "ocamllex/STKCompiler.mll"
+# 290 "stk/STKCompiler.mll"
                         (
     fprintf output "%s %s\n" (Lexing.lexeme lexbuf) acc;
-    pop1 ();
+    pop1 pos error;
     texter (next_lexeme pos) lexbuf
   )
-# 628 "ocamllex/STKCompiler.ml"
+# 665 "stk/STKCompiler.ml"
 
   | 6 ->
-# 259 "ocamllex/STKCompiler.mll"
+# 296 "stk/STKCompiler.mll"
                 (
-    (*pop_n 1;
     (* on doit mettre à jour la valeur de stack_pointer, au cas où c'est ce qu'on veut lire *)
-    fprintf output "WRITE %s %s\n" spa sp;
-    fprintf output "READ $r1 $r0\n";
-    push (Reg 1);*)
+    no_push pos error;
     fprintf output "WRITE %s %s\n" spa sp;
     fprintf output "READ %s %s\n" acc acc; 
     texter (next_lexeme pos) lexbuf
   )
-# 642 "ocamllex/STKCompiler.ml"
+# 676 "stk/STKCompiler.ml"
 
   | 7 ->
-# 270 "ocamllex/STKCompiler.mll"
+# 304 "stk/STKCompiler.mll"
                 (
-    (*pop_n 2;
-    fprintf output "WRITE $r0 $r1\n";*)
-    pop2_no_return 0 (fun dest1 -> fprintf output "WRITE %s %s\n" dest1 acc);
+    pop2_no_return 0 (fun dest1 -> 
+        fprintf output "WRITE %s %s\n" dest1 acc)
+       pos error;
     texter (next_lexeme pos) lexbuf
   )
-# 652 "ocamllex/STKCompiler.ml"
+# 686 "stk/STKCompiler.ml"
 
   | 8 ->
-# 277 "ocamllex/STKCompiler.mll"
+# 311 "stk/STKCompiler.mll"
                 (
-    (*pop_n 2;
-    fprintf output "JUMP $r0 WHEN $r1\n";*)
-    pop2_no_return 0 (fun dest1 -> fprintf output "JUMP %s WHEN %s\n" dest1 acc);
+    pop2_no_return 0 (fun dest1 -> 
+        fprintf output "JUMP %s WHEN %s\n" dest1 acc)
+      pos error;
     texter (next_lexeme pos) lexbuf
   )
-# 662 "ocamllex/STKCompiler.ml"
+# 696 "stk/STKCompiler.ml"
 
   | 9 ->
-# 284 "ocamllex/STKCompiler.mll"
+# 318 "stk/STKCompiler.mll"
                           (
-    (*pop_n 1;
-    fprintf output "NEG $r0 $r0\n";
-    push (Reg 0);*)
+    no_push pos error;
     fprintf output "%s %s %s\n" (Lexing.lexeme lexbuf) acc acc;
     texter (next_lexeme pos) lexbuf
   )
-# 673 "ocamllex/STKCompiler.ml"
+# 705 "stk/STKCompiler.ml"
 
   | 10 ->
-# 295 "ocamllex/STKCompiler.mll"
+# 327 "stk/STKCompiler.mll"
                 (
-    (*pop_n 2;
-    fprintf output "%s $r0 $r0 $r1\n" (Lexing.lexeme lexbuf);
-    push (Reg 0);*)
-    let dest1 = pop2_return 0 in
+    let dest1 = pop2_return 0 pos error in
     fprintf output "%s %s %s %s\n" (Lexing.lexeme lexbuf) acc dest1 acc;
     texter (next_lexeme pos) lexbuf
   )
-# 685 "ocamllex/STKCompiler.ml"
+# 714 "stk/STKCompiler.ml"
 
   | 11 ->
-# 305 "ocamllex/STKCompiler.mll"
+# 334 "stk/STKCompiler.mll"
                      (
     fprintf output "%s\n" (Lexing.lexeme lexbuf);
     texter (next_lexeme pos) lexbuf 
   )
-# 693 "ocamllex/STKCompiler.ml"
+# 722 "stk/STKCompiler.ml"
 
   | 12 ->
-# 311 "ocamllex/STKCompiler.mll"
+# 340 "stk/STKCompiler.mll"
                 (
     let pos' = push (Tag (Lexing.lexeme lexbuf)) pos in
     texter (next_lexeme pos') lexbuf
   )
-# 701 "ocamllex/STKCompiler.ml"
+# 730 "stk/STKCompiler.ml"
 
   | 13 ->
-# 317 "ocamllex/STKCompiler.mll"
+# 346 "stk/STKCompiler.mll"
                 ( 
     let pos' = push (Int (Lexing.lexeme lexbuf)) pos in
     texter (next_lexeme pos') lexbuf 
   )
-# 709 "ocamllex/STKCompiler.ml"
+# 738 "stk/STKCompiler.ml"
 
   | 14 ->
-# 322 "ocamllex/STKCompiler.mll"
+# 351 "stk/STKCompiler.mll"
                 ()
-# 714 "ocamllex/STKCompiler.ml"
+# 743 "stk/STKCompiler.ml"
 
   | 15 ->
-# 324 "ocamllex/STKCompiler.mll"
+# 353 "stk/STKCompiler.mll"
                 ( 
-    error (next_lexeme pos) "Syntax error" lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf) "Syntax error" lexbuf
   )
-# 721 "ocamllex/STKCompiler.ml"
+# 750 "stk/STKCompiler.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_texter_rec pos lexbuf __ocaml_lex_state
@@ -727,62 +756,63 @@ and lexer pos lexbuf =
 and __ocaml_lex_lexer_rec pos lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 332 "ocamllex/STKCompiler.mll"
+# 361 "stk/STKCompiler.mll"
               ( texter (next_lexeme pos) lexbuf )
-# 733 "ocamllex/STKCompiler.ml"
+# 762 "stk/STKCompiler.ml"
 
   | 1 ->
-# 333 "ocamllex/STKCompiler.mll"
+# 362 "stk/STKCompiler.mll"
               ( lexer (next_line pos) lexbuf )
-# 738 "ocamllex/STKCompiler.ml"
+# 767 "stk/STKCompiler.ml"
 
   | 2 ->
-# 334 "ocamllex/STKCompiler.mll"
+# 363 "stk/STKCompiler.mll"
               ( lexer (next_lexeme pos) lexbuf )
-# 743 "ocamllex/STKCompiler.ml"
+# 772 "stk/STKCompiler.ml"
 
   | 3 ->
-# 335 "ocamllex/STKCompiler.mll"
+# 364 "stk/STKCompiler.mll"
               ( lexer (next_line pos) lexbuf )
-# 748 "ocamllex/STKCompiler.ml"
+# 777 "stk/STKCompiler.ml"
 
   | 4 ->
-# 336 "ocamllex/STKCompiler.mll"
+# 365 "stk/STKCompiler.mll"
               (
-    raise (Compilation_Error (pos, "Reached unexpected end of file"))
+    raise (Compilation_Error (pos, "end of file", "Reached unexpected end of file"))
   )
-# 755 "ocamllex/STKCompiler.ml"
+# 784 "stk/STKCompiler.ml"
 
   | 5 ->
-# 339 "ocamllex/STKCompiler.mll"
+# 368 "stk/STKCompiler.mll"
               ( 
-    error (next_lexeme pos) (fmt "Syntax error while looking for '.text'") lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error while looking for '.text'") lexbuf
   )
-# 762 "ocamllex/STKCompiler.ml"
+# 792 "stk/STKCompiler.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
       __ocaml_lex_lexer_rec pos lexbuf __ocaml_lex_state
 
-and error pos msg lexbuf =
-   __ocaml_lex_error_rec pos msg lexbuf 114
-and __ocaml_lex_error_rec pos msg lexbuf __ocaml_lex_state =
+and error pos token msg lexbuf =
+   __ocaml_lex_error_rec pos token msg lexbuf 114
+and __ocaml_lex_error_rec pos token msg lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 348 "ocamllex/STKCompiler.mll"
-              ( raise (Compilation_Error(pos, msg)) )
-# 774 "ocamllex/STKCompiler.ml"
+# 378 "stk/STKCompiler.mll"
+              ( raise (Compilation_Error(pos, token, msg)) )
+# 804 "stk/STKCompiler.ml"
 
   | 1 ->
-# 349 "ocamllex/STKCompiler.mll"
-              ( error (next_lexeme pos) msg lexbuf )
-# 779 "ocamllex/STKCompiler.ml"
+# 379 "stk/STKCompiler.mll"
+              ( error (next_lexeme pos) token msg lexbuf )
+# 809 "stk/STKCompiler.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf;
-      __ocaml_lex_error_rec pos msg lexbuf __ocaml_lex_state
+      __ocaml_lex_error_rec pos token msg lexbuf __ocaml_lex_state
 
 ;;
 
-# 352 "ocamllex/STKCompiler.mll"
+# 382 "stk/STKCompiler.mll"
  
   let _ =
     let beginning = Sys.time () in
@@ -790,16 +820,16 @@ and __ocaml_lex_error_rec pos msg lexbuf __ocaml_lex_state =
     fprintf output "READ %s %s\n" sp spa;
     try
       lexer first_position lexbuf;
-      fprintf output "stack_pointer:\n65536";
+      fprintf output "stack_pointer:\n65535";
       close_out output;
       printf "Compilation STK -> ASM successful (%fs)\n" (Sys.time () -. beginning);
       exit 0
     with
-    | Compilation_Error (pos, msg) ->
-      printf "[ERROR] Line %d, token '%s':\n%s\n%s\n" pos.lnum (Lexing.lexeme lexbuf) pos.line msg;
+    | Compilation_Error (pos, token, msg) ->
+      printf "[ERROR] Line %d, token '%s':\n%s\n%s\n" pos.lnum token pos.line msg;
       exit 1
     | Failure msg ->
       printf "[ERROR] The compilation failed. Error : %s\n" msg;
       exit 1
 
-# 806 "ocamllex/STKCompiler.ml"
+# 836 "stk/STKCompiler.ml"

@@ -1,0 +1,63 @@
+.text
+salut:
+  #salut
+  #-1
+  #ADD
+  83
+  PRINT
+  84
+  PRINT
+  79
+  PRINT
+  80
+  PRINT
+  32
+  PRINT
+  84
+  PRINT
+  72
+  PRINT
+  69
+  PRINT
+  32
+  PRINT
+  80
+  PRINT
+  82
+  PRINT
+  79
+  PRINT
+  71
+  PRINT
+  82
+  PRINT
+  65
+  PRINT
+  77
+  PRINT
+  n
+  0
+  WRITE
+loop:
+  33
+  PRINT
+  n
+  n
+  READ
+  1
+  ADD
+  WRITE
+  loop
+  n
+  READ
+  10
+  LT
+  JUMPWHEN
+  10
+  PRINT
+  salut
+  JUMP
+  EXIT # Jamais exécuté de toute façon
+
+.data
+n: 0

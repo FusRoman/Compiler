@@ -72,4 +72,4 @@ EXIT
 c:
 97
 stack_pointer:
-65536
+65535

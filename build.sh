@@ -11,30 +11,32 @@ then
   set "test/prog1"
 fi 
 
-echo "Compiling ocamllex/STKCompiler.mll..."
-ocamllex ocamllex/STKCompiler.mll
+echo "Compiling stk/STKCompiler.mll..."
+ocamllex stk/STKCompiler.mll
 if [ $? -eq 0 ]
 then
-  echo "\nCompiling ocaml/STKCompiler.ml..."
+  echo "\nCompiling stk/ocaml/STKCompiler.ml..."
 else
-  echo "Compilation of ocamllex/STKCompiler.mll failed."
+  echo "Compilation of stk/STKCompiler.mll failed."
   exit 1
 fi
 
-mv ocamllex/STKCompiler.ml ocaml/STKCompiler.ml
+cd stk
+mkdir ocaml
+mv STKCompiler.ml ocaml/STKCompiler.ml
 cd ocaml
 ocamlbuild STKCompiler.ml STKCompiler.byte
 if [ $? -eq 0 ]
 then
   echo "\nCompiling ${1}.stk..."
 else
-  echo "Compilation of ocaml/STKCompiler.ml failed."
+  echo "Compilation of stk/ocaml/STKCompiler.ml failed."
   exit 1
 fi
 
 mv _build/STKCompiler.byte ../STKCompiler.byte
-cd ..
-./STKCompiler.byte $1.stk
+cd ../..
+./stk/STKCompiler.byte $1.stk
 if [ $? -eq 0 ]
 then
   echo "\nCompiling ${1}.asm..."

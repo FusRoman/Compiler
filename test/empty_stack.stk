@@ -1,0 +1,11 @@
+# Ne devrait pas compiler à causer du JUMP sans push préalable
+.text
+  NOP
+  JUMP # yo
+
+salut:
+  97
+  PRINT
+  10
+  PRINT
+  EXIT

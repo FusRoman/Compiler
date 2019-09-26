@@ -23,7 +23,7 @@
     acc_empty: bool
   }
 
-  exception Compilation_Error of position * string
+  exception Compilation_Error of position * string * string
 
   let first_position = {lnum = 1; line = ""; acc_empty = true}
 
@@ -69,7 +69,17 @@
     Donc peu importe dans ce cas.
   *)
 
-  (* Registre accumulateur *)
+  (* 
+    Registre accumulateur
+    Stocke ce qui devrait être le sommet de la pile pour limiter les interactions avec cette dernière.
+
+    Lorsqu'on retire un élément de la pile, les programmes mettront automatiquement l'élément précédent dans acc. 
+    Cela pose un problème lorsqu'il n'y en a pas, i.e. qu'on a vidé la pile. La machine virtuelle lance une exception
+    out of bounds. Faire un test en runtime à chaque fois pour vérifier si la pile est vide annule tous les bénéfices 
+    du registre accumulateur, et vérifier à la compilation si ce test en runtime est nécessaire ou pas est impossible.
+    En guise de solution, nous avons simplement laissé un mot inutilisé à la fin, de façon à ne jamais sortir 
+    en-dehors de la mémoire. C'est pourquoi la ligne rajoutée à la fin du fichier compilé inclut 65535 et pas 65536.
+  *)
   let acc = register_str 13
 
 
@@ -78,6 +88,12 @@
     | Int of string 
     | Reg of int
 
+  (*
+    Un programme doit dans les faits démarrer par un push ; avant, il ne peut faire que des NOP ou des EXIT.
+    A partir du premier élément dans la pile, il devient possible de faire un JUMP et vérifier que la pile est 
+    nécessairement vide à un certain endroit du programme est trop compliqué (voire impossible).
+    En revanche, pour le premier push, on sait que la pile est nécessairement vide donc on peut agir en conséquence.
+  *)
   let push pushable pos =
     let fill_acc () =
         match pushable with
@@ -100,6 +116,12 @@
     fprintf output "DECR %s 1\n" sp;
     {pos with acc_empty = false}
 
+  (* Si on tombe sur un pop avant le premier push, on sait qu'il y a erreur. *)
+  let no_push pos error =
+    if pos.acc_empty then
+      error (next_lexeme pos) (Lexing.lexeme lexbuf)
+        "No push instruction before first popping" lexbuf
+
   (*
     Utilisé par les instructions qui prennent un élément sur la pile et n'en remettent pas (PRINT et JUMP).
     Diminue la pile de 1 et met le nouveau sommet dans acc.
@@ -107,8 +129,8 @@
     Pour les instructions à 1 argument et retournant un résultat, il suffit de stocker le résultat dans acc ;
     aucun appel à une fonction pop n'est nécessaire dans ce cas.
   *)
-  (* Est-ce que j'aurais fait l'INCR et le READ dans le mauvais sens ? *)
-  let pop1 () =
+  let pop1 pos error =
+    no_push pos error;
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" acc sp
 
@@ -122,7 +144,8 @@
       qu'on considère. Au moment de l'appel, sp pointera vers le nouveau sommet de la pile.
     - On met à jour acc avec la nouvelle valeur du sommet de la pile.
   *)
-  let pop2_no_return dest1 instr =
+  let pop2_no_return dest1 instr pos  error=
+    no_push pos error;
     let dest1 = register_str dest1 in
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" dest1 sp;
@@ -138,7 +161,8 @@
     sp pointera de nouveau le sommet de la pile sans avoir été modifié.
     Retourne la représentation du registre dest1.
   *)
-  let pop2_return dest1 =
+  let pop2_return dest1 pos error =
+    no_push pos error;
     let dest1 = register_str dest1 in
     fprintf output "INCR %s 1\n" sp;
     fprintf output "READ %s %s\n" dest1 sp;
@@ -161,7 +185,7 @@ rule dater_tag pos =
   | '\n'        { dater_tag (next_line pos) lexbuf }
 
   | ':'         {
-    error pos "Syntax error: unexpected ':'" lexbuf
+    error pos (Lexing.lexeme lexbuf) "Syntax error: unexpected ':'" lexbuf
   }
 
   | tag         {
@@ -171,13 +195,15 @@ rule dater_tag pos =
   }
 
   | integer     {
-    error pos (fmt "Syntax error: found `%s` without a tag" (Lexing.lexeme lexbuf)) lexbuf
+    let token = Lexing.lexeme lexbuf in
+    error pos token (fmt "Syntax error: found `%s` without a tag" token) lexbuf
   }
 
   | eof         {}
 
   | _           { 
-    error (next_lexeme pos) "Syntax error: only tag definitions are allowed after '.data'" lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      "Syntax error: only tag definitions are allowed after '.data'" lexbuf
   }
 
 
@@ -190,19 +216,26 @@ and dater_points pos previous =
   | ':'         { dater_data (next_lexeme pos) previous lexbuf }
 
   | tag         {
-   error (next_lexeme pos) (fmt "Syntax error: tag '%s' was not given a value" previous) lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error: tag '%s' was not given a value" previous) lexbuf
   }
 
   | integer     {
-    error (next_lexeme pos) (fmt "Syntax error: found data '%s' directly after tag '%s'. You may have forgotten ':'." (Lexing.lexeme lexbuf) previous) lexbuf
+    let token = Lexing.lexeme lexbuf in
+    error (next_lexeme pos) token (fmt 
+        "Syntax error: found data '%s' directly after tag '%s'. You may have forgotten ':'." 
+        token previous) 
+      lexbuf
   }
 
   | eof         {
-    raise (Compilation_Error(pos, fmt "Syntax error: tag '%s' was not given a value" previous))
+    raise (Compilation_Error(pos, (Lexing.lexeme lexbuf), 
+      fmt "Syntax error: tag '%s' was not given a value" previous))
   }
 
   | _           { 
-    error (next_lexeme pos) (fmt "Syntax error while looking for ':' after declaration of tag '%s'" previous) lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error while looking for ':' after declaration of tag '%s'" previous) lexbuf
   }
 
 
@@ -214,11 +247,13 @@ and dater_data pos previous =
   | '\n'        { dater_data (next_line pos) previous lexbuf }
 
   | ':'         { 
-    error (next_lexeme pos) "Syntax error: duplicate ':'" lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf) "Syntax error: duplicate ':'" lexbuf
   }
 
   | tag         {
-   error (next_lexeme pos) (fmt "Syntax error: found tag '%s', expected a value" (Lexing.lexeme lexbuf)) lexbuf
+    let token = Lexing.lexeme lexbuf in
+    error (next_lexeme pos) token
+      (fmt "Syntax error: found tag '%s', expected a value" token) lexbuf
   }
 
   | integer     {
@@ -227,11 +262,13 @@ and dater_data pos previous =
   }
 
   | eof         {
-    raise (Compilation_Error(pos, fmt "Syntax error: tag '%s' was not given a value" previous))
+    raise (Compilation_Error(pos, (Lexing.lexeme lexbuf),
+      fmt "Syntax error: tag '%s' was not given a value" previous))
   }
 
   | _           { 
-    error (next_lexeme pos) (fmt "Syntax error while looking for the value of tag '%s'" previous) lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error while looking for the value of tag '%s'" previous) lexbuf
   }
 
 
@@ -252,39 +289,34 @@ and texter pos =
 
   | "PRINT" | "JUMP"    {
     fprintf output "%s %s\n" (Lexing.lexeme lexbuf) acc;
-    pop1 ();
+    pop1 pos error;
     texter (next_lexeme pos) lexbuf
   }
 
   | "READ"      {
-    (*pop_n 1;
     (* on doit mettre à jour la valeur de stack_pointer, au cas où c'est ce qu'on veut lire *)
-    fprintf output "WRITE %s %s\n" spa sp;
-    fprintf output "READ $r1 $r0\n";
-    push (Reg 1);*)
+    no_push pos error;
     fprintf output "WRITE %s %s\n" spa sp;
     fprintf output "READ %s %s\n" acc acc; 
     texter (next_lexeme pos) lexbuf
   }
 
   | "WRITE"     {
-    (*pop_n 2;
-    fprintf output "WRITE $r0 $r1\n";*)
-    pop2_no_return 0 (fun dest1 -> fprintf output "WRITE %s %s\n" dest1 acc);
+    pop2_no_return 0 (fun dest1 -> 
+        fprintf output "WRITE %s %s\n" dest1 acc)
+       pos error;
     texter (next_lexeme pos) lexbuf
   }
 
   | "JUMPWHEN"  {
-    (*pop_n 2;
-    fprintf output "JUMP $r0 WHEN $r1\n";*)
-    pop2_no_return 0 (fun dest1 -> fprintf output "JUMP %s WHEN %s\n" dest1 acc);
+    pop2_no_return 0 (fun dest1 -> 
+        fprintf output "JUMP %s WHEN %s\n" dest1 acc)
+      pos error;
     texter (next_lexeme pos) lexbuf
   }
 
   | "MINUS" | "NOT"       {
-    (*pop_n 1;
-    fprintf output "NEG $r0 $r0\n";
-    push (Reg 0);*)
+    no_push pos error;
     fprintf output "%s %s %s\n" (Lexing.lexeme lexbuf) acc acc;
     texter (next_lexeme pos) lexbuf
   }
@@ -293,10 +325,7 @@ and texter pos =
   | "REM" | "EQ"  | "NEQ"  | "LT"
   | "LE"  | "GT"  | "GE"   | "AND"
   | "OR"        {
-    (*pop_n 2;
-    fprintf output "%s $r0 $r0 $r1\n" (Lexing.lexeme lexbuf);
-    push (Reg 0);*)
-    let dest1 = pop2_return 0 in
+    let dest1 = pop2_return 0 pos error in
     fprintf output "%s %s %s %s\n" (Lexing.lexeme lexbuf) acc dest1 acc;
     texter (next_lexeme pos) lexbuf
   }
@@ -322,7 +351,7 @@ and texter pos =
   | eof         {}
 
   | _           { 
-    error (next_lexeme pos) "Syntax error" lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf) "Syntax error" lexbuf
   }
 
 
@@ -334,19 +363,20 @@ and lexer pos =
   | blank     { lexer (next_lexeme pos) lexbuf }
   | '\n'      { lexer (next_line pos) lexbuf }
   | eof       {
-    raise (Compilation_Error (pos, "Reached unexpected end of file"))
+    raise (Compilation_Error (pos, "end of file", "Reached unexpected end of file"))
   }
   | _         { 
-    error (next_lexeme pos) (fmt "Syntax error while looking for '.text'") lexbuf
+    error (next_lexeme pos) (Lexing.lexeme lexbuf)
+      (fmt "Syntax error while looking for '.text'") lexbuf
   }
 
 
 (* Règle d'erreur dont le seul rôle est de parcourir le reste de la ligne pour avoir un message d'erreur plus complet. *)
-and error pos msg =
+and error pos token msg =
   parse
   | '\n'      
-  | eof       { raise (Compilation_Error(pos, msg)) }
-  | _         { error (next_lexeme pos) msg lexbuf }
+  | eof       { raise (Compilation_Error(pos, token, msg)) }
+  | _         { error (next_lexeme pos) token msg lexbuf }
 
 
 {
@@ -356,13 +386,13 @@ and error pos msg =
     fprintf output "READ %s %s\n" sp spa;
     try
       lexer first_position lexbuf;
-      fprintf output "stack_pointer:\n65536";
+      fprintf output "stack_pointer:\n65535";
       close_out output;
       printf "Compilation STK -> ASM successful (%fs)\n" (Sys.time () -. beginning);
       exit 0
     with
-    | Compilation_Error (pos, msg) ->
-      printf "[ERROR] Line %d, token '%s':\n%s\n%s\n" pos.lnum (Lexing.lexeme lexbuf) pos.line msg;
+    | Compilation_Error (pos, token, msg) ->
+      printf "[ERROR] Line %d, token '%s':\n%s\n%s\n" pos.lnum token pos.line msg;
       exit 1
     | Failure msg ->
       printf "[ERROR] The compilation failed. Error : %s\n" msg;
