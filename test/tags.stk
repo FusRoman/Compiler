@@ -1,0 +1,20 @@
+.text
+coucou:
+  10
+  97
+  PRINT
+  PRINThihi
+
+#coucou:
+  10
+  98
+  PRINT
+  PRINT
+
+#stack_pointer:
+  10
+  99
+  PRINT
+  PRINT
+
+  EXIT

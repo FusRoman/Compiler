@@ -1,5 +1,14 @@
 {
+  (*
+    Encore à faire avant de passer à STKCompilerAlloc :
+    - au lieu de printer dans le fichier ligne par ligne, construire une suite d'instructions,
+      ce qui permettra d'optimiser les pop suivis de push (push -> pop l'étant déjà)
+    - du coup on pourra checker si tous les tags qu'on empile existent bien
+    - stack_pointer est-il réellement nécessaire ? J'aimerais bien le virer. Ca ferait quelques optimisations possibles en plus.
+  *)
   open Printf
+
+  module TagSet = Set.Make(String)
 
   let nbarg = Array.length Sys.argv
 
@@ -20,21 +29,27 @@
   type position = {
     lnum: int;
     line: string;
-    acc_empty: bool
+    acc_empty: bool;
+    tags: TagSet.t
   }
 
   exception Compilation_Error of position * string * string
 
-  let first_position = {lnum = 1; line = ""; acc_empty = true}
-
-  let next_line position = {
-    lnum = position.lnum + 1;
-    line = "";
-    acc_empty = position.acc_empty
+  let first_position = {
+    lnum = 1; 
+    line = ""; 
+    acc_empty = true;
+    tags = TagSet.empty
   }
+
+  let next_line position = 
+    {position with lnum = position.lnum + 1; line = ""}
 
   let next_lexeme position =
     {position with line = position.line ^ (Lexing.lexeme lexbuf)}
+
+  let add_tag position tag =
+    {position with tags = TagSet.add tag position.tags}
 
 
   let fmt = sprintf
@@ -178,8 +193,7 @@
       String.sub s 0 !i
 }
 
-let letter = ['a'-'z' '_'] (* comprenait initialement A-Z, 
-    mais les commandes avec fautes de frappes seraient alors interprétées comme des tags *)
+let letter = ['a'-'z' 'A'-'Z' '_']
 let tag = letter(letter|['0'-'9'])*
 let integer = '-'?['0'-'9']+
 let blank = [' ' '\t'] (* Il devrait y avoir un caractère spécial *)
@@ -296,9 +310,17 @@ and texter pos =
     texter (next_lexeme pos) lexbuf
   }
 
-  | "PRINT" | "JUMP"    {
-    fprintf output "%s %s\n" (Lexing.lexeme lexbuf) acc;
+  | "PRINT"     {
+    fprintf output "PRINT %s\n" acc;
     pop1 pos error;
+    texter (next_lexeme pos) lexbuf
+  }
+
+  | "JUMP"      {
+    let r0 = register_str 0 in
+    fprintf output "MOVE %s %s\n" r0 acc;
+    pop1 pos error;
+    fprintf output "JUMP %s\n" r0;
     texter (next_lexeme pos) lexbuf
   }
 
@@ -310,9 +332,16 @@ and texter pos =
   }
 
   | "JUMPWHEN"  {
-    pop2_no_return 0 (fun dest1 -> 
-        fprintf output "JUMP %s WHEN %s\n" dest1 acc)
-      pos error;
+    (* pop2_no_return 0 (fun dest1 -> ()) pos error; *)
+    no_push pos error;
+    let r0 = register_str 0 in
+    let r1 = register_str 1 in
+    fprintf output "MOVE %s %s\n" r1 acc;
+    fprintf output "INCR %s 1\n" sp;
+    fprintf output "READ %s %s\n" r0 sp;
+    fprintf output "INCR %s 1\n" sp;
+    fprintf output "READ %s %s\n" acc sp;
+    fprintf output "JUMP %s WHEN %s\n" r0 r1;
     texter (next_lexeme pos) lexbuf
   }
 
@@ -336,12 +365,17 @@ and texter pos =
     let tag = extract_tag (Lexing.lexeme lexbuf) in
     if tag = "stack_pointer" then
       error pos tag 
-        "'stack_pointer' is a reserved word and can not be used to name new tags" lexbuf
+        "'stack_pointer' is a reserved tag and can not be used to name new tags" lexbuf
     else
-    begin
-      fprintf output "%s:\n" tag;
-      texter (next_lexeme pos) lexbuf
-    end
+      if TagSet.mem tag pos.tags then
+        error pos tag
+          (fmt "Duplicate tag '%s'" tag) lexbuf
+      else
+      begin
+        let pos' = add_tag pos tag in
+        fprintf output "%s:\n" tag;
+        texter (next_lexeme pos') lexbuf
+      end
   } 
 
   (* Empilement de tag *)
@@ -381,7 +415,7 @@ and lexer pos =
   | blank     { lexer (next_lexeme pos) lexbuf }
   | '\n'      { lexer (next_line pos) lexbuf }
   | eof       {
-    raise (Compilation_Error (pos, "end of file", "Reached unexpected end of file"))
+    raise (Compilation_Error (pos, "end of file", "Reached unexpected end of file while looking for '.text'"))
   }
   | _         { 
     error (next_lexeme pos) (Lexing.lexeme lexbuf)
@@ -411,6 +445,6 @@ and error pos token msg =
       printf "[ERROR] Line %d, token '%s':\n%s\n%s\n" pos.lnum token pos.line msg;
       exit 1
     | Failure msg ->
-      printf "[ERROR] The compilation failed. Error : %s\n" msg;
+      printf "[ERROR] The compilation failed due to an internal error. Error : %s\n" msg;
       exit 1
 }

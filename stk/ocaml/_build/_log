@@ -1,8 +1,8 @@
 ### Starting build.
 # Target: STKCompiler.ml.depends, tags: { extension:ml, file:STKCompiler.ml, ocaml, ocamldep, quiet }
-/home/guilhem/.opam/4.07.0/bin/ocamldep.opt -modules STKCompiler.ml > STKCompiler.ml.depends
+/home/guilhem/.opam/4.07.0/bin/ocamldep.opt -modules STKCompiler.ml > STKCompiler.ml.depends # cached
 # Target: STKCompiler.cmo, tags: { byte, compile, extension:cmo, extension:ml, file:STKCompiler.cmo, file:STKCompiler.ml, implem, ocaml, quiet }
-/home/guilhem/.opam/4.07.0/bin/ocamlc.opt -c -o STKCompiler.cmo STKCompiler.ml
+/home/guilhem/.opam/4.07.0/bin/ocamlc.opt -c -o STKCompiler.cmo STKCompiler.ml # cached
 # Target: STKCompiler.byte, tags: { byte, dont_link_with, extension:byte, file:STKCompiler.byte, link, ocaml, program, quiet }
 /home/guilhem/.opam/4.07.0/bin/ocamlc.opt STKCompiler.cmo -o STKCompiler.byte
 # Compilation successful.

@@ -1,8 +1,5 @@
 .text
 salut:
-  #salut
-  #-1
-  #ADD
   83
   PRINT
   84
@@ -39,25 +36,47 @@ salut:
   0
   WRITE
 loop:
+  # Affiche le numéro de l'itération
+  n
+  READ
+  48
+  ADD
+  PRINT
+
+  # Affiche '!'
   33
   PRINT
+
+  # Incrémente n
+  NOP
   n
   n
   READ
   1
   ADD
   WRITE
+  NOP
+
+  # JUMP loop si n < 10
+  NOP
   loop
   n
   READ
   10
   LT
   JUMPWHEN
+  NOP
+
+  # Retour à salut sinon
+  10
+  PRINT
+  97
+  PRINT
   10
   PRINT
   salut
   JUMP
-  EXIT # Jamais exécuté de toute façon
+  EXIT
 
 .data
 n: 0

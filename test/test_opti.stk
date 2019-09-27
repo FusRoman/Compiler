@@ -1,0 +1,62 @@
+.text
+  97
+  PRINT
+  10
+  PRINT
+
+# Empile un 'a' à chacune de ses 10 itérations
+loop:
+  97
+
+  # Affiche le numéro de l'itération
+  n
+  READ
+  48
+  ADD
+  PRINT
+
+  # Incrémente n
+  n
+  n
+  READ
+  1
+  ADD
+  WRITE
+
+  # Saute à loop tant que n < 10
+  loop
+  n
+  READ
+  10
+  LT
+  JUMPWHEN
+
+  10
+  PRINT
+
+# Vide 10 éléments dans la pile (en l'occurence les 10 'a')
+clear:
+  PRINT
+
+  # Décrémente n
+  n
+  n
+  READ
+  1
+  SUB
+  WRITE
+
+  # Saute à clear tant que n > 0
+  clear
+  n
+  READ
+  0
+  GT
+  JUMPWHEN
+
+  10
+  PRINT
+  EXIT
+
+.data
+  n: 0
