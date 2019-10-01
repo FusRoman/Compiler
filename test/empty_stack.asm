@@ -1,4 +1,2 @@
-ADDRESS $r15 stack_pointer
-READ $r14 $r15
+CONST $r15 65535
 NOP
-JUMP $r13

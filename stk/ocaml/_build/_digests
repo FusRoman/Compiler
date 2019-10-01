@@ -1,4 +1,0 @@
-"Rule: ocaml: ml -> cmo & cmi (%=STKCompiler )": "\147\011\250\161f\244\130\183w\r\136Y\183#\180\t"
-"Rule: ocaml dependencies ml (%=STKCompiler )": "\223\184g~\151\006\138\002\209D6\000X2\231\180"
-"Resource: /home/guilhem/Documents/Programs/OCaml/Compilation/Compiler/stk/ocaml/STKCompiler.ml": "\252\153b\229\248\221\229\168\219\0182e\149\t5n"
-"Rule: ocaml: cmo* -> byte (%=STKCompiler )": "\004\254\004B\171\247~\ni\156\230\207\192\220\145\141"

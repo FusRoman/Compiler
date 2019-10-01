@@ -40,11 +40,12 @@ DECR $r15 1
 INCR $r15 1
 READ $r0 $r15
 LE $r14 $r0 $r14
+MOVE $r1 $r14
 INCR $r15 1
 READ $r0 $r15
 INCR $r15 1
-JUMP $r0 WHEN $r14
 READ $r14 $r15
+JUMP $r0 WHEN $r1
 end:
 WRITE $r15 $r14
 CONST $r14 10

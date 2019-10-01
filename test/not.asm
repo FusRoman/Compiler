@@ -22,6 +22,7 @@ EXIT
 WRITE $r15 $r14
 ADDRESS $r14 not
 DECR $r15 1
-JUMP $r14
+MOVE $r0 $r14
 INCR $r15 1
 READ $r14 $r15
+JUMP $r0
