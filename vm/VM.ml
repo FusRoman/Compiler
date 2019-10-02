@@ -10,7 +10,7 @@ let nb_registers = 16
     - pointeur de code considéré comme un registre séparé, représenté par une
       simple référence
 *)
-let memory = Array.make memory_size 0
+let memory = Array.make memory_size (11 lsl 24)
 let registers = Array.make nb_registers 0
 let program_counter = ref 0
   
@@ -81,7 +81,9 @@ let exec_instruction i =
       then program_counter := registers.(op1 i) - 1
 
     | 11 ->
-      failwith "unassigned opcode"
+      (*failwith "unassigned opcode"*)
+      Printf.printf "You shouldn't have done that... But now it is too late! Prepare to die!\n";
+      raise (Invalid_argument "Ouch!")
 
     | op when 12 <= op && op <= 14 -> (* Op arithmétique unaire *)
       let unop = match op with

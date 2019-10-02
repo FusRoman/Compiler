@@ -1,5 +1,24 @@
-Bug report
+Welcome to the aptly named Compiler project!
+We provide different compilers for different widely used languages. One of them is bound to meet your needs!
 
---- STKCompiler ---
+- List of languages ----------
 
-When removing an element from the stack, the accumulator register (acc) is updated to store the previous one. This naturally causes an out-of-bounds exception when removing the last element. Initializing stack_pointer at 65535 instead of 65536 would fix the problem, but the final word would never be used. Having to check if the stack is empty every time in runtime would nullify - if not worse - the benefits of the accumulation register.
+- ASM
+    The world-renowned custom assembly language finally gets its compiler! Enjoy a whole new set of instructions tailored for you:
+    - PRINT
+        Who likes number? Certainly not me! Instead of displaying crappy integers which could actually be useful for debugging, this instruction directly converts its argument into a character and displays the result. Beware the Invalid_argument exception if your integer is too big!
+    - NOP
+        The first instruction of every assembly language was sure to come back as well! Please look forward to never using it.
+    - SLR and SRR
+        Just kidding, they didn't make it.
+
+- STK
+    STK is a stack-based language known for its ease of use and user-friendliness. Wanna print a value ? Better compute it all over again if you want to use it later down the road!
+    Special features:
+        - Arithmetic on tags:
+            Once again, our development team made the impossible a reality. You can now stack any tag and use it with arithmetic instructions, and then jump to the result for maximum fun! The safest way to crash your program!
+        - A selective compiler:
+            Using the latest breakthroughs in compiler-related algorithms, our team was able to make an actually working compiler! They then proceeded to scrap it since it wasn't what was expected. Now, some STK programs just won't compile as expected. So exciting!!!
+
+- ART
+    This revolutionary language allows you to assign values to arithmetic expressions. The sky's the limit!

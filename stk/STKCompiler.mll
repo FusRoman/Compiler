@@ -50,6 +50,14 @@
     | UnaryFun of unary_fun (** int * int*)
     | BinaryFun of binary_fun (** int * int * int*)
 
+  type data =
+    | Cte of int
+    | Address of string
+    | Value of string
+    | UnnamedValue
+    | ArithmeticResult (* of suite d'instructions *)
+    | Unknown
+
   (* Contient des infos sur la ligne courante, utile pour les messages d'erreur *)
   type line_info = {
     num: int;
@@ -61,15 +69,16 @@
     current_line: line_info;
     tags: TagSet.t;
     instr: (line_info * instr) Queue.t;
-    data: (string * string) Queue.t
+    data: (string * string) Queue.t;
   }
 
   (* Structure pour la seconde passe, qui correspond à l'optimisation *)
   type compiler_state = {
-    acc_empty: bool;
-    defined_tags: TagSet.t;
-    remaining_instr: (line_info * instr) Queue.t;
-    remaining_data: (string * string) Queue.t
+    acc_empty: bool; (* indique si acc est disponible sans avoir à push dans la pile *)
+    first_push: bool; (* Vaut faux tant qu'on n'a jamais mis une valeur dans l'acc *)
+    defined_tags: TagSet.t; (* Ensemble des tags définis et donc utilisables *)
+    remaining_instr: (line_info * instr) Queue.t; (* Liste des instructions à compiler *)
+    remaining_data: (string * string) Queue.t (* Liste des déclarations de données à compiler *)
   }
 
   type instr_info = {
@@ -77,6 +86,11 @@
     push: bool; (* Vrai si un élément est replacé dans la pile, faux sinon *)
     ignore: bool (* Vrai s'il faut ignorer la prochaine commande complètement. Surtout utile pour DefineTag *)
   }
+
+  type pushable = 
+    | Tag of string 
+    | Int of int 
+    | Reg of string
 
   exception Compilation_Error of line_info * string * string
 
@@ -89,6 +103,7 @@
 
   let initial_state info = {
     acc_empty = true;
+    first_push = false;
     defined_tags = info.tags;
     remaining_instr = info.instr;
     remaining_data = info.data
@@ -211,9 +226,9 @@
     | DefineTag tag ->
       tag ^ ":"
     | PushCte cte ->
-      string_of_int cte
+      fmt "push %d" cte
     | PushTag tag ->
-      tag
+      fmt "push '%s'" tag
     | StackPointer ->
       "stack_pointer"
     | NoArg i' ->
@@ -227,11 +242,23 @@
     | BinaryFun i' ->
       get_name_binary_fun i'
 
-
-  type pushable = 
-    | Tag of string 
-    | Int of int 
-    | Reg of string
+  (*
+    Renvoie vrai si la prochaine instruction est un push (PushCte, PushTag, StackPointer).
+    Idéalement on ignorerait les NOP, de façon à ce que ce soit la prochaine instruction
+    avec un effet qui soit prise en compte. Cependant, parce que la structure de queue utilisée
+    n'est pas fonctionnelle et qu'elle ne propose pas non plus d'accès aléatoire, ce n'est pas très pratique.
+    De plus le cas est rare vu qu'on évite de mettre des NOP inutiles en général...
+    (TODO utiliser les cycles de Splashoon ?)
+  *)
+  let is_next_instr_push state =
+    if Queue.is_empty state.remaining_instr then
+      false
+    else
+      let (_, i) = Queue.peek state.remaining_instr in
+      match i with
+      | PushTag _ | PushCte _ | StackPointer ->
+        true
+      | _ -> false
 
   (*
     Un programme doit dans les faits démarrer par un push ; avant, il ne peut faire que des NOP ou des EXIT.
@@ -251,21 +278,29 @@
     in
     let _ =
       if state.acc_empty then
-        fill_acc ()  
+      begin
+        fill_acc ();
+        if not state.first_push then
+          fprintf output "DECR %s 1\n" sp
+      end
       else
       begin
         fprintf output "WRITE %s %s\n" sp acc;
-        fill_acc ()
+        fill_acc ();
+        fprintf output "DECR %s 1\n" sp;
       end
     in
-    fprintf output "DECR %s 1\n" sp;
-    {state with acc_empty = false}
+    (* Inutile de mettre à jour la pile si la prochaine instruction pop *)
+    (*fprintf output "DECR %s 1\n" sp;*)
+    {state with acc_empty = false; first_push = true}
 
   (* Si on tombe sur un pop avant le premier push, on sait qu'il y a erreur. *)
   let no_push state line instr =
     let name = get_name_instr instr in
-    if state.acc_empty then
+    if not state.first_push then
       raise (Compilation_Error(line, name, fmt "No push instruction before '%s'" name))
+    else if state.acc_empty then
+      raise (Failure "push: both acc_empty and first_push are true")
 
   (*
     Utilisé par les instructions qui prennent un élément sur la pile et n'en remettent pas (PRINT et JUMP).
@@ -274,44 +309,9 @@
     Pour les instructions à 1 argument et retournant un résultat, il suffit de stocker le résultat dans acc ;
     aucun appel à une fonction pop n'est nécessaire dans ce cas.
   *)
-  let pop1 state line instr =
-    no_push state line instr;
+  let pop dest =
     fprintf output "INCR %s 1\n" sp;
-    fprintf output "READ %s %s\n" acc sp
-
-  (* 
-    Utilisé par les instructions qui prennent deux éléments sur la pile et n'en remettent pas (WRITE et JUMPWHEN).
-    Procède en plusieurs étapes :
-    - récupère dans le registre dest1 l'avant-dernier élément de la pile, le dernier étant acc.
-      dest1 correspondra au premier argument, acc au deuxième.
-    - appelle print_instr de type string -> unit : la chaîne donnée est la représentation du registre dest1.
-      Le but de cette fonction est d'écrire sur le fichier les instructions ASM correspondant à l'instruction STK
-      qu'on considère. Au moment de l'appel, sp pointera vers le nouveau sommet de la pile.
-    - On met à jour acc avec la nouvelle valeur du sommet de la pile.
-  *)
-  let pop2_no_return dest1 print_instr state line instr =
-    no_push state line instr;
-    let dest1 = register_str dest1 in
-    fprintf output "INCR %s 1\n" sp;
-    fprintf output "READ %s %s\n" dest1 sp;
-    fprintf output "INCR %s 1\n" sp;
-    print_instr dest1;
-    fprintf output "READ %s %s\n" acc sp
-
-  (*
-    Utilisé par les instructions qui prennent deux éléments sur la pile et en remettent un.
-    Récupère dans le registre dest1 l'avant-dernier élément de la pile.
-    Après l'appel, sp pointera non pas vers le sommet de la pile, mais un élément plus bas ;
-    de cette façon, après que les instructions à rajouter aient stocké leur résultat dans acc,
-    sp pointera de nouveau le sommet de la pile sans avoir été modifié.
-    Retourne la représentation du registre dest1.
-  *)
-  let pop2_return dest1 state line instr =
-    no_push state line instr;
-    let dest1 = register_str dest1 in
-    fprintf output "INCR %s 1\n" sp;
-    fprintf output "READ %s %s\n" dest1 sp;
-    dest1
+    fprintf output "READ %s %s\n" dest sp
 
   (* Traduit une instruction i et l'écrit dans le fichier output *)
   let compile_line state line instr =
@@ -342,32 +342,48 @@
     | UnaryProc Print ->
       no_push state line instr;
       fprintf output "PRINT %s\n" acc;
-      pop1 state line instr;
-      state
+      if is_next_instr_push state then
+        {state with acc_empty = true}
+      else
+        (pop acc; state)
 
     | UnaryProc Jump ->
       no_push state line instr;
       let r0 = register_str 0 in
       fprintf output "MOVE %s %s\n" r0 acc;
-      pop1 state line instr;
+      pop acc; (* la pile doit être parfaitement à jour avant le saut *)
       fprintf output "JUMP %s\n" r0;
       state
 
     | BinaryProc Write ->
-      pop2_no_return 0 (fun dest1 -> 
+      (*pop2_no_return 0 (fun dest1 -> 
           fprintf output "WRITE %s %s\n" dest1 acc)
         state line instr;
-      state
+      state*)
+      no_push state line instr;
+      let r0 = register_str 0 in
+      (*fprintf output "INCR %s 1\n" sp;
+      fprintf output "READ %s %s\n" r0 sp;*)
+      pop r0;
+      fprintf output "WRITE %s %s\n" r0 acc;
+      if is_next_instr_push state then
+        {state with acc_empty = true}
+      else
+        (*fprintf output "INCR %s 1\n" sp;
+        fprintf output "READ %s %s\n" acc sp;*)
+        (pop acc; state)
 
     | BinaryProc JumpWhen ->
       no_push state line instr;
       let r0 = register_str 0 in
       let r1 = register_str 1 in
       fprintf output "MOVE %s %s\n" r1 acc;
-      fprintf output "INCR %s 1\n" sp;
+      (*fprintf output "INCR %s 1\n" sp;
       fprintf output "READ %s %s\n" r0 sp;
       fprintf output "INCR %s 1\n" sp;
-      fprintf output "READ %s %s\n" acc sp;
+      fprintf output "READ %s %s\n" acc sp;*)
+      pop r0;
+      pop acc;
       fprintf output "JUMP %s WHEN %s\n" r0 r1;
       state
 
@@ -376,8 +392,13 @@
       state
 
     | BinaryFun i ->
-      let dest1 = pop2_return 0 state line instr in
+      (*let dest1 = pop2_return 0 state line instr in
       fprintf output "%s %s %s %s\n" (get_name_binary_fun i) acc dest1 acc;
+      state*)
+      no_push state line instr;
+      let r0 = register_str 0 in
+      pop r0;
+      fprintf output "%s %s %s %s\n" (get_name_binary_fun i) acc r0 acc;
       state
 
   let compile state =
@@ -385,7 +406,7 @@
       if not (Queue.is_empty state.remaining_instr) then
         let l, i = Queue.take state.remaining_instr in
         let state' = compile_line state l i in
-        compile_instr state' 
+        compile_instr state'
     in
 
     let rec compile_data state =
@@ -424,7 +445,7 @@ let letter = ['a'-'z' 'A'-'Z' '_']
 let tag = letter(letter|['0'-'9'])*
 let integer = '-'?['0'-'9']+
 let blank = [' ' '\t'] (* Il devrait y avoir un caractère spécial *)
-let comment = '#'[^'\n']*'\n'
+let comment = '#' [^ '\n']* ('\n' | eof)
 
 
 (* Appelé en entrant dans la section .data. Appelle data_points dès qu'un tag est trouvé. *)

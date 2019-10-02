@@ -48,24 +48,20 @@ loop:
   PRINT
 
   # Incrémente n
-  NOP
   n
   n
   READ
   1
   ADD
   WRITE
-  NOP
 
   # JUMP loop si n < 10
-  NOP
   loop
   n
   READ
   10
   LT
   JUMPWHEN
-  NOP
 
   # Retour à salut sinon
   10
@@ -80,3 +76,7 @@ loop:
 
 .data
 n: 0
+
+# 198 lignes avant l'optimisation des pop -> push
+# 127 après mais par contre ça bugge
+# 105 après débuggage :)
