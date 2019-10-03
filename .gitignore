@@ -6,6 +6,7 @@
 **/*.conflicts
 **/*.automaton
 a.out
+art/*.o
 art/ARTLexer.ml 
 art/ARTParser.ml 
 art/ARTParser.mli 
@@ -26,4 +27,4 @@ assembler/Assembler
 test/*.asm 
 test/*.btc
 **/*.o
-.vscode
+!/.vscode
