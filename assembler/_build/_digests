@@ -1,4 +1,0 @@
-"Rule: ocaml: ml -> cmo & cmi (%=Assembler )": "\133\255\2014\\i\157QU[\162\178\180\180\240\012"
-"Rule: ocaml dependencies ml (%=Assembler )": "\167W`!\202GY/N0\021\238\139=\137\188"
-"Rule: ocaml: cmo* -> byte (%=Assembler )": "6\030\133\148\185\190\145\253\138\020\213\221U\194\240f"
-"Resource: /home/guilhem/Documents/Programs/OCaml/Compilation/Compiler/assembler/Assembler.ml": "F\224\196c\235\178!\019\241x6J`\241nO"
