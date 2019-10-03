@@ -25,4 +25,5 @@ assembler/*.cmi
 assembler/Assembler
 test/*.asm 
 test/*.btc
+**/*.o
 .vscode
