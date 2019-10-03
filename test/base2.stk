@@ -1,6 +1,5 @@
 .text
 test
-READ
 JUMP
 loop:
 a
@@ -16,7 +15,6 @@ ADD
 WRITE
 test:
 loop
-READ
 a
 READ
 123

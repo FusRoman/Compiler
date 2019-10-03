@@ -80,7 +80,7 @@ let string_of_unop op =
 let rec compile_l_expr file l_e =
   match l_e with
   |Id i -> Printf.fprintf file "%s\n" i;
-           Printf.fprintf file "READ\n"
+    Printf.fprintf file "READ\n"
   |L_star s_l_e -> compile_l_expr file s_l_e;
     Printf.fprintf file "READ\n"
 
@@ -96,10 +96,10 @@ let rec compile_exprs file e =
   |Expr_parenthese e -> compile_exprs file e
   |L_expr l_e -> compile_l_expr file l_e
 
-let rec compile_l_expr_into_affect file l_e = 
+let rec compile_l_expr_without_read file l_e = 
   match l_e with
   |Id i -> Printf.fprintf file "%s\n" i
-  |L_star s_l_e -> compile_l_expr_into_affect file s_l_e
+  |L_star s_l_e -> compile_l_expr_without_read file s_l_e
 
 let compile_instr file instr = 
   match instr with
@@ -107,12 +107,12 @@ let compile_instr file instr =
   |Exit -> Printf.fprintf file "EXIT\n"
   |Print e -> compile_exprs file e;
     Printf.fprintf file "PRINT\n"
-  |Jump l_e -> compile_l_expr file l_e;
+  |Jump l_e -> compile_l_expr_without_read file l_e;
     Printf.fprintf file "JUMP\n"
-  |JumpWhen (l_e,e) -> compile_l_expr file l_e;
+  |JumpWhen (l_e,e) -> compile_l_expr_without_read file l_e;
     compile_exprs file e;
     Printf.fprintf file "JUMPWHEN\n"
-  |Affect (l_e,e) -> compile_l_expr_into_affect file l_e;
+  |Affect (l_e,e) -> compile_l_expr_without_read file l_e;
     compile_exprs file e;
     Printf.fprintf file "WRITE\n"
 
@@ -125,7 +125,7 @@ let rec compile_instrs file tree_instr =
   |Instrs (i, is) -> compile_instr file i;
     compile_instrs file is
   |Instrs_with_tag (t,is) -> compile_tag file t;
-  compile_instrs file is
+    compile_instrs file is
   |Empty_instr -> ()
 
 let compile_data file data =
