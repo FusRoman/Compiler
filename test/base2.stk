@@ -1,7 +1,7 @@
 .text
 test
 JUMP
-loop:
+loop :
 a
 READ
 PRINT
@@ -13,7 +13,25 @@ READ
 1
 ADD
 WRITE
-test:
+5
+MINUS
+2
+3
+SUB
+4
+8
+ADD
+MULT
+7
+DIV
+MINUS
+SUB
+9
+SUB
+53
+ADD
+PRINT
+test :
 loop
 a
 READ
@@ -22,5 +40,4 @@ LT
 JUMPWHEN
 EXIT
 .data
-a
-:97
+a :97

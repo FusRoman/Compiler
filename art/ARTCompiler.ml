@@ -15,5 +15,12 @@ let output = open_out output_file
 (* Lecture, analyse, traduction et Ã©criture de la chaÃ®ne obtenue dans
    le fichier cible *)
 let _ =
-  let t = ARTParser.source ARTLexer.token lexing_buffer in
-  compile output t
+  try
+    let result_parser = ARTParser.source ARTLexer.token lexing_buffer in
+    let tag_set,syntax_tree = result_parser.tag_set,result_parser.syntax_tree in
+    compile output tag_set syntax_tree;
+    exit 0
+  with
+  |SyntaxError (s,l,c) ->
+    Printf.printf "Syntax error at %d, %d. Message:\n%s\n" l c s;
+    exit 1

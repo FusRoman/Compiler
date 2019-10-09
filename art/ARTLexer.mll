@@ -7,16 +7,16 @@
 
 let letter = ['a'-'z' 'A'-'Z' '_']
 let id = letter(letter|['0'-'9'])*
-let integer = '-'?['0'-'9']+
+let integer = ['0'-'9']+
 let boolean = "true"|"false"
 let blank = [' ' '\t' '\r'] (* Il devrait y avoir un caractère spécial *)
 let comment = '#'[^'\n']*'\n'
-let unop = '-'|'!'
 
   
 rule token = parse
   | ['\n']
       { new_line lexbuf; token lexbuf }
+
   | blank+
       { token lexbuf }
   | integer as n
@@ -27,6 +27,10 @@ rule token = parse
       { DATA }
   | "print"
       { PRINT }
+      
+  |  "stack_pointer"
+      {STACK_POINTER }
+
   | "exit"
       { EXIT }
 
@@ -94,8 +98,8 @@ rule token = parse
   | "||"
       { OR }
 
-  | unop as s
-      { UNOP (s) }
+  | '!'
+      { NOT }
 
   | ':'
       { TWO_POINT }

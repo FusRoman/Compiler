@@ -17,13 +17,16 @@ run_stk: build_stk
 
 build_art: build_stk
 	menhir -v art/ARTParser.mly
-	ocamlopt art/ART_SyntaxTree.mli
-	ocamlopt -I art/ art/ART_SyntaxTree.ml
-	ocamlopt -I art/ art/ARTParser.mli
-	ocamlopt -I art/ art/ARTParser.ml
+	ocamlc -c -I utils/ utils/tagset.mli utils/tagset.ml
+	ocamlc -c -I utils/ utils/ART_SyntaxTree.mli utils/ART_SyntaxTree.ml
+	ocamlc -c -I art/ -I utils/ art/ARTParser.mli art/ARTParser.ml
 	ocamllex art/ARTLexer.mll
-	ocamlopt -I art/ art/ARTLexer.ml
-	ocamlopt -I art/ -o art/ARTCompiler art/ARTParser.cmx art/ART_SyntaxTree.cmx art/ARTLexer.cmx art/ARTCompiler.ml
+	ocamlc -c -I art/ art/ARTLexer.ml
+	ocamlc -I utils/ -I art/ utils/tagset.cmo utils/ART_SyntaxTree.cmo art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml -o art/ARTCompiler
+
+run_art: build_art
+	./art/ARTCompiler test/$(file).art test/$(file).stk
+	$(MAKE) run_stk file=$(file)
 
 run_art: build_art
 	./art/ARTCompiler test/$(file).art test/$(file).stk
@@ -35,4 +38,4 @@ clear:
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
 	rm -rf test/*.asm test/*.btc a.out
-	rm -rf art/*.cmi art/*.cmx art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler	
+	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler	
