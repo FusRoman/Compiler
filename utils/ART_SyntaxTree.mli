@@ -1,3 +1,5 @@
+exception SyntaxError of string * int * int
+
 type binop = 
   |ADD
   |SUB
@@ -27,7 +29,7 @@ and instrs =
   |Empty_instr
 
 and tag =
-  |Tag of string
+  |Tag of string * int * int
 
 and instr = 
   |Print of expression
@@ -42,18 +44,24 @@ and datas =
   |Empty_data
 
 and data = 
-  |Data of string * int
+  |Data of string * int * int * int
 
 and expression =
   |Expr_parenthese of expression
   |Int of int
   |Bool of bool
   |L_expr of l_expr
+  |STACK_POINTER
   |Binop of expression * binop * expression
   |Unop of unop * expression
 
 and l_expr = 
-  |Id of string
+  |Id of string * int * int
   |L_star of l_expr;;
 
-val compile : out_channel -> prog -> unit 
+type 'a compiler_type = {
+  tag_set: Tagset.t;
+  syntax_tree: 'a
+}
+
+val compile : out_channel -> string list -> prog -> unit 

@@ -4,8 +4,9 @@ loop:
     print(a);
     print (10);
     a := a+1;
+    print ( (-5 --(2-3) * (4+8) / 7 - 9) + 53);
 test:
     jump  loop  when a<123;
     exit;
 .data
-    a: 97
+     a: 97
