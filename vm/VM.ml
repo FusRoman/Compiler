@@ -10,7 +10,7 @@ let nb_registers = 16
     - pointeur de code considéré comme un registre séparé, représenté par une
       simple référence
 *)
-let memory = Array.make memory_size (11 lsl 24)
+let memory = Array.make memory_size 0
 let registers = Array.make nb_registers 0
 let program_counter = ref 0
   
@@ -80,22 +80,15 @@ let exec_instruction i =
       if registers.(op2 i) <> 0
       then program_counter := registers.(op1 i) - 1
 
-    | 11 ->
-      (*failwith "unassigned opcode"*)
-      Printf.printf "You shouldn't have done that... But now it is too late! Prepare to die!\n";
-      raise (Invalid_argument "Ouch!")
-
-    | op when 12 <= op && op <= 14 -> (* Op arithmétique unaire *)
+    | op when 12 <= op && op <= 15 -> (* Op arithmétique unaire *)
       let unop = match op with
         | 12 -> fun x -> x (* MOVE *)
         | 13 -> (~-)       (* MINUS *)
-        | 14 -> lnot       (* NOT *)
+        | 14 -> lnot       (* CPL *)
+        | 15 -> fun x -> if x = 0 then 1 else 0 (* NOT *)
         | _ -> assert false
       in
       registers.(dest i) <- unop registers.(op1 i)
-
-    | 15 ->
-      failwith "unassigned opcode"
         
     | op when 16 <= op && op <= 28 -> (* Op arithmétique binaire *)
       let bti f = fun a b -> if f a b then 1 else 0 in
@@ -166,6 +159,6 @@ let _ =
     Printf.printf "[ERROR] %s\n" msg;
     Printf.printf "Current state:\n";
     Printf.printf "program_counter: %d\n" !program_counter;
-    for i = 0 to nb_registers do
+    for i = 0 to nb_registers - 1 do
       Printf.printf "$r%d\t%d\n" i registers.(i)
     done

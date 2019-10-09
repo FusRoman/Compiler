@@ -52,6 +52,11 @@ let encode_line l =
     | [ "CONST"; rd; c ] ->
       let rd = get_register_number rd in
       let c = int_of_string c in
+      if c < 0 || c >= 65536 then
+      begin
+        Printf.printf "CONST: an immediate value must be between 0 and 65535 included\n";
+        exit 1
+      end;
       mk_binary 3 rd 0 c
         
     | [ "ADDRESS"; rd; lab ] ->
@@ -88,11 +93,12 @@ let encode_line l =
       let r2 = get_register_number r2 in
       mk_binary 9 0 r1 r2
 
-    | [ "MOVE" | "MINUS" | "NOT" as unop; rd; r1 ] ->
+    | [ "MOVE" | "MINUS" | "CPL" | "NOT" as unop; rd; r1 ] ->
       let opcode = match unop with
         | "MOVE" -> 12
         | "MINUS" -> 13
-        | "NOT" -> 14
+        | "CPL" -> 14
+        | "NOT" -> 15
         | _ -> assert false
       in
       let rd = get_register_number rd in
@@ -145,13 +151,18 @@ let is_label l =
 let get_label l =
   String.sub l 0 (String.length l - 1)
 
-(** Test pour repérer les commentaires *)
+(** Test pour repérer les commentaires et les lignes vides *)
 let is_comment l =
-  let i = ref 0 in
-  while l.[!i] = ' ' || l.[!i] = '\t' do
-    incr i
-  done;
-  l.[!i] = '#'
+  try
+    let length = String.length l in
+    let i = ref 0 in
+    while !i < length && (l.[!i] = ' ' || l.[!i] = '\t') do
+      incr i
+    done;
+    !i >= length || l.[!i] = '#' || l.[!i] = '\n'
+  with
+  | Invalid_argument msg ->
+    failwith (Printf.sprintf "Raised an 'Invalid_argument %s' while parsing line '%s'" msg l)
     
 (** Chargement des instructions du fichier dans le tableau [instructions] *)
 let input_file = Sys.argv.(1)
@@ -170,11 +181,11 @@ let _ =
          compte de lignes courant, tandis que tout autre ligne est ajoutée
          dans le tableau d'instructions après la précédente et incrémente
          le compteur *)
-      if is_label line
+      if is_comment line
+      then ()
+      else if is_label line
       then
         Hashtbl.add label_map (get_label line) !line_count
-      else if is_comment line
-      then ()
       else begin
         instructions.(!line_count) <- line;
         incr line_count
