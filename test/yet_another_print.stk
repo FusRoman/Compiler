@@ -1,0 +1,12 @@
+.text
+EXIT
+true
+PRINT
+10
+PRINT
+99
+PRINT
+98
+PRINT
+97
+PRINT

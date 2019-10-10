@@ -56,11 +56,11 @@ rule token = parse
   | ")"
       { RP }
 
+  | boolean as b
+    { BOOL (bool_of_string b) }
+
   | id as s
       { ID (s) }
-
-  | boolean as b
-      { BOOL (bool_of_string b) }
 
   | '+'
       { ADD }
