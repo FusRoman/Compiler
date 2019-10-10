@@ -106,7 +106,7 @@ rule token = parse
   | '!'
       { NOT }
 
-(* Opérateur permettant d'effectuer un not arithmétique *)
+(* Opérateur permettant d'effectuer un not binaire ( complémentaire ) *)
   | '~'
       { CPL }
 

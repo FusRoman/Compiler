@@ -44,7 +44,7 @@ build_imp: build_stk #build_art
 	ocamlc -c -I utils/ utils/IMPTree.mli utils/IMPTree.ml
 
 clear:
-	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler
+	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
