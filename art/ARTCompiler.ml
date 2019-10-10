@@ -1,4 +1,4 @@
-open ART_SyntaxTree
+open ARTTree
 
 (* Ouverture du fichier source et crÃ©ation du buffer d'analyse *)
 let input_file = Sys.argv.(1)

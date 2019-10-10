@@ -23,7 +23,7 @@ build_art: build_stk
 	ocamlc -c -I art/ -I utils/ art/ARTParser.mli art/ARTParser.ml
 	ocamllex art/ARTLexer.mll
 	ocamlc -c -I art/ art/ARTLexer.ml
-	ocamlc -I utils/ -I art/ utils/tagset.cmo utils/ARTTree.cmo art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml -o art/ARTCompiler
+	ocamlc -I utils/ -I art/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml -o art/ARTCompiler
 
 run_art: build_art
 	./art/ARTCompiler test/$(file).art test/$(file).stk
