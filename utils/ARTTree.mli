@@ -104,4 +104,8 @@ val unop_fun : unop -> int -> int
 *)
 val optimize_expression : expression -> expression * int option
 
+(** Compile un programme ART vers STK *)
 val compile : out_channel -> Tagset.t -> art_prog -> unit 
+
+(** Réécris dans un fichier le programme ART (utile pour IMP) *)
+val write_art : out_channel -> Tagset.t -> art_prog -> unit

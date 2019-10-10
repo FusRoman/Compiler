@@ -13,11 +13,13 @@ let output = open_out output_file
 let _ =
   try
     let source = IMPParser.program IMPLexer.token lexing_buffer in
-    (*let target = IMPtoART.translate_program source in*)
-    (*direct_print target output *)
-    Printf.printf "Seems to be doing fine\n"
+    let target = IMPTree.imp_to_art source in
+    write_art output target.tag_set target.syntax_tree;
+    exit 0
   with
   | SyntaxError(msg, l, c) -> 
-    Printf.printf "[ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg
+    Printf.printf "[ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
+    exit 1
   | _ ->
-    Printf.printf "[ERROR] Syntax error\n"
+    Printf.printf "[ERROR] Syntax error\n";
+    exit 1

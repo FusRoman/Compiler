@@ -39,7 +39,7 @@ build_imp: build_art
 
 run_imp: build_imp
 	./imp/IMPCompiler test/$(file).imp
-	#$(MAKE) run_art file=$(file)
+	$(MAKE) run_art file=$(file)
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler

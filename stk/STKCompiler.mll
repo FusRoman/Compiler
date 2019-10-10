@@ -881,8 +881,8 @@ and texter info =
       with
       | Failure _ ->
         ignore (error (next_lexeme info) token 
-          (fmt "String '%s' cannot be converted to int. 
-              Representable integers range from %d to %d." token min_int max_int)
+          (fmt "String '%s' cannot be converted to int. Representable integers range from %d to %d." 
+              token min_int max_int)
           lexbuf);
         0 (* Juste pour contenter le typage, inutile évidemmebt *)
     in

@@ -1,0 +1,11 @@
+.text
+a1:
+jump  a0  when (!( a  <  123 ));
+print( a );
+print( 10 );
+ a  := ( a  +  1 );
+jump  a1 ;
+a0:
+exit;
+.data
+a: 97

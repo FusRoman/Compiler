@@ -251,11 +251,9 @@ let rec compile_datas file datas =
 
 let rec compile file tag_set tree = 
   match tree with
-  | Prog is -> instructions_str is;
-    fprintf file ".text\n";
+  | Prog is -> fprintf file ".text\n";
     compile_instrs file tag_set is
-  | ProgData (is,ds) -> instructions_str is;
-    fprintf file ".text\n";
+  | ProgData (is,ds) -> fprintf file ".text\n";
     compile_instrs file tag_set is;
     fprintf file ".data\n";
     compile_datas file ds
@@ -287,61 +285,71 @@ let rec direct_print_l_expr file l_e =
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
     fprintf file " %s " i
-  | LStar suite -> fprintf file "*";direct_print_l_expr file suite
+  | LStar suite -> 
+    fprintf file "*";
+    direct_print_l_expr file suite
 
 let rec direct_print_exprs file e =
   match e with
   | Int i -> fprintf file " %d " i
   | Bool b -> fprintf file " %b " b
-  | Binop (e1,op,e2) -> direct_print_exprs file e1;
+  | Binop (e1,op,e2) -> 
+    fprintf file "(";
+    direct_print_exprs file e1;
     fprintf file " %s " (string_of_binop_direct op);
     direct_print_exprs file e2;
+    fprintf file ")"
   | Unop (op,e) -> 
-    fprintf file "%s" (string_of_unop_direct op); direct_print_exprs file e
-  | LExpr l_e -> direct_print_l_expr file l_e
-  | StackPointer -> fprintf file "stack_pointer\n"
-  | Address {contents = i; line = line; column = column} -> fprintf file "&%s\n" i
+    fprintf file "(";
+    fprintf file "%s" (string_of_unop_direct op); 
+    direct_print_exprs file e;
+    fprintf file ")"
+  | LExpr l_e -> 
+    direct_print_l_expr file l_e
+  | StackPointer -> 
+    fprintf file "stack_pointer\n"
+  | Address {contents = i; line = line; column = column} -> 
+    fprintf file "&%s\n" i
 
 let direct_print_instr file tag_set instr = 
   match instr with
   | Nop -> fprintf file "nop;\n"
   | Exit -> fprintf file "exit;\n"
   | Print e -> 
-    fprintf file "print ("; direct_print_exprs file e; fprintf file ");\n"
+    fprintf file "print("; 
+    direct_print_exprs file e; 
+    fprintf file ");\n"
   | Jump l_e -> 
-    fprintf file "jump "; direct_print_l_expr file l_e
+    fprintf file "jump "; 
+    direct_print_l_expr file l_e;
+    fprintf file ";\n"
   | JumpWhen (l_e,e) -> 
-    fprintf file "jump "; direct_print_l_expr file l_e; fprintf file " when "; direct_print_exprs file e
-  | Assign (l_e,e) -> direct_print_l_expr file l_e; fprintf file " := "; direct_print_exprs file e
+    fprintf file "jump "; 
+    direct_print_l_expr file l_e; 
+    fprintf file " when "; 
+    direct_print_exprs file e;
+    fprintf file ";\n"
+  | Assign (l_e,e) -> 
+    direct_print_l_expr file l_e; 
+    fprintf file " := "; 
+    direct_print_exprs file e;
+    fprintf file ";\n"
   | TagDeclaration t ->
     fprintf file "%s:\n" t.contents
 
-let rec compile_instrs file tag_set instrs = 
+let rec direct_print_instrs file tag_set instrs = 
   if instrs <> Cycle.empty_cycle then
-    begin
-      let (i, s) = Cycle.take instrs in
-      compile_instr file tag_set i;
-      compile_instrs file tag_set s
-    end
+  begin
+    let (i, s) = Cycle.take instrs in
+    direct_print_instr file tag_set i;
+    direct_print_instrs file tag_set s
+  end
 
-let compile_data file data =
-  match data with
-  | {contents = (s, i); line = _; column = _} ->
-    fprintf file "%s: %d\n" s i
-
-let rec compile_datas file datas =
-  if datas <> Cycle.empty_cycle then
-    begin
-      let (d, s) = Cycle.take datas in
-      compile_data file d;
-      compile_datas file s
-    end
-
-let rec direct_print file tag_set tree = 
+let rec write_art file tag_set tree = 
   match tree with
   | Prog is -> fprintf file ".text\n";
-    compile_instrs file tag_set is
+    direct_print_instrs file tag_set is
   | ProgData (is,ds) -> fprintf file ".text\n";
-    compile_instrs file tag_set is;
+    direct_print_instrs file tag_set is;
     fprintf file ".data\n";
     compile_datas file ds

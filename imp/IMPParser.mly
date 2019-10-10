@@ -63,6 +63,8 @@ program:
     }
 | TEXT text=instructions EOF
     { {tag_set = text.tag_set; syntax_tree = Text text.syntax_tree} }
+| error
+    { failwith "IMP program structure: .text <instructions> .data <declarations>" }
 ;
 
 instructions:
@@ -181,16 +183,28 @@ l_expr:
 instruction:
 | NOP
     { Nop }
-| EXIT SEMI
+| EXIT
     { Exit }
 | PRINT LP e=expr RP  
     { Print e }
 | GOTO LP e=l_expr RP
     { Goto e}
 | BREAK
-    { Break }
+    { 
+      let pos = $startpos in
+      let line = pos.pos_lnum in
+      let column = pos.pos_cnum - pos.pos_bol in
+      Break {line; column; contents = ()}
+    }
+
 | CONTINUE
-    { Continue }
+    { 
+      let pos = $startpos in
+      let line = pos.pos_lnum in
+      let column = pos.pos_cnum - pos.pos_bol in
+      Continue {line; column; contents = ()}
+    }
+
 | a=assign
     { a }
 ;

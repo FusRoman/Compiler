@@ -9,7 +9,7 @@ let comment = '#' [^ '\n']* ('\n' | eof)
   
 rule token = parse
   | ".text"
-      { Printf.printf ".text, lol\n"; TEXT }
+      { TEXT }
   | ".data"
       { DATA }
   | "true"
@@ -115,7 +115,7 @@ rule token = parse
       { Lexing.new_line lexbuf; token lexbuf }
   | [' ' '\t' '\r']+
       { token lexbuf }
-  | _
-      { failwith ("Unknown character : " ^ (Lexing.lexeme lexbuf)) }
   | eof
       { EOF }
+  | _
+      { failwith ("Unknown character : " ^ (Lexing.lexeme lexbuf)) }
