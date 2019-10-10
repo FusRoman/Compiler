@@ -10,7 +10,7 @@ let nb_registers = 16
     - pointeur de code considéré comme un registre séparé, représenté par une
       simple référence
 *)
-let memory = Array.make memory_size (11 lsl 24)
+let memory = Array.make memory_size 0
 let registers = Array.make nb_registers 0
 let program_counter = ref 0
   
@@ -80,47 +80,39 @@ let exec_instruction i =
       if registers.(op2 i) <> 0
       then program_counter := registers.(op1 i) - 1
 
-    | 11 ->
-      (*failwith "unassigned opcode"*)
-      Printf.printf "You shouldn't have done that... But now it is too late! Prepare to die!\n";
-      raise (Invalid_argument "Ouch!")
-
-    | op when 12 <= op && op <= 14 -> (* Op arithmétique unaire *)
+    | op when 12 <= op && op <= 15 -> (* Op arithmétique unaire *)
       let unop = match op with
         | 12 -> fun x -> x (* MOVE *)
-        | 13 -> (~-)       (* MINUS *)
-        | 14 -> lnot       (* NOT *)
+        | 13 -> Arith.minus      (* MINUS *)
+        | 14 -> Arith.cpl        (* CPL *)
+        | 15 -> Arith.anot       (* NOT *)
         | _ -> assert false
       in
       registers.(dest i) <- unop registers.(op1 i)
-
-    | 15 ->
-      failwith "unassigned opcode"
         
     | op when 16 <= op && op <= 28 -> (* Op arithmétique binaire *)
-      let bti f = fun a b -> if f a b then 1 else 0 in
       let binop = match op with
-        | 16 -> (+)   (* ADD *)
-        | 17 -> (-)   (* SUB *)
-        | 18 -> ( * ) (* MULT *)
-        | 19 -> (/)   (* DIV *)
-        | 20 -> (mod) (* REM *)
-        | 21 -> bti (=)  (* EQ *)
-        | 22 -> bti (<>) (* NEQ *)
-        | 23 -> bti (<)  (* LT *)
-        | 24 -> bti (<=) (* LE *)
-        | 25 -> bti (>)  (* GT *)
-        | 26 -> bti (>=) (* GE *)
-        | 27 -> (land) (* AND *)
-        | 28 -> (lor)  (* OR *)
+        | 16 -> Arith.add       (* ADD *)
+        | 17 -> Arith.sub       (* SUB *)
+        | 18 -> Arith.multiply  (* MULT *)
+        | 19 -> Arith.divise    (* DIV *)
+        | 20 -> Arith.modulo    (* REM *)
+        | 21 -> Arith.equal     (* EQ *)
+        | 22 -> Arith.different (* NEQ *)
+        | 23 -> Arith.lt        (* LT *)
+        | 24 -> Arith.le        (* LE *)
+        | 25 -> Arith.gt        (* GT *)
+        | 26 -> Arith.ge        (* GE *)
+        | 27 -> Arith.bit_and   (* AND *)
+        | 28 -> Arith.bit_or    (* OR *)
         | _ -> assert false
       in
       registers.(dest i) <- binop registers.(op1 i) registers.(op2 i)
 
     | 30 | 31 as op ->
       let binop = match op with
-        | 30 -> (+) (* INCR *)
-        | 31 -> (-) (* DECR *)
+        | 30 -> Arith.add       (* INCR *)
+        | 31 -> Arith.sub       (* DECR *)
         | _ -> assert false
       in
       registers.(dest i) <- binop registers.(dest i) (const_op i)
@@ -166,6 +158,6 @@ let _ =
     Printf.printf "[ERROR] %s\n" msg;
     Printf.printf "Current state:\n";
     Printf.printf "program_counter: %d\n" !program_counter;
-    for i = 0 to nb_registers do
+    for i = 0 to nb_registers - 1 do
       Printf.printf "$r%d\t%d\n" i registers.(i)
     done

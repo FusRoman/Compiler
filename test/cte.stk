@@ -1,0 +1,89 @@
+.text
+  # Le but de ce programme est de tester si l'empilement de constante se passe bien
+  # dans les cas particuliers (> 65535 ou < 0)
+  # On utilise des étiquettes pour éviter l'interférence d'éventuelles optimisations 
+  # sur les calculs de constantes
+  NOP
+
+  0
+  a
+  READ
+  ADD
+  PRINT
+  NOP
+
+  65535
+  b
+  READ
+  ADD
+  PRINT
+  NOP
+
+  -1
+  c
+  READ
+  ADD
+  PRINT
+  NOP
+
+  65536
+  d
+  READ
+  ADD
+  PRINT
+  NOP
+
+  70000
+  e
+  READ
+  ADD
+  PRINT
+  NOP
+  
+  -65535
+  f
+  READ
+  ADD
+  PRINT
+  NOP
+
+  -70000
+  g
+  READ
+  ADD
+  PRINT
+  NOP
+
+  4611686018427387903
+  h
+  READ
+  SUB
+  PRINT
+  NOP
+
+  #-4611686018427387904
+  #i
+  #READ
+  #ADD
+  #98
+  #ADD
+  #PRINT
+  #NOP
+
+  #4611686018427387904 # Ne devrait pas fonctionner
+  #-4611686018427387905 # Non plus
+
+  10
+  PRINT
+  EXIT
+
+.data
+  a: 97
+  b: -65438
+  c: 98
+  d: -65439
+  e: -69903
+  f: 65632
+  g: 70097
+  h: 4611686018427387806
+  #i: 4611686018427387903

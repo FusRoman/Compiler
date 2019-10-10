@@ -2,6 +2,9 @@ type 'a cycle = ('a list) * ('a list)
 
 let empty_cycle = ([], [])
 
+let from_elt x =
+  ([], [x])
+
 (* En supposant que la première liste soit vide, remet tout dans la première dans l'ordre *)
 let rec clean q =
   match q with
@@ -77,6 +80,13 @@ let append (l1, l2) x =
 (** Rajoute un élément au début *)
 let prepend (l1, l2) x =
   (x::l1, l2)
+
+let rec extend l1 l2 =
+  if l2 = empty_cycle then
+    l1
+  else
+    let (x, s) = take l2 in
+    extend (append l1 x) s
 
 let rec pop_last_list l =
   match l with

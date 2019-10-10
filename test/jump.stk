@@ -80,3 +80,4 @@ n: 0
 # 198 lignes avant l'optimisation des pop -> push
 # 127 après mais par contre ça bugge
 # 105 après débuggage :)
+# 92 après optimisation INCR / DECR / DIRECTREAD

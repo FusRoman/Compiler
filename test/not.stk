@@ -1,13 +1,46 @@
 .text
 not             : # :)
+    # Devrait n'afficher a trois fois par ligne, 2 lignes au total
+
     0
-    NOT
+    NOT # -> 1
+    96
+    ADD
+    PRINT
+
+    1
+    NOT # -> 0
+    97
+    ADD
+    PRINT
+
+    -2
+    NOT # -> 0
     97
     ADD
     PRINT
 
     10
     PRINT
+
+    0
+    CPL # -> -1
+    98
+    ADD
+    PRINT
+
+    1
+    CPL # -> -2
+    99
+    ADD
+    PRINT
+
+    -2 
+    NOT #CPL # -> 1
+    97 #96
+    ADD
+    PRINT
+
+    10
+    PRINT
     EXIT
-    not
-    JUMP
