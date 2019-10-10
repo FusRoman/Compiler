@@ -5,29 +5,27 @@ loop:
 a
 READ
 PRINT
+10
+PRINT
 a
 a
 READ
 1
 ADD
 WRITE
-b
-a
-WRITE
-b
-READ
-READ
-PRINT
-10
-PRINT
 test:
 loop
 a
 READ
 123
 LT
+0
+OR
 JUMPWHEN
+48
+PRINT
 EXIT
 .data
 a: 97
-b: 0
+b: 98
+c: 97

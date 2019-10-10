@@ -62,7 +62,7 @@ and expression =
   | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
-  | Address of l_expr
+  | Address of string node
 
 and l_expr = 
   | Id of string node
@@ -104,4 +104,4 @@ val unop_fun : unop -> int -> int
 *)
 val optimize_expression : expression -> expression * int option
 
-val compile : out_channel -> string list -> art_prog -> unit 
+val compile : out_channel -> Tagset.t -> art_prog -> unit 
