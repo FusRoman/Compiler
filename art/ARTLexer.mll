@@ -10,7 +10,7 @@ let id = letter(letter|['0'-'9'])*
 let integer = ['0'-'9']+
 let boolean = "true"|"false"
 let blank = [' ' '\t' '\r'] (* Il devrait y avoir un caractère spécial *)
-let comment = '#'[^'\n']*'\n'
+let comment = '#' [^ '\n']* ('\n' | eof)
 
   
 rule token = parse
@@ -27,9 +27,12 @@ rule token = parse
       { DATA }
   | "print"
       { PRINT }
-      
+
   |  "stack_pointer"
       {STACK_POINTER }
+
+  | comment
+    { token lexbuf }
 
   | "exit"
       { EXIT }

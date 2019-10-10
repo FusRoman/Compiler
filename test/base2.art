@@ -1,5 +1,5 @@
 .text
-    jump  test;
+    jump test;
 loop:
     print(a);
     print (10);

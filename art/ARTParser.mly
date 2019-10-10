@@ -25,6 +25,11 @@
 %left MUL DIV MOD
 %right NOT
 
+%on_error_reduce instruction
+%on_error_reduce data_declaration
+%on_error_reduce tag
+%on_error_reduce expression
+
 %start source
 %type <ART_SyntaxTree.prog ART_SyntaxTree.compiler_type> source
 %type <ART_SyntaxTree.instrs ART_SyntaxTree.compiler_type> instructions
@@ -39,7 +44,7 @@
 
 source:
 | TEXT text=instructions EOF
-    { 
+    {
       {tag_set = text.tag_set;
       syntax_tree = Prog text.syntax_tree}
     }
@@ -54,10 +59,10 @@ source:
         let pos = $startpos in
         raise (ART_SyntaxTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
     }
-  | instructions EOF {
-    let pos = $startpos in
-        raise (ART_SyntaxTree.SyntaxError ("An ART program must begin with a .text follow by instructions", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
-  }
+| error {
+   let pos = $startpos in
+   raise (SyntaxError ("An ART program must begin with a .text tag follow by instructions and eventually a .data tag with data declarations", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+}
 ;
 
 instructions:
@@ -77,6 +82,18 @@ instructions:
       let pos = $startpos in
       raise (ART_SyntaxTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
+| instruction TWO_POINT instructions {
+  let pos = $startpos in
+   raise (SyntaxError ("You cannot used a ':' symbol between two instructions.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+}
+| tag SEMI instructions {
+   let pos = $startpos in
+   raise (SyntaxError ("tag declaration ill formed, may you have forgot a ':'.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+}
+| error {
+   let pos = $startpos in
+   raise (SyntaxError ("May be, you have forgot a ';' between two instructions or a ':' for a tag declaration.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+}
 ;
   
 tag:
@@ -99,6 +116,10 @@ instruction:
 | JUMP l_e=l_express { Jump l_e }
 | JUMP l_e=l_express WHEN e=expression { JumpWhen (l_e,e) }
 | l_e=l_express AFFECT e=expression { Affect (l_e,e) }
+| error {
+  let pos = $startpos in
+  raise (SyntaxError ("Only expression is allowed inside an instruction.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+}
 ;
 
 l_express:
@@ -156,6 +177,10 @@ expression:
 | e1=expression OR e2=expression { 
   Binop (e1,OR,e2)
    }
+| error {
+  let pos = $startpos in
+  raise (SyntaxError ("ill formed expression.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+}
 ;
 
 data_declarations:
@@ -176,23 +201,15 @@ data_declaration:
   let pos = $startpos in
     {
       tag_set = Tagset.singleton t; syntax_tree = Data (t,i,pos.pos_lnum, (pos.pos_cnum - pos.pos_bol))
-    } 
+    }
   }
 |STACK_POINTER {
    let pos = $startpos in
    raise (SyntaxError ("stack_pointer is a reserved tag", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
-|ID TWO_POINT {
-   let pos = $startpos in
-   raise (SyntaxError ("You have declare a tag without assign a value.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
-}
-|ID {
-   let pos = $startpos in
-   raise (SyntaxError ("You have declare a tag without assign a value.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
-}
-|INT {
-   let pos = $startpos in
-   raise (SyntaxError ("You cannot declare value without a tag.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+| error {
+  let pos = $startpos in
+   raise (SyntaxError ("ill formed tag declaration", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 
 ;
