@@ -459,7 +459,6 @@
         let r' = 
           if factor > 1 then (* Concrétement, factor <> 1 car r > max_uint16 *)
           begin
-            (*fprintf output "CONST $r0 %d\n" factor;*)
             (* 
               Première étape : multiplication 
               On met le facteur dans r0 en utilisant des sous-registres.

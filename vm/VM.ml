@@ -83,37 +83,36 @@ let exec_instruction i =
     | op when 12 <= op && op <= 15 -> (* Op arithmétique unaire *)
       let unop = match op with
         | 12 -> fun x -> x (* MOVE *)
-        | 13 -> (~-)       (* MINUS *)
-        | 14 -> lnot       (* CPL *)
-        | 15 -> fun x -> if x = 0 then 1 else 0 (* NOT *)
+        | 13 -> Arith.minus      (* MINUS *)
+        | 14 -> Arith.cpl        (* CPL *)
+        | 15 -> Arith.anot       (* NOT *)
         | _ -> assert false
       in
       registers.(dest i) <- unop registers.(op1 i)
         
     | op when 16 <= op && op <= 28 -> (* Op arithmétique binaire *)
-      let bti f = fun a b -> if f a b then 1 else 0 in
       let binop = match op with
-        | 16 -> (+)   (* ADD *)
-        | 17 -> (-)   (* SUB *)
-        | 18 -> ( * ) (* MULT *)
-        | 19 -> (/)   (* DIV *)
-        | 20 -> (mod) (* REM *)
-        | 21 -> bti (=)  (* EQ *)
-        | 22 -> bti (<>) (* NEQ *)
-        | 23 -> bti (<)  (* LT *)
-        | 24 -> bti (<=) (* LE *)
-        | 25 -> bti (>)  (* GT *)
-        | 26 -> bti (>=) (* GE *)
-        | 27 -> (land) (* AND *)
-        | 28 -> (lor)  (* OR *)
+        | 16 -> Arith.add       (* ADD *)
+        | 17 -> Arith.sub       (* SUB *)
+        | 18 -> Arith.multiply  (* MULT *)
+        | 19 -> Arith.divise    (* DIV *)
+        | 20 -> Arith.modulo    (* REM *)
+        | 21 -> Arith.equal     (* EQ *)
+        | 22 -> Arith.different (* NEQ *)
+        | 23 -> Arith.lt        (* LT *)
+        | 24 -> Arith.le        (* LE *)
+        | 25 -> Arith.gt        (* GT *)
+        | 26 -> Arith.ge        (* GE *)
+        | 27 -> Arith.bit_and   (* AND *)
+        | 28 -> Arith.bit_or    (* OR *)
         | _ -> assert false
       in
       registers.(dest i) <- binop registers.(op1 i) registers.(op2 i)
 
     | 30 | 31 as op ->
       let binop = match op with
-        | 30 -> (+) (* INCR *)
-        | 31 -> (-) (* DECR *)
+        | 30 -> Arith.add       (* INCR *)
+        | 31 -> Arith.sub       (* DECR *)
         | _ -> assert false
       in
       registers.(dest i) <- binop registers.(dest i) (const_op i)

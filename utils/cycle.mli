@@ -8,6 +8,9 @@ type 'a cycle
 (** Le cycle vide *)
 val empty_cycle : 'a cycle
 
+(** Crée un cycle composé d'un seul élément *)
+val from_elt : 'a -> 'a cycle
+
 (** Crée un cycle à partir d'une liste *)
 val from_list : 'a list -> 'a cycle
 
@@ -37,6 +40,9 @@ val append : 'a cycle -> 'a -> 'a cycle
 
 (** Rajoute un élément au début *)
 val prepend : 'a cycle -> 'a -> 'a cycle
+
+(** Rajoute à la fin du premier cycle tous les éléments du second *)
+val extend : 'a cycle -> 'a cycle -> 'a cycle
 
 (** Renvoie le dernier élément et le retire du cycle *)
 val take_last : 'a cycle -> 'a * ('a cycle)

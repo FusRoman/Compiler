@@ -22,3 +22,22 @@ We provide different compilers for different widely used languages. One of them 
 
 - ART
     This revolutionary language allows you to assign values to arithmetic expressions. The sky's the limit!
+
+- IMP
+    I wanted to make a joke with "IMP" and "wimp", but I don't know how to do it while being actually funny. Guess I'm not.
+
+-----
+Bugs et trucs à faire
+
+STK : 
+    - faire Alloc puis le super algorithme de l'espace
+    - Les gros nombres (et petits probablement) sont soit, mal interprétés par la VM, soit mal stockés par l'assembleur. Dans tous les cas, dans cte.stk, la valeur de h est lue comme -98. Pris en hexadécimal, ce nombre correspond au gros qu'il devrait être mais avec le bit de second plus grand poids à 1 sans raison. Ca m'emmerde.
+
+ART :
+    - implémenter CPL et l'adresse
+    - adapter le parser et le compiler aux modifications sur ARTTree (anciennement ART_SyntaxTree)
+
+IMP :
+    - faire le parser lol
+    - débugger le translater, mais avant ça, lui faire traduire des trucs et pas juste optimiser
+
