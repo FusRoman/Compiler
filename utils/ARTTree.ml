@@ -125,12 +125,25 @@ let optimize_expression e =
         | Some v ->
           let v' = unop_fun op v in
           (Int v', Some v', nb_register)
-        | None -> 
-          match sub with
-          (* Branche de toutes les fonctions unaires qui ne sont pas leur propre inverse
-             | Unop(ADDRESS, _) -> (Unop(op, sub), None) *)
-          | Unop(op2, sub') when op2 = op -> (sub', None, nb_register) (* sub' ne peut pas être une constante *)
-          | _ -> (Unop(op, sub), None, nb_register)
+        | None ->
+          let result r = (r, None, nb_register) in
+          match op with
+          | Not ->
+          begin
+            match sub with
+            | Unop(Not, Unop(Not, sub')) -> result (Unop(Not, sub'))
+            | Binop(e1, Eq, e2) -> result (Binop(e1, Neq, e2))
+            | Binop(e1, Neq, e2) -> result (Binop(e1, Eq, e2))
+            | Binop(e1, Lt, e2) -> result (Binop(e1, Ge, e2))
+            | Binop(e1, Ge, e2) -> result (Binop(e1, Lt, e2))
+            | Binop(e1, Le, e2) -> result (Binop(e1, Gt, e2))
+            | Binop(e1, Gt, e2) -> result (Binop(e1, Le, e2))
+            | _ -> result (Unop(op, sub))
+          end
+          | _ ->
+            match sub with
+            | Unop(op2, sub') -> result sub' (* Cas des fonctions qui sont leur inverse appliquées 2 fois *)
+            | _ -> result (Unop(op, sub))
       end
 
     | Binop(e1, op, e2) ->
@@ -266,7 +279,7 @@ let string_of_binop_direct op =
   | Mult -> "*"
   | Div -> "/"
   | Rem -> "%"
-  | Eq -> "="
+  | Eq -> "=="
   | Neq -> "!="
   | Lt -> "<"
   | Le -> "<="

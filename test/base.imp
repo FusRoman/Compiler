@@ -1,5 +1,6 @@
 .text
-print(33);
+# Normalement = 30, soit '!'
+print(11 + 15 * 0 + 22);
 print(10);
 exit;
 .data
