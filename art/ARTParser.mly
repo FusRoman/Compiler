@@ -14,7 +14,7 @@
 %token LP RP
 %token <string>ID
 %token <bool>BOOL
-%token NOT
+%token NOT CPL
 %token JUMP WHEN
 %token AFFECT
 %token LEFT_EXPR_STAR
@@ -24,7 +24,7 @@
 %left SUP INF INF_EQUAL SUP_EQUAL EQUAL NOT_EQUAL
 %left ADD SUB
 %left MUL DIV MOD
-%right NOT
+%right NOT CPL
 
 %on_error_reduce instruction
 %on_error_reduce data_declaration
@@ -147,6 +147,7 @@ expression:
 | b=BOOL { Bool b }
 | SUB e=expression { Unop (Minus,e) }
 | NOT e=expression { Unop (Not,e) }
+| CPL e=expression { Unop (Cpl,e) }
 | LP e=expression RP { e }
 | e1=expression ADD e2=expression { 
   Binop (e1,Add,e2) 

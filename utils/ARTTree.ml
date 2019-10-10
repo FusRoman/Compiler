@@ -1,5 +1,6 @@
 open Printf
 open Tagset
+open Arith
 
 exception SyntaxError of string * int * int
 
@@ -125,7 +126,7 @@ let rec compile_l_expr file tag_set l_e =
 let rec compile_exprs file tag_set e =
   match e with
   | Int i -> fprintf file "%s\n" (string_of_int i)
-  | Bool b -> fprintf file "%s\n" (string_of_bool b)
+  | Bool b -> fprintf file "%s\n" (string_of_int (int_of_bool b))
   | Binop (e1,op,e2) -> compile_exprs file tag_set e1;
     compile_exprs file tag_set e2;
     fprintf file "%s\n" (string_of_binop op)

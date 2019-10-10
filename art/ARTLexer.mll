@@ -23,10 +23,15 @@ rule token = parse
       { INT (int_of_string n) }
   | ".text"
       { TEXT }
+
   | ".data"
       { DATA }
+      
   | "print"
       { PRINT }
+
+  | boolean as b
+      { BOOL (bool_of_string b) }
 
   |  "stack_pointer"
       {STACK_POINTER }
@@ -58,9 +63,6 @@ rule token = parse
 
   | id as s
       { ID (s) }
-
-  | boolean as b
-      { BOOL (bool_of_string b) }
 
   | '+'
       { ADD }
@@ -103,6 +105,9 @@ rule token = parse
 
   | '!'
       { NOT }
+
+  | '~'
+      { CPL }
 
   | ':'
       { TWO_POINT }
