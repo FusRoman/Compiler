@@ -1,15 +1,16 @@
 .text
+    b := &a;
+    print(*b);
     jump test;
-
     loop:
         print(a);
         print(10);
-        a := a+1;
+        *b := *b+1;
     test:
         jump loop when a < 123 || false;
         print (48);
         exit;
 .data
      a : 97
-     b : 98
+     b : 97
      c : 97
