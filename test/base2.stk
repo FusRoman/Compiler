@@ -7,6 +7,10 @@ READ
 LT
 JUMPWHEN
 test:
+a
+1
+CPL
+WRITE
 5
 MINUS
 2
