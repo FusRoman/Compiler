@@ -1,4 +1,11 @@
 .text
+b
+a
+WRITE
+b
+READ
+READ
+PRINT
 test
 JUMP
 loop:
@@ -7,8 +14,10 @@ READ
 PRINT
 10
 PRINT
-a
-a
+b
+READ
+b
+READ
 READ
 1
 ADD
@@ -27,5 +36,5 @@ PRINT
 EXIT
 .data
 a: 97
-b: 98
+b: 97
 c: 97

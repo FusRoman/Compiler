@@ -109,9 +109,12 @@ rule token = parse
   | '!'
       { NOT }
 
+(* Opérateur permettant d'effectuer un not binaire ( complémentaire ) *)
   | '~'
       { CPL }
 
+(* Ajout de l'opérateur permettant d'aller chercher l'adresse d'une variable et de l'affecter eventuellement
+a un pointeur.*)
   | '&'
       { ADRESS }
 

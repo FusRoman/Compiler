@@ -25,6 +25,11 @@
 %left MUL DIV MOD
 %right NOT CPL
 
+/*
+ La declaration %on_error_reduce est utilisé pour la gestion des messages d'erreur du parser. Les règles sous l'influence
+ d'un %on_error_reduce vont être obligé de continuer à lire des tokens et a effectué des réductions plus loin que 
+ l'erreur relevé ce qui permet au parser de connaitre de façon un peu plus précise l'origine de l'erreur relevé.
+*/
 %on_error_reduce instruction
 %on_error_reduce data_declaration
 %on_error_reduce tag
@@ -55,6 +60,9 @@ source:
         {tag_set = tag_set;
         syntax_tree = ProgData (text.syntax_tree, data.syntax_tree)}
       with
+      (* L'exception DuplicateElements est levé lorsque on essaie d'ajouter un élément qui existe déjà 
+      dans l'ensemble. Comme union effectue des ajout, cette exception peut être levé et permet de 
+      savoir si un tag du même nom a déjà été déclaré avant et de lever une SyntaxError. *)
       |Tagset.DuplicateElement s ->
         let pos = $startpos in
         raise (ARTTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
@@ -82,6 +90,8 @@ instructions:
       let pos = $startpos in
       raise (ARTTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
+  (* Les règles suivantes interviennent dans la génération de messages d'erreur plus précis et ne détermine pas
+  les véritables règles de syntaxe du langage art. *)
 | instruction TWO_POINT instructions {
   let pos = $startpos in
    raise (SyntaxError ("You cannot used a ':' symbol between two instructions.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))

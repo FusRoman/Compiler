@@ -12,8 +12,17 @@ build_stk: build_asm
 	ocamllex stk/STKCompiler.mll
 	ocamlc -I utils/ utils/cycle.cmo stk/STKCompiler.ml -o stk/STKCompiler
 
+build_stk_alloc: build_asm
+	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
+	ocamllex stk/STKCompilerAlloc.mll
+	ocamlc -I utils/ utils/cycle.cmo stk/STKCompilerAlloc.ml -o stk/STKCompilerAlloc
+
 run_stk: build_stk
 	./stk/STKCompiler test/$(file).stk
+	$(MAKE) run_asm file=$(file)
+
+run_stk_alloc: build_stk_alloc
+	./stk/STKCompilerAlloc test/$(file).stk
 	$(MAKE) run_asm file=$(file)
 
 build_art: build_stk
@@ -42,7 +51,7 @@ run_imp: build_imp
 	$(MAKE) run_art file=$(file)
 
 clear:
-	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler
+	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
