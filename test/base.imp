@@ -1,0 +1,5 @@
+.text
+print(33);
+print(10);
+exit;
+.data

@@ -1,6 +1,6 @@
 .text
 EXIT
-true
+1
 PRINT
 10
 PRINT
@@ -10,3 +10,7 @@ PRINT
 PRINT
 97
 PRINT
+.data
+a: 97
+b: 98
+c: 99

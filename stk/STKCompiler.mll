@@ -442,7 +442,7 @@
   (*
     Un programme doit dans les faits démarrer par un push ; avant, il ne peut faire que des NOP ou des EXIT.
     A partir du premier élément dans la pile, il devient possible de faire un JUMP et vérifier que la pile est 
-    nécessairement vide à un certain endroit du programme est trop compliqué (voire impossible).
+    nécessairement vide à d'autres endroits du programme est trop compliqué (voire impossible).
     En revanche, pour le premier push, on sait que la pile est nécessairement vide donc on peut agir en conséquence.
   *)
   let push pushable state =
@@ -852,7 +852,7 @@ and texter info =
     else
       if TagSet.mem tag info.tags then
         error info tag
-          (fmt "Duplicate tag '%s'" tag) lexbuf
+          (fmt "Tag '%s' is declared at least twice" tag) lexbuf
       else
       begin
         let info' = add_tag info tag in

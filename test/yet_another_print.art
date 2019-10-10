@@ -5,3 +5,7 @@
   print(10);
   print(true);
   exit;
+.data
+  a: 97
+  b: 98
+  c: 99

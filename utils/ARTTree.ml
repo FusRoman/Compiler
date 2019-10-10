@@ -110,6 +110,22 @@ let unop_fun op =
   | Not -> Arith.anot
   | Cpl -> Arith.cpl
 
+let expression_str e =
+  match e with
+  | Int v -> string_of_int v
+  | Bool b -> string_of_bool b
+  | _ -> failwith "no"
+
+let instruction_str i =
+  match i with
+  | Print e -> "print(" ^ (expression_str e) ^ ")"
+  | Nop -> "nop"
+  | Exit -> "exit"
+  | _ -> failwith "no."
+
+let instructions_str is =
+  Cycle.iter is (fun i () -> Printf.printf "%s;\n" (instruction_str i)) ()
+
 let rec compile_l_expr file tag_set l_e =
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
@@ -184,9 +200,11 @@ let rec compile_datas file datas =
 
 let rec compile file tag_set tree = 
   match tree with
-  | Prog is -> fprintf file ".text\n";
+  | Prog is -> instructions_str is;
+    fprintf file ".text\n";
     compile_instrs file tag_set is
-  | ProgData (is,ds) -> fprintf file ".text\n";
+  | ProgData (is,ds) -> instructions_str is;
+    fprintf file ".text\n";
     compile_instrs file tag_set is;
     fprintf file ".data\n";
     compile_datas file ds

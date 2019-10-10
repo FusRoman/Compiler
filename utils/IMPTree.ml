@@ -60,11 +60,13 @@ let optimize_expression e =
         else
           default
 
-      | (Or, Some v, _) | (Or, _, Some v) -> 
+      (*| (Or, Some v, _) | (Or, _, Some v) -> 
         if Arith.bool_of_int v then
           (Int Arith.true_int, Some Arith.true_int)
         else
-          default
+          default*)
+      (* Vu qu'il s'agit d'un OR binaire, on ne peut pas garantir que le résultat sera 1 
+        si l'une des opérandes est interprétée comme true *)
 
       | (_, Some v1, Some v2) ->
         let v = binop_fun op v1 v2 in

@@ -29,10 +29,17 @@ run_art: build_art
 	./art/ARTCompiler test/$(file).art test/$(file).stk
 	$(MAKE) run_stk file=$(file)
 
-build_imp: build_stk #build_art
-	ocamlc -c -I utils/ utils/tagset.mli utils/tagset.ml # A virer
-	ocamlc -c -I utils/ utils/ARTTree.mli utils/ARTTree.ml # Pareil
+build_imp: build_art
 	ocamlc -c -I utils/ utils/IMPTree.mli utils/IMPTree.ml
+	menhir -v imp/IMPParser.mly
+	ocamlc -c -I imp/ -I utils/ imp/IMPParser.mli imp/IMPParser.ml
+	ocamllex imp/IMPLexer.mll
+	ocamlc -c -I imp/ imp/IMPLexer.ml
+	ocamlc -I utils/ -I imp/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo imp/IMPLexer.cmo imp/IMPParser.cmo imp/IMPCompiler.ml -o imp/IMPCompiler
+
+run_imp: build_imp
+	./imp/IMPCompiler test/$(file).imp
+	#$(MAKE) run_art file=$(file)
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler
@@ -40,4 +47,5 @@ clear:
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
 	rm -rf test/*.asm test/*.btc a.out
-	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler	
+	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler
+	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler
