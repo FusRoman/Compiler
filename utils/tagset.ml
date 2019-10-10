@@ -1,23 +1,20 @@
 exception DuplicateElement of string
 
-(*module TagSet = Set.Make (String)*)
+module T = Set.Make (String)
 
-type elt = string
-type t = string list
+type elt = T.elt
+type t = T.t
 
-let empty = []
+let empty = T.empty
 
 let add x l =
-  if List.mem x l then
+  if T.mem x l then
     raise (DuplicateElement x)
   else
-    x::l
+    T.add x l
 
-let mem = List.mem
-let singleton x = [x]
+let mem = T.mem
+let singleton = T.singleton
 
-let rec union l1 l2 =
-  match l1 with
-  | [] -> l2
-  | x::s ->
-    union s (add x l2)
+let union l1 l2 =
+  T.fold (fun x acc -> add x acc) l1 l2

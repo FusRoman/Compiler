@@ -1,7 +1,7 @@
 exception DuplicateElement of string
 
 type elt = string
-type t = string list
+type t
 
 val empty : t
 val add : elt -> t -> t

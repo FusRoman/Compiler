@@ -56,6 +56,7 @@ and expression =
   | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
+  | Address of string node
 
 and l_expr = 
   | Id of string node
@@ -110,21 +111,56 @@ let unop_fun op =
   | Not -> Arith.anot
   | Cpl -> Arith.cpl
 
-let expression_str e =
-  match e with
-  | Int v -> string_of_int v
-  | Bool b -> string_of_bool b
-  | _ -> failwith "no"
+let optimize_expression e =
+  let rec opt_inner e =
+    match e with
+    | Int v -> (e, Some v, 1)
+    | Bool b -> (e, Some (Arith.int_of_bool b), 1)
+    | LExpr _ | StackPointer | Address _ -> (e, None, 1)
 
-let instruction_str i =
-  match i with
-  | Print e -> "print(" ^ (expression_str e) ^ ")"
-  | Nop -> "nop"
-  | Exit -> "exit"
-  | _ -> failwith "no."
+    | Unop(op, e') ->
+      begin
+        let (sub, cte, nb_register) = opt_inner e' in
+        match cte with
+        | Some v ->
+          let v' = unop_fun op v in
+          (Int v', Some v', nb_register)
+        | None -> 
+          match sub with
+          (* Branche de toutes les fonctions unaires qui ne sont pas leur propre inverse
+             | Unop(ADDRESS, _) -> (Unop(op, sub), None) *)
+          | Unop(op2, sub') when op2 = op -> (sub', None, nb_register) (* sub' ne peut pas être une constante *)
+          | _ -> (Unop(op, sub), None, nb_register)
+      end
 
-let instructions_str is =
-  Cycle.iter is (fun i () -> Printf.printf "%s;\n" (instruction_str i)) ()
+    | Binop(e1, op, e2) ->
+      let (sub1, cte1, nb_register_e1) = opt_inner e1 in
+      let (sub2, cte2, nb_register_e2) = opt_inner e2 in
+      let e1, e2, nb_register_e =
+        match op with
+        | Add | Mult when nb_register_e1 < nb_register_e2 ->
+          ( e2, e1, max nb_register_e2 (nb_register_e1 + 1) )
+        | _ ->
+          ( e1, e2, max nb_register_e1 (nb_register_e2 + 1) )
+      in
+      let default = (Binop(sub1, op, sub2), None, nb_register_e) in
+      match (op, cte1, cte2) with
+      | (And, Some v, _) | (And, _, Some v) -> 
+        if not (Arith.bool_of_int v) then
+          (Int Arith.false_int, Some Arith.false_int, nb_register_e1 + nb_register_e2)
+        else
+          default
+      | (_, Some v1, Some v2) ->
+        let v = binop_fun op v1 v2 in
+        (Int v, Some v, nb_register_e1 + nb_register_e2)
+
+      | _ -> default
+  in
+  let (sub, v, _) = opt_inner e in
+  (sub, v)
+
+let opt_exp_sub e =
+  fst (optimize_expression e)
 
 let rec compile_l_expr file tag_set l_e =
   match l_e with
@@ -136,8 +172,27 @@ let rec compile_l_expr file tag_set l_e =
       end
     else
       raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
-  | LStar s_l_e -> compile_l_expr file tag_set s_l_e;
+  | LStar suite -> compile_l_expr file tag_set suite;
     fprintf file "READ\n"
+
+let rec compile_l_expr_for_assign file tag_set l_e =
+  match l_e with
+  | Id {contents = i; line = line; column = column} -> 
+    if Tagset.mem i tag_set then
+      fprintf file "%s\n" i
+    else
+      raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
+  | LStar suite -> compile_l_expr_for_assign file tag_set suite;
+    fprintf file "READ\n"
+
+let rec compile_l_expr_without_read file tag_set l_e =
+  match l_e with
+  | Id {contents = i; line = line; column = column} ->
+    if Tagset.mem i tag_set then
+      fprintf file "%s\n" i
+    else
+      raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
+  | LStar s_l_e -> compile_l_expr_without_read file tag_set s_l_e
 
 let rec compile_exprs file tag_set e =
   match e with
@@ -150,15 +205,11 @@ let rec compile_exprs file tag_set e =
     fprintf file "%s\n" (string_of_unop op)
   | LExpr l_e -> compile_l_expr file tag_set l_e
   | StackPointer -> fprintf file "stack_pointer\n"
-
-let rec compile_l_expr_without_read file tag_set l_e = 
-  match l_e with
-  | Id {contents = i; line = line; column = column} -> 
+  | Address {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
       fprintf file "%s\n" i
     else
       raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
-  | LStar s_l_e -> compile_l_expr_without_read file tag_set s_l_e
 
 let compile_instr file tag_set instr = 
   match instr with
@@ -171,7 +222,7 @@ let compile_instr file tag_set instr =
   | JumpWhen (l_e,e) -> compile_l_expr_without_read file tag_set l_e;
     compile_exprs file tag_set e;
     fprintf file "JUMPWHEN\n"
-  | Assign (l_e,e) -> compile_l_expr_without_read file tag_set l_e;
+  | Assign (l_e,e) -> compile_l_expr_for_assign file tag_set l_e;
     compile_exprs file tag_set e;
     fprintf file "WRITE\n"
   | TagDeclaration t ->
@@ -179,11 +230,11 @@ let compile_instr file tag_set instr =
 
 let rec compile_instrs file tag_set instrs = 
   if instrs <> Cycle.empty_cycle then
-  begin
-    let (i, s) = Cycle.take instrs in
-    compile_instr file tag_set i;
-    compile_instrs file tag_set s
-  end
+    begin
+      let (i, s) = Cycle.take instrs in
+      compile_instr file tag_set i;
+      compile_instrs file tag_set s
+    end
 
 let compile_data file data =
   match data with
@@ -192,11 +243,11 @@ let compile_data file data =
 
 let rec compile_datas file datas =
   if datas <> Cycle.empty_cycle then
-  begin
-    let (d, s) = Cycle.take datas in
-    compile_data file d;
-    compile_datas file s
-  end
+    begin
+      let (d, s) = Cycle.take datas in
+      compile_data file d;
+      compile_datas file s
+    end
 
 let rec compile file tag_set tree = 
   match tree with
@@ -205,6 +256,92 @@ let rec compile file tag_set tree =
     compile_instrs file tag_set is
   | ProgData (is,ds) -> instructions_str is;
     fprintf file ".text\n";
+    compile_instrs file tag_set is;
+    fprintf file ".data\n";
+    compile_datas file ds
+
+
+let string_of_binop_direct op = 
+  match op with
+  | Add -> "+"
+  | Sub -> "-"
+  | Mult -> "*"
+  | Div -> "/"
+  | Rem -> "%"
+  | Eq -> "="
+  | Neq -> "!="
+  | Lt -> "<"
+  | Le -> "<="
+  | Gt -> ">"
+  | Ge -> ">="
+  | And -> "&&"
+  | Or -> "||"
+
+let string_of_unop_direct op =
+  match op with
+  | Minus -> "-"
+  | Not -> "!"
+  | Cpl -> "~"
+
+let rec direct_print_l_expr file l_e =
+  match l_e with
+  | Id {contents = i; line = line; column = column} -> 
+    fprintf file " %s " i
+  | LStar suite -> fprintf file "*";direct_print_l_expr file suite
+
+let rec direct_print_exprs file e =
+  match e with
+  | Int i -> fprintf file " %d " i
+  | Bool b -> fprintf file " %b " b
+  | Binop (e1,op,e2) -> direct_print_exprs file e1;
+    fprintf file " %s " (string_of_binop_direct op);
+    direct_print_exprs file e2;
+  | Unop (op,e) -> 
+    fprintf file "%s" (string_of_unop_direct op); direct_print_exprs file e
+  | LExpr l_e -> direct_print_l_expr file l_e
+  | StackPointer -> fprintf file "stack_pointer\n"
+  | Address {contents = i; line = line; column = column} -> fprintf file "&%s\n" i
+
+let direct_print_instr file tag_set instr = 
+  match instr with
+  | Nop -> fprintf file "nop;\n"
+  | Exit -> fprintf file "exit;\n"
+  | Print e -> 
+    fprintf file "print ("; direct_print_exprs file e; fprintf file ");\n"
+  | Jump l_e -> 
+    fprintf file "jump "; direct_print_l_expr file l_e
+  | JumpWhen (l_e,e) -> 
+    fprintf file "jump "; direct_print_l_expr file l_e; fprintf file " when "; direct_print_exprs file e
+  | Assign (l_e,e) -> direct_print_l_expr file l_e; fprintf file " := "; direct_print_exprs file e
+  | TagDeclaration t ->
+    fprintf file "%s:\n" t.contents
+
+let rec compile_instrs file tag_set instrs = 
+  if instrs <> Cycle.empty_cycle then
+    begin
+      let (i, s) = Cycle.take instrs in
+      compile_instr file tag_set i;
+      compile_instrs file tag_set s
+    end
+
+let compile_data file data =
+  match data with
+  | {contents = (s, i); line = _; column = _} ->
+    fprintf file "%s: %d\n" s i
+
+let rec compile_datas file datas =
+  if datas <> Cycle.empty_cycle then
+    begin
+      let (d, s) = Cycle.take datas in
+      compile_data file d;
+      compile_datas file s
+    end
+
+let rec direct_print file tag_set tree = 
+  match tree with
+  | Prog is -> fprintf file ".text\n";
+    compile_instrs file tag_set is
+  | ProgData (is,ds) -> fprintf file ".text\n";
     compile_instrs file tag_set is;
     fprintf file ".data\n";
     compile_datas file ds
