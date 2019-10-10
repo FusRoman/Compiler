@@ -21,62 +21,6 @@ and imp_prog =
   | TextData of imp_instrs * datas
   | Text of imp_instrs
 
-(*
-  Optimise une expression :
-  - tant qu'il s'agit de calculs de constantes, simplifie
-  - annule les double NOT / MINUS / CPL
-  Les expressions en IMP ont le même type que celles en ART, donc il n'y a pas de traduction à faire.
-*)
-let optimize_expression e =
-  let rec opt_inner e =
-    match e with
-    | Int v -> (e, Some v)
-    | Bool b -> (e, Some (Arith.int_of_bool b))
-    | LExpr _ | StackPointer -> (e, None)
-
-    | Unop(op, e') ->
-    begin
-      let (sub, cte) = opt_inner e' in
-      match cte with
-      | Some v ->
-        let v' = unop_fun op v in
-        (Int v', Some v')
-      | None -> 
-        match sub with
-        (* Branche de toutes les fonctions unaires qui ne sont pas leur propre inverse
-        | Unop(ADDRESS, _) -> (Unop(op, sub), None) *)
-        | Unop(op2, sub') when op2 = op -> (sub', None) (* sub' ne peut pas être une constante *)
-        | _ -> (Unop(op, sub), None)
-    end
-
-    | Binop(e1, op, e2) ->
-      let (sub1, cte1) = opt_inner e1 in
-      let (sub2, cte2) = opt_inner e2 in
-      let default = (Binop(sub1, op, sub2), None) in
-      match (op, cte1, cte2) with
-      | (And, Some v, _) | (And, _, Some v) -> 
-        if not (Arith.bool_of_int v) then
-          (Int Arith.false_int, Some Arith.false_int)
-        else
-          default
-
-      | (Or, Some v, _) | (Or, _, Some v) -> 
-        if Arith.bool_of_int v then
-          (Int Arith.true_int, Some Arith.true_int)
-        else
-          default
-
-      | (_, Some v1, Some v2) ->
-        let v = binop_fun op v1 v2 in
-        (Int v, Some v)
-
-      | _ -> default
-  in
-  opt_inner e
-
-let opt_exp_sub e = 
-  fst (optimize_expression e)
-
 let to_cycle i =
   Cycle.from_elt i
 
@@ -118,8 +62,8 @@ let rec translate_condition c bthen belse =
 and translate_instruction i =
   match i with
   | Nop | Exit | Break | Continue | Goto _ -> to_cycle i
-  | Print e -> to_cycle (Print(opt_exp_sub e))
-  | Assign(l, e) -> to_cycle (Assign(l, opt_exp_sub e))
+  | Print e -> to_cycle (Print(fst (optimize_expression e)))
+  | Assign(l, e) -> to_cycle (Assign(l, fst (optimize_expression e)))
   | IfElse(c, bthen, belse) -> translate_condition c bthen belse
   | If(c, bthen) -> translate_condition c bthen Cycle.empty_cycle
   | TagDeclaration t -> to_cycle i

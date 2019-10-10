@@ -56,6 +56,7 @@ and expression =
   | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
+  | Address of l_expr
 
 and l_expr = 
   | Id of string node
@@ -110,6 +111,57 @@ let unop_fun op =
   | Not -> Arith.anot
   | Cpl -> Arith.cpl
 
+let optimize_expression e =
+  let rec opt_inner e =
+    match e with
+    | Int v -> (e, Some v, 1)
+    | Bool b -> (e, Some (Arith.int_of_bool b), 1)
+    | LExpr _ | StackPointer | Address _ -> (e, None, 1)
+
+    | Unop(op, e') ->
+      begin
+        let (sub, cte, nb_register) = opt_inner e' in
+        match cte with
+        | Some v ->
+          let v' = unop_fun op v in
+          (Int v', Some v', nb_register)
+        | None -> 
+          match sub with
+          (* Branche de toutes les fonctions unaires qui ne sont pas leur propre inverse
+             | Unop(ADDRESS, _) -> (Unop(op, sub), None) *)
+          | Unop(op2, sub') when op2 = op -> (sub', None, nb_register) (* sub' ne peut pas être une constante *)
+          | _ -> (Unop(op, sub), None, nb_register)
+      end
+
+    | Binop(e1, op, e2) ->
+      let (sub1, cte1, nb_register_e1) = opt_inner e1 in
+      let (sub2, cte2, nb_register_e2) = opt_inner e2 in
+      let e1, e2, nb_register_e =
+        match op with
+        | Add | Mult when nb_register_e1 < nb_register_e2 ->
+          ( e2, e1, max nb_register_e2 (nb_register_e1 + 1) )
+        | _ ->
+          ( e1, e2, max nb_register_e1 (nb_register_e2 + 1) )
+      in
+      let default = (Binop(sub1, op, sub2), None, nb_register_e) in
+      match (op, cte1, cte2) with
+      | (And, Some v, _) | (And, _, Some v) -> 
+        if not (Arith.bool_of_int v) then
+          (Int Arith.false_int, Some Arith.false_int, nb_register_e1 + nb_register_e2)
+        else
+          default
+      | (_, Some v1, Some v2) ->
+        let v = binop_fun op v1 v2 in
+        (Int v, Some v, nb_register_e1 + nb_register_e2)
+
+      | _ -> default
+  in
+  let (sub, v, _) = opt_inner e in
+  (sub, v)
+
+let opt_exp_sub e =
+  fst (optimize_expression e)
+
 let rec compile_l_expr file tag_set l_e =
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
@@ -120,8 +172,17 @@ let rec compile_l_expr file tag_set l_e =
       end
     else
       raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
-  | LStar s_l_e -> compile_l_expr file tag_set s_l_e;
+  | LStar suite -> compile_l_expr file tag_set suite;
     fprintf file "READ\n"
+
+let rec compile_l_expr_without_read file tag_set l_e = 
+  match l_e with
+  | Id {contents = i; line = line; column = column} -> 
+    if Tagset.mem i tag_set then
+      fprintf file "%s\n" i
+    else
+      raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
+  | LStar s_l_e -> compile_l_expr_without_read file tag_set s_l_e
 
 let rec compile_exprs file tag_set e =
   match e with
@@ -134,15 +195,9 @@ let rec compile_exprs file tag_set e =
     fprintf file "%s\n" (string_of_unop op)
   | LExpr l_e -> compile_l_expr file tag_set l_e
   | StackPointer -> fprintf file "stack_pointer\n"
+  | Address l_e -> compile_l_expr_without_read file tag_set l_e
 
-let rec compile_l_expr_without_read file tag_set l_e = 
-  match l_e with
-  | Id {contents = i; line = line; column = column} -> 
-    if Tagset.mem i tag_set then
-      fprintf file "%s\n" i
-    else
-      raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
-  | LStar s_l_e -> compile_l_expr_without_read file tag_set s_l_e
+
 
 let compile_instr file tag_set instr = 
   match instr with
@@ -163,11 +218,11 @@ let compile_instr file tag_set instr =
 
 let rec compile_instrs file tag_set instrs = 
   if instrs <> Cycle.empty_cycle then
-  begin
-    let (i, s) = Cycle.take instrs in
-    compile_instr file tag_set i;
-    compile_instrs file tag_set s
-  end
+    begin
+      let (i, s) = Cycle.take instrs in
+      compile_instr file tag_set i;
+      compile_instrs file tag_set s
+    end
 
 let compile_data file data =
   match data with
@@ -176,11 +231,11 @@ let compile_data file data =
 
 let rec compile_datas file datas =
   if datas <> Cycle.empty_cycle then
-  begin
-    let (d, s) = Cycle.take datas in
-    compile_data file d;
-    compile_datas file s
-  end
+    begin
+      let (d, s) = Cycle.take datas in
+      compile_data file d;
+      compile_datas file s
+    end
 
 let rec compile file tag_set tree = 
   match tree with

@@ -26,7 +26,7 @@ rule token = parse
 
   | ".data"
       { DATA }
-      
+
   | "print"
       { PRINT }
 
@@ -109,12 +109,12 @@ rule token = parse
   | '~'
       { CPL }
 
+  | '&'
+      { ADRESS }
+
   | ':'
       { TWO_POINT }
-
-  | '*'
-      { LEFT_EXPR_STAR }
-
+      
   | _
       { failwith ("Unknown character : " ^ (lexeme lexbuf)) }
   | eof

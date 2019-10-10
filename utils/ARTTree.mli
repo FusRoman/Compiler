@@ -62,6 +62,7 @@ and expression =
   | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
+  | Address of l_expr
 
 and l_expr = 
   | Id of string node
@@ -77,5 +78,30 @@ val binop_fun : binop -> int -> int -> int
 
 (** Renvoie la fonction correspondant à l'opérateur unaire donné *)
 val unop_fun : unop -> int -> int
+
+(**
+  Optimise une expression :
+  - tant qu'il s'agit de calculs de constantes, simplifie
+  - annule les double NOT / MINUS / CPL
+  - optimise l'ordre de calcul des expression arithmetique pour minimiser l'utilisation des registres.    
+  Les expressions en IMP ont le même type que celles en ART, donc il n'y a pas de traduction à faire.
+
+  Retourne (sub, v) où sub est l'expression optimisée, et v contient un entier si l'expression est une constante 
+  ou a été optimisée en tant que telle, et vaut None sinon.
+
+  Au final puisque IMP a besoin de cette fonction pour optimiser non seulement ses expressions mais aussi
+  ses structures de contrôle, utiliser cette fonction dans la compilation de ART serait redondant 
+  (puisque ce serait déjà optimisé) et ferait donc juste perdre du temps.
+
+
+  Si l'on a une expression de la forme (e1 * e2) ou (e1 + e2) et que r1 désigne le nombre de registres requis pour
+  l'exécution de e1 et r2 le nombre de registres requis pour l'execution de e2, alors il faut max(r1,r2 + 1) registres 
+  pour l'execution de l'expression complète : il faut un registre pour enregistrer le résultat de e1 
+  lors du calcul de e2, d'où r2 + 1.
+  Comme on veut minimiser max(r1, r2 + 1), on veut que r2 soit plus petit que r1 si possible.
+  Si r1 < r2 alors on inverse donc les opérandes sinon on laisse tel quel.
+  Cette optimisation ne peut naturellement qu'être effectuée sur les opérations commutatives. 
+*)
+val optimize_expression : expression -> expression * int option
 
 val compile : out_channel -> string list -> art_prog -> unit 

@@ -14,10 +14,9 @@
 %token LP RP
 %token <string>ID
 %token <bool>BOOL
-%token NOT CPL
+%token NOT CPL ADRESS
 %token JUMP WHEN
 %token AFFECT
-%token LEFT_EXPR_STAR
 %token ADD SUB MUL DIV MOD AND OR INF SUP INF_EQUAL SUP_EQUAL EQUAL NOT_EQUAL 
 
 %left AND OR
@@ -71,13 +70,13 @@ instructions:
 | i=instruction SEMI is=instructions 
 { 
   {tag_set = is.tag_set;
-  syntax_tree =  (Cycle.append is.syntax_tree i)} 
+  syntax_tree =  (Cycle.prepend is.syntax_tree i)} 
 }
 | t=tag TWO_POINT is=instructions 
   {
     try
     {tag_set = Tagset.union t.tag_set is.tag_set;
-    syntax_tree = (Cycle.append is.syntax_tree t.syntax_tree)}
+    syntax_tree = (Cycle.prepend is.syntax_tree t.syntax_tree)}
     with
     |Tagset.DuplicateElement s ->
       let pos = $startpos in
@@ -137,7 +136,7 @@ l_express:
       contents = i
     }
   }
-| LEFT_EXPR_STAR e=l_express { e }
+| MUL e=l_express { LStar e }
 ;
 
 expression:
@@ -148,6 +147,7 @@ expression:
 | SUB e=expression { Unop (Minus,e) }
 | NOT e=expression { Unop (Not,e) }
 | CPL e=expression { Unop (Cpl,e) }
+| ADRESS l_e=l_express { Address l_e }
 | LP e=expression RP { e }
 | e1=expression ADD e2=expression { 
   Binop (e1,Add,e2) 
@@ -198,7 +198,7 @@ data_declarations:
 | d=data_declaration ds=data_declarations {
   try
   {tag_set = (Tagset.union d.tag_set ds.tag_set);
-  syntax_tree = (Cycle.append ds.syntax_tree d.syntax_tree)}
+  syntax_tree = (Cycle.prepend ds.syntax_tree d.syntax_tree)}
   with
     |Tagset.DuplicateElement s ->
       let pos = $startpos in
