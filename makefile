@@ -43,6 +43,9 @@ build_imp: build_stk #build_art
 	ocamlc -c -I utils/ utils/ARTTree.mli utils/ARTTree.ml # Pareil
 	ocamlc -c -I utils/ utils/IMPTree.mli utils/IMPTree.ml
 
+build_interprete_var :
+	
+
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
