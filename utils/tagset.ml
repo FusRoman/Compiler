@@ -18,3 +18,5 @@ let singleton = T.singleton
 
 let union l1 l2 =
   T.fold (fun x acc -> add x acc) l1 l2
+
+let fold = T.fold

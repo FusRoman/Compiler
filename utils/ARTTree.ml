@@ -125,12 +125,25 @@ let optimize_expression e =
         | Some v ->
           let v' = unop_fun op v in
           (Int v', Some v', nb_register)
-        | None -> 
-          match sub with
-          (* Branche de toutes les fonctions unaires qui ne sont pas leur propre inverse
-             | Unop(ADDRESS, _) -> (Unop(op, sub), None) *)
-          | Unop(op2, sub') when op2 = op -> (sub', None, nb_register) (* sub' ne peut pas être une constante *)
-          | _ -> (Unop(op, sub), None, nb_register)
+        | None ->
+          let result r = (r, None, nb_register) in
+          match op with
+          | Not ->
+          begin
+            match sub with
+            | Unop(Not, Unop(Not, sub')) -> result (Unop(Not, sub'))
+            | Binop(e1, Eq, e2) -> result (Binop(e1, Neq, e2))
+            | Binop(e1, Neq, e2) -> result (Binop(e1, Eq, e2))
+            | Binop(e1, Lt, e2) -> result (Binop(e1, Ge, e2))
+            | Binop(e1, Ge, e2) -> result (Binop(e1, Lt, e2))
+            | Binop(e1, Le, e2) -> result (Binop(e1, Gt, e2))
+            | Binop(e1, Gt, e2) -> result (Binop(e1, Le, e2))
+            | _ -> result (Unop(op, sub))
+          end
+          | _ ->
+            match sub with
+            | Unop(op2, sub') -> result sub' (* Cas des fonctions qui sont leur inverse appliquées 2 fois *)
+            | _ -> result (Unop(op, sub))
       end
 
     | Binop(e1, op, e2) ->
@@ -266,7 +279,7 @@ let string_of_binop_direct op =
   | Mult -> "*"
   | Div -> "/"
   | Rem -> "%"
-  | Eq -> "="
+  | Eq -> "=="
   | Neq -> "!="
   | Lt -> "<"
   | Le -> "<="
@@ -285,61 +298,71 @@ let rec direct_print_l_expr file l_e =
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
     fprintf file " %s " i
-  | LStar suite -> fprintf file "*";direct_print_l_expr file suite
+  | LStar suite -> 
+    fprintf file "*";
+    direct_print_l_expr file suite
 
 let rec direct_print_exprs file e =
   match e with
   | Int i -> fprintf file " %d " i
   | Bool b -> fprintf file " %b " b
-  | Binop (e1,op,e2) -> direct_print_exprs file e1;
+  | Binop (e1,op,e2) -> 
+    fprintf file "(";
+    direct_print_exprs file e1;
     fprintf file " %s " (string_of_binop_direct op);
     direct_print_exprs file e2;
+    fprintf file ")"
   | Unop (op,e) -> 
-    fprintf file "%s" (string_of_unop_direct op); direct_print_exprs file e
-  | LExpr l_e -> direct_print_l_expr file l_e
-  | StackPointer -> fprintf file "stack_pointer\n"
-  | Address {contents = i; line = line; column = column} -> fprintf file "&%s\n" i
+    fprintf file "(";
+    fprintf file "%s" (string_of_unop_direct op); 
+    direct_print_exprs file e;
+    fprintf file ")"
+  | LExpr l_e -> 
+    direct_print_l_expr file l_e
+  | StackPointer -> 
+    fprintf file "stack_pointer\n"
+  | Address {contents = i; line = line; column = column} -> 
+    fprintf file "&%s\n" i
 
 let direct_print_instr file tag_set instr = 
   match instr with
   | Nop -> fprintf file "nop;\n"
   | Exit -> fprintf file "exit;\n"
   | Print e -> 
-    fprintf file "print ("; direct_print_exprs file e; fprintf file ");\n"
+    fprintf file "print("; 
+    direct_print_exprs file e; 
+    fprintf file ");\n"
   | Jump l_e -> 
-    fprintf file "jump "; direct_print_l_expr file l_e
+    fprintf file "jump "; 
+    direct_print_l_expr file l_e;
+    fprintf file ";\n"
   | JumpWhen (l_e,e) -> 
-    fprintf file "jump "; direct_print_l_expr file l_e; fprintf file " when "; direct_print_exprs file e
-  | Assign (l_e,e) -> direct_print_l_expr file l_e; fprintf file " := "; direct_print_exprs file e
+    fprintf file "jump "; 
+    direct_print_l_expr file l_e; 
+    fprintf file " when "; 
+    direct_print_exprs file e;
+    fprintf file ";\n"
+  | Assign (l_e,e) -> 
+    direct_print_l_expr file l_e; 
+    fprintf file " := "; 
+    direct_print_exprs file e;
+    fprintf file ";\n"
   | TagDeclaration t ->
     fprintf file "%s:\n" t.contents
 
-let rec compile_instrs file tag_set instrs = 
+let rec direct_print_instrs file tag_set instrs = 
   if instrs <> Cycle.empty_cycle then
-    begin
-      let (i, s) = Cycle.take instrs in
-      compile_instr file tag_set i;
-      compile_instrs file tag_set s
-    end
+  begin
+    let (i, s) = Cycle.take instrs in
+    direct_print_instr file tag_set i;
+    direct_print_instrs file tag_set s
+  end
 
-let compile_data file data =
-  match data with
-  | {contents = (s, i); line = _; column = _} ->
-    fprintf file "%s: %d\n" s i
-
-let rec compile_datas file datas =
-  if datas <> Cycle.empty_cycle then
-    begin
-      let (d, s) = Cycle.take datas in
-      compile_data file d;
-      compile_datas file s
-    end
-
-let rec direct_print file tag_set tree = 
+let rec write_art file tag_set tree = 
   match tree with
   | Prog is -> fprintf file ".text\n";
-    compile_instrs file tag_set is
+    direct_print_instrs file tag_set is
   | ProgData (is,ds) -> fprintf file ".text\n";
-    compile_instrs file tag_set is;
+    direct_print_instrs file tag_set is;
     fprintf file ".data\n";
     compile_datas file ds

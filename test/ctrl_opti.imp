@@ -1,0 +1,76 @@
+.text
+
+  # Ces boucles devrait être absente dans le programme compilé
+loop_skip1:
+  while (false) {}
+loop_skip2:
+  while (1 < 0) print(97);
+loop_skip3:
+  while ((a < b) && false) print(98);
+loop_skip4:
+  while (1 < 0 && a < b) print(99);
+
+  # Cette boucle doit au contraire rester présente à cause de sa déclaration d'étiquette
+  while (false) {
+loop_true:
+  }
+
+  # Cette condition doit aussi disparaître
+if_skip:
+  if (!true) { 
+    print(97);
+    print(10);
+  }
+
+  # Cette condition doit être simplifiée en n'ayant que le contenu de la branche then
+else_skip:
+  if (true) {
+    print(97);
+    print(10);
+  } else {
+    print(98);
+    print(10);
+  }
+
+  # Contenu de la branche else
+then_skip:
+  if (false) {
+    print(97);
+    print(10);
+  } else {
+    print(98);
+    print(10);
+  }
+
+  # On ne skippe rien
+else_no_skip:
+  if (true) {
+    print(97); 
+    print(10);
+  } else {
+party_crasher:
+    print(98);
+    print(10);
+  }
+
+  # Pareil
+then_no_skip:
+  if (false) {
+hello_world:
+    print(97); 
+    print(10);
+  } else {
+    print(98);
+    print(10);
+  }
+
+  # Cette boucle doit rester, même si son contenu est vide
+loop_true2:
+  while (true) {}
+
+  # Boucle infinie avant donc ne s'exécutera jamais
+  print(10);
+  exit;
+.data
+  a: 97
+  b: 98

@@ -9,8 +9,8 @@ open ARTTree
 type imp_instr =
   | Nop
   | Exit
-  | Break
-  | Continue
+  | Break of unit node
+  | Continue of unit node
   | Print of expression
   | Goto of l_expr
   | Assign of l_expr * expression

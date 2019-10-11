@@ -1,0 +1,10 @@
+.text
+  while (a < 123) {
+    print(a);
+    print(10);
+    a := a+1;
+  }
+  exit;
+
+.data
+  a: 97

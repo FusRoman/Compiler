@@ -8,4 +8,5 @@ val add : elt -> t -> t
 val mem : elt -> t -> bool
 val union : t -> t -> t
 val singleton : elt -> t
+val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
 

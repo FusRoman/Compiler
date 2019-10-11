@@ -1,6 +1,5 @@
 {
   open IMPParser
-  
 }
 
 let digit = ['0'-'9']
@@ -82,15 +81,20 @@ rule token = parse
       { AND }
   | "||"
       { OR }
+
   | "!"
       { NOT }
   | "~"
       { CPL }
+  | "&"
+      { ADDRESS }
 
   | ";"
       { SEMI }
   | ":"
       { COLON }
+  | ","
+      { COMMA }
   | "("
       { LP }
   | ")"
@@ -106,12 +110,12 @@ rule token = parse
       { INT(int_of_string n) }
 
   | ['\n']
-      { new_line lexbuf; token lexbuf }
+      { Lexing.new_line lexbuf; token lexbuf }
   | comment
-      { new_line lexbuf; token lexbuf }
+      { Lexing.new_line lexbuf; token lexbuf }
   | [' ' '\t' '\r']+
       { token lexbuf }
-  | _
-      { failwith ("Unknown character : " ^ (lexeme lexbuf)) }
   | eof
       { EOF }
+  | _
+      { failwith ("Unknown character : " ^ (Lexing.lexeme lexbuf)) }
