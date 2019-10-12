@@ -27,6 +27,14 @@ and imp_prog =
   | TextData of imp_instrs * datas
   | Text of imp_instrs
 
+(** 
+  Traduit une boucle for en une boucle while IMP.
+  'for_to_while init cond it block' représente la boucle 'for (init; cond; it) block'.
+  init et it peuvent contenir plusieurs assignements. Si une seule instruction donnée
+  n'est pas Assign, une erreur sera lancée.
+*)
+val for_to_while : imp_instrs -> expression -> imp_instrs -> imp_instrs -> imp_instrs
+
 (**
   Transforme un arbre de syntaxe IMP en un arbre de syntaxe ART, qu'il est ensuite possible
   d'écrire dans un fichier ou de compiler en STK directement.
@@ -37,4 +45,4 @@ val imp_to_art : imp_prog compiler_type -> art_prog compiler_type
 (**
   'write_imp imp output' écrit le programme imp dans le fichier output.
 *)
-(*val write_imp : imp_prog -> out_channel -> unit*)
+val write_imp : out_channel -> imp_prog -> unit

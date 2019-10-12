@@ -294,35 +294,37 @@ let string_of_unop_direct op =
   | Not -> "!"
   | Cpl -> "~"
 
-let rec direct_print_l_expr file l_e =
+let rec write_art_l_expr file l_e =
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
-    fprintf file " %s " i
+    fprintf file "%s" i
   | LStar suite -> 
     fprintf file "*";
-    direct_print_l_expr file suite
+    write_art_l_expr file suite
 
-let rec direct_print_exprs file e =
+let rec write_art_expr file e =
   match e with
-  | Int i -> fprintf file " %d " i
-  | Bool b -> fprintf file " %b " b
+  | Int i -> fprintf file "%d" i
+  | Bool b -> fprintf file "%b" b
   | Binop (e1,op,e2) -> 
     fprintf file "(";
-    direct_print_exprs file e1;
+    write_art_expr file e1;
     fprintf file " %s " (string_of_binop_direct op);
-    direct_print_exprs file e2;
+    write_art_expr file e2;
     fprintf file ")"
   | Unop (op,e) -> 
     fprintf file "(";
     fprintf file "%s" (string_of_unop_direct op); 
-    direct_print_exprs file e;
+    write_art_expr file e;
     fprintf file ")"
   | LExpr l_e -> 
-    direct_print_l_expr file l_e
+    write_art_l_expr file l_e
   | StackPointer -> 
-    fprintf file "stack_pointer\n"
+    fprintf file "stack_pointer"
   | Address {contents = i; line = line; column = column} -> 
-    fprintf file "&%s\n" i
+    fprintf file "&%s" i
+
+let write_art_data = compile_datas
 
 let direct_print_instr file tag_set instr = 
   match instr with
@@ -330,22 +332,22 @@ let direct_print_instr file tag_set instr =
   | Exit -> fprintf file "exit;\n"
   | Print e -> 
     fprintf file "print("; 
-    direct_print_exprs file e; 
+    write_art_expr file e; 
     fprintf file ");\n"
   | Jump l_e -> 
     fprintf file "jump "; 
-    direct_print_l_expr file l_e;
+    write_art_l_expr file l_e;
     fprintf file ";\n"
   | JumpWhen (l_e,e) -> 
     fprintf file "jump "; 
-    direct_print_l_expr file l_e; 
+    write_art_l_expr file l_e; 
     fprintf file " when "; 
-    direct_print_exprs file e;
+    write_art_expr file e;
     fprintf file ";\n"
   | Assign (l_e,e) -> 
-    direct_print_l_expr file l_e; 
+    write_art_l_expr file l_e; 
     fprintf file " := "; 
-    direct_print_exprs file e;
+    write_art_expr file e;
     fprintf file ";\n"
   | TagDeclaration t ->
     fprintf file "%s:\n" t.contents

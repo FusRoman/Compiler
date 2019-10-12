@@ -21,6 +21,22 @@ and imp_prog =
   | TextData of imp_instrs * datas
   | Text of imp_instrs
 
+let for_to_while init cond it block =
+  let rec append_assign assigns acc =
+    if assigns = Cycle.empty_cycle then
+      acc
+    else
+      let (a, s) = Cycle.take assigns in
+      match a with
+      | Assign(l, e) ->
+        append_assign s (Cycle.append acc a) 
+      | _ ->
+        failwith "for_to_while: only assignments are allowed in init and it"
+  in
+  let result = append_assign init Cycle.empty_cycle in
+  let block' = append_assign it block in
+  Cycle.append result (While(cond, block'))
+
 let to_cycle i =
   Cycle.from_elt i
 
@@ -200,3 +216,97 @@ let imp_to_art imp =
   let tag_maker = meta_tag_maker imp in
   let art_instrs = translate_instructions opt_instrs tag_maker None None Cycle.empty_cycle in
   {syntax_tree = ProgData(art_instrs, data); tag_set = imp.tag_set}
+
+let rec write_instr file i depth =
+  let tabs d =
+    let tabs = String.make depth '\t' in
+    Printf.fprintf file "%s" tabs
+  in
+  match i with
+  | Nop ->
+    tabs depth;
+    Printf.fprintf file "nop;\n"
+  | Exit -> 
+    tabs depth;
+    Printf.fprintf file "exit;\n"
+  | Goto l -> 
+    tabs depth;
+    Printf.fprintf file "goto(";
+    write_art_l_expr file l;
+    Printf.fprintf file ");\n"
+  | Print e ->
+    tabs depth;
+    Printf.fprintf file "print(";
+    write_art_expr file e;
+    Printf.fprintf file ");\n"
+  | Assign(l, e) ->
+    tabs depth;
+    write_art_l_expr file l;
+    Printf.fprintf file " := ";
+    write_art_expr file e;
+    Printf.fprintf file ";\n"
+  | TagDeclaration t -> 
+    Printf.fprintf file "%s:\n" t.contents
+  | Break t ->
+    tabs depth;
+    Printf.fprintf file "break;\n"
+  | Continue t ->
+    tabs depth;
+    Printf.fprintf file "continue;\n"
+  | If(c, bthen) ->
+    tabs depth;
+    Printf.fprintf file "if (";
+    write_art_expr file c;
+    Printf.fprintf file ") {\n";
+    write_instrs file bthen (depth + 1);
+    tabs depth;
+    Printf.fprintf file "}\n"
+  | IfElse(c, bthen, belse) ->
+    tabs depth;
+    Printf.fprintf file "if (";
+    write_art_expr file c;
+    Printf.fprintf file ") {\n";
+    write_instrs file bthen (depth + 1);
+    tabs depth;
+    Printf.fprintf file "} else {\n";
+    write_instrs file belse (depth + 1);
+    tabs depth;
+    Printf.fprintf file "}\n"
+  | While(c, body) ->
+    tabs depth;
+    Printf.fprintf file "while (";
+    write_art_expr file c;
+    Printf.fprintf file ") {\n";
+    write_instrs file body (depth + 1);
+    tabs depth;
+    Printf.fprintf file "}\n"
+
+and write_instrs file is depth =
+  if is = Cycle.empty_cycle then
+    ()
+  else
+  begin
+    let (i, s) = Cycle.take is in
+    write_instr file i depth;
+    write_instrs file s depth
+  end
+
+let rec write_data file ds =
+  if ds = Cycle.empty_cycle then
+    ()
+  else
+  begin
+    let ((t, v), s) = Cycle.take ds in
+    Printf.fprintf file "%s: %d\n" t v;
+    write_data file s
+  end
+
+let write_imp file imp =
+  Printf.fprintf file ".text\n";
+  match imp with
+  | TextData(i, d) ->
+    write_instrs file i 0;
+    Printf.fprintf file ".data\n";
+    write_art_data file d
+  | Text i ->
+    write_instrs file i 0

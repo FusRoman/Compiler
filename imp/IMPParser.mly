@@ -3,11 +3,40 @@
   open Tagset
   open ARTTree
   open IMPTree
+
+  type assign_binop =
+    | Standard
+    | AddAssign
+    | SubAssign
+    | MultAssign 
+    | DivAssign
+
+  type assign_unop =
+    | Incr 
+    | Decr 
+
+  let get_line pos =
+    pos.pos_lnum
+
+  let get_column pos =
+    pos.pos_cnum - pos.pos_bol
+
+  let raise_syntax_error pos msg =
+    raise (SyntaxError(msg, get_line pos, get_column pos))
+
+  let raise_duplicate_element pos t =
+    raise_syntax_error pos (Printf.sprintf "Tag '%s' is declared at least twice" t)
+
+  let raise_stack_pointer pos =
+    raise_syntax_error pos "'stack_pointer' is a reserved tag."
+
+  let make_node pos contents =
+    {line = get_line pos; column = get_column pos; contents}
 %}
 
 %token TEXT DATA
 %token NOP PRINT EXIT GOTO
-%token IF ELSE
+%token IF ELSE NO_ELSE
 %token WHILE FOR 
 %token CONTINUE BREAK
 %token STACKPOINTER
@@ -37,8 +66,11 @@
 %type <IMPTree.imp_instr> assign
 %type <IMPTree.imp_instrs ARTTree.compiler_type> block
 %type <IMPTree.imp_instrs ARTTree.compiler_type> control
+%type <IMPTree.imp_instrs> assigns
 %type <ARTTree.datas ARTTree.compiler_type> data_declarations
 
+%nonassoc NO_ELSE
+%nonassoc ELSE
 %left AND OR
 %left EQ NEQ LT LE GT GE
 %left ADD SUB
@@ -56,15 +88,14 @@ program:
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
-        let pos = $startpos in
-        raise (SyntaxError(
-          Printf.sprintf "Tag '%s' is declared at least twice" t,
-          pos.pos_lnum, pos.pos_cnum - pos.pos_bol))
+        raise_duplicate_element $startpos t
     }
 | TEXT text=instructions EOF
     { {tag_set = text.tag_set; syntax_tree = Text text.syntax_tree} }
 | error
-    { failwith "IMP program structure: .text <instructions> .data <declarations>" }
+    { 
+      raise_syntax_error $startpos "IMP program structure: .text <instructions> .data <declarations>" 
+    }
 ;
 
 instructions:
@@ -75,30 +106,23 @@ instructions:
         {tag_set = s.tag_set; syntax_tree}
       with
       | DuplicateElement t ->
-        let pos = $startpos in
-        raise (SyntaxError(
-          Printf.sprintf "Tag '%s' is declared at least twice" t,
-          pos.pos_lnum, pos.pos_cnum - pos.pos_bol))
+        raise_duplicate_element $startpos t
     }
 
 | t=LABEL COLON s=instructions 
     {
-      let pos = $startpos in
-      let line = pos.pos_lnum in
-      let column = pos.pos_cnum - pos.pos_bol in
       try
         let tag_set = add t s.tag_set in
-        let tag = {line; column; contents = t} in
+        let tag = make_node $startpos t in
         let syntax_tree = Cycle.prepend s.syntax_tree (TagDeclaration tag) in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
-        raise (SyntaxError(
-          Printf.sprintf "Tag '%s' is declared at least twice" t,
-          line, column))
+        raise_duplicate_element $startpos t
     }
 
 | c=control s=instructions
+| c=control SEMI s=instructions (* On accepte aussi ce cas par commodité *)
     {
       try
         let tag_set = union c.tag_set s.tag_set in
@@ -106,10 +130,23 @@ instructions:
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
-        let pos = $startpos in
-        raise (SyntaxError(
-          Printf.sprintf "Tag '%s' is declared at least twice" t,
-          pos.pos_lnum, pos.pos_cnum - pos.pos_bol)) 
+        raise_duplicate_element $startpos t 
+    }
+
+| control COLON instructions
+| instruction COLON instructions
+    {
+      raise_syntax_error $startpos "Expected ';', found ':'."
+    }
+
+| t=LABEL SEMI instructions
+    {
+      raise_syntax_error $startpos "Expected ':', found ';'."
+    }
+
+| LABEL instructions
+    {
+      raise_syntax_error $startpos "You may have forgotten a ':'."
     }
 
 |   { {syntax_tree = Cycle.empty_cycle; tag_set = empty} }
@@ -158,24 +195,13 @@ expr:
     { Unop(Cpl, e) }
 | NOT e=expr
     { Unop(Not, e) }
-| ADDRESS t=LABEL
-    {
-      let pos = $startpos in
-      let line = pos.pos_lnum in
-      let column = pos.pos_cnum - pos.pos_bol in
-      Address {line; column; contents = t}
-    }
+| ADDRESS t=LABEL 
+    { Address (make_node $startpos t) }
 ;
 
 l_expr:
 | t=LABEL
-    { 
-      let pos = $startpos in
-      let line = pos.pos_lnum in
-      let column = pos.pos_cnum - pos.pos_bol in
-      Id {line; column; contents = t}
-    }
-
+    { Id (make_node $startpos t) }
 | MULT l=l_expr
     { LStar l }
 ;
@@ -191,39 +217,63 @@ instruction:
     { Goto e}
 | BREAK
     { 
-      let pos = $startpos in
-      let line = pos.pos_lnum in
-      let column = pos.pos_cnum - pos.pos_bol in
-      Break {line; column; contents = ()}
+      Break (make_node $startpos ())
     }
 
 | CONTINUE
     { 
-      let pos = $startpos in
-      let line = pos.pos_lnum in
-      let column = pos.pos_cnum - pos.pos_bol in
-      Continue {line; column; contents = ()}
+      Continue (make_node $startpos ())
     }
 
 | a=assign
     { a }
+
+| t=LABEL LP e=l_expr RP
+    {
+      raise_syntax_error $startpos (Printf.sprintf "Unknown instruction '%s'." t)
+    }
 ;
 
 assign:
-| l=l_expr ASSIGN e=expr
-    { Assign(l, e) }
-| l=l_expr INCR
-    { (Assign(l, Binop(LExpr l, Add, Int 1))) }
-| l=l_expr DECR
-    { (Assign(l, Binop(LExpr l, Sub, Int 1))) }
-| l=l_expr ADDASSIGN e=expr
-    { (Assign(l, Binop(LExpr l, Add, e))) }
-| l=l_expr SUBASSIGN e=expr
-    { (Assign(l, Binop(LExpr l, Sub, e))) }
-| l=l_expr MULTASSIGN e=expr
-    { (Assign(l, Binop(LExpr l, Mult, e))) }
-| l=l_expr DIVASSIGN e=expr
-    { (Assign(l, Binop(LExpr l, Div, e))) }
+| l=l_expr op=assign_binop e=expr
+    {
+      match op with
+      | Standard -> Assign(l, e)
+      | AddAssign -> Assign(l, Binop(LExpr l, Add, e))
+      | SubAssign -> Assign(l, Binop(LExpr l, Sub, e)) 
+      | MultAssign -> Assign(l, Binop(LExpr l, Mult, e))
+      | DivAssign -> (Assign(l, Binop(LExpr l, Div, e)))
+    }
+
+(*| expr assign_binop expr
+    {
+      raise_syntax_error $startpos "Expected left expression, found a regular expression."
+    }*)
+
+| l=l_expr op=assign_unop
+    {
+      match op with
+      | Incr -> Assign(l, Binop(LExpr l, Add, Int 1))
+      | Decr -> Assign(l, Binop(LExpr l, Sub, Int 1))
+    }
+
+(*| expr assign_unop
+    {
+      raise_syntax_error $startpos "Expected left expression, found a regular expression."
+    }*)
+;
+
+assign_binop:
+| ASSIGN      { Standard }
+| ADDASSIGN   { AddAssign }
+| SUBASSIGN   { SubAssign }
+| MULTASSIGN  { MultAssign }
+| DIVASSIGN   { DivAssign }
+;
+
+assign_unop:
+| INCR        { Incr }
+| DECR        { Decr }
 ;
 
 block:
@@ -233,16 +283,19 @@ block:
       {syntax_tree = Cycle.from_elt i; tag_set = empty} 
     }
 
+| c=control 
+    { c }
+
 | LB i=instructions RB
     { i }
 ;
 
 control:
-| IF LP e=expr RP b=block
+| IF LP e=expr RP b=block %prec NO_ELSE
     {
       let syntax_tree = Cycle.from_elt (If(e, b.syntax_tree)) in
       {syntax_tree; tag_set = b.tag_set}
-    }
+    } 
 
 | IF LP c=expr RP t=block ELSE e=block
     { 
@@ -252,10 +305,7 @@ control:
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
-        let pos = $startpos in
-        raise (SyntaxError(
-          Printf.sprintf "Tag '%s' is declared at least twice" t,
-          pos.pos_lnum, pos.pos_cnum - pos.pos_bol)) 
+        raise_duplicate_element $startpos t
     }
 
 | WHILE LP e=expr RP b=block
@@ -264,33 +314,48 @@ control:
       {syntax_tree; tag_set = b.tag_set}
     }
 
-| FOR LP init=assign SEMI cond=expr SEMI it=assign RP b=block
-    { 
-      let assign = Cycle.from_elt init in
-      let block = Cycle.append b.syntax_tree it in
-      let syntax_tree = Cycle.append assign (While(cond, block)) in 
-      {syntax_tree; tag_set = b.tag_set}
+| FOR LP init=assigns SEMI cond=expr SEMI it=assigns RP b=block
+    {
+      {syntax_tree = for_to_while init cond it b.syntax_tree; 
+      tag_set = b.tag_set}
     }
+
+| WHILE block
+    {
+      raise_syntax_error $startpos "No condition found for 'while'"
+    }
+
+| FOR LP expr SEMI assigns RP block
+| FOR LP assigns SEMI assigns RP block
+| FOR LP assigns SEMI expr RP block
+| FOR LP assigns RP block
+    {
+      raise_syntax_error $startpos "Ill-formed 'for' loop"
+    }
+
+| FOR LP expr RP block
+    {
+      raise_syntax_error $startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
+    }
+;
+
+assigns:
+| a=assign  { Cycle.from_elt a }
+| a=assign COMMA s=assigns { Cycle.prepend s a }
 ;
 
 data_declarations:
 | t=LABEL COLON v=INT s=data_declarations
     {
-      let pos = $startpos in
-      let line = pos.pos_lnum in
-      let column = pos.pos_cnum - pos.pos_bol in
       try
         let tag_set = add t s.tag_set in
-        let tag = {line; column; contents = (t, v)} in
+        let tag = make_node $startpos (t, v) in
         let syntax_tree = Cycle.prepend s.syntax_tree tag in
         {syntax_tree; tag_set}
       with
       | DuplicateElement t ->
-        raise (SyntaxError(
-          Printf.sprintf "Tag '%s' is declared at least twice" t,
-          line, column)) 
+        raise_duplicate_element $startpos t 
     }
 
 |   { {syntax_tree = Cycle.empty_cycle; tag_set = empty} }
 ;
-

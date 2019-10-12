@@ -27,8 +27,8 @@
 
 /*
  La declaration %on_error_reduce est utilisé pour la gestion des messages d'erreur du parser. Les règles sous l'influence
- d'un %on_error_reduce vont être obligé de continuer à lire des tokens et a effectué des réductions plus loin que 
- l'erreur relevé ce qui permet au parser de connaitre de façon un peu plus précise l'origine de l'erreur relevé.
+ d'un %on_error_reduce vont être obligées de continuer à lire des tokens et à effectuer des réductions plus loin que 
+ l'erreur relevée ce qui permet au parser de connaitre de façon un peu plus précise l'origine de l'erreur relevé.
 */
 %on_error_reduce instruction
 %on_error_reduce data_declaration
@@ -65,11 +65,11 @@ source:
       savoir si un tag du même nom a déjà été déclaré avant et de lever une SyntaxError. *)
       |Tagset.DuplicateElement s ->
         let pos = $startpos in
-        raise (ARTTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+        raise (ARTTree.SyntaxError ("Tag '"^s^"' is declared at least twice.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
     }
 | error {
    let pos = $startpos in
-   raise (SyntaxError ("An ART program must begin with a .text tag follow by instructions and eventually a .data tag with data declarations", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+   raise (SyntaxError ("ART program structure: .text <instructions> .data <declarations>" , pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 ;
 
@@ -88,21 +88,21 @@ instructions:
     with
     |Tagset.DuplicateElement s ->
       let pos = $startpos in
-      raise (ARTTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+      raise (ARTTree.SyntaxError ("Tag '"^s^"' is declared at least twice.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
   (* Les règles suivantes interviennent dans la génération de messages d'erreur plus précis et ne détermine pas
   les véritables règles de syntaxe du langage art. *)
 | instruction TWO_POINT instructions {
   let pos = $startpos in
-   raise (SyntaxError ("You cannot used a ':' symbol between two instructions.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+   raise (SyntaxError ("Expected ':', found ';'.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 | tag SEMI instructions {
    let pos = $startpos in
-   raise (SyntaxError ("tag declaration ill formed, may you have forgot a ':'.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+   raise (SyntaxError ("You may have forgotten a ':'.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 | error {
    let pos = $startpos in
-   raise (SyntaxError ("May be, you have forgot a ';' between two instructions or a ':' for a tag declaration.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+   raise (SyntaxError ("You may have forgotten a ';' between two instructions or a ':' for a tag declaration.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 ;
   
@@ -120,7 +120,7 @@ tag:
   }
 |STACK_POINTER {
     let pos = $startpos in
-    raise (SyntaxError ("stack_pointer is a reserved tag", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+    raise (SyntaxError ("'stack_pointer' is a reserved tag.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
  }
 ;
 
@@ -133,7 +133,7 @@ instruction:
 | l_e=l_express AFFECT e=expression { Assign (l_e,e) }
 | error {
   let pos = $startpos in
-  raise (SyntaxError ("Only expression is allowed inside an instruction.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+  raise (SyntaxError ("Ill-formed instruction.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 ;
 
@@ -208,7 +208,7 @@ expression:
    }
 | error {
   let pos = $startpos in
-  raise (SyntaxError ("ill formed expression.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+  raise (SyntaxError ("Ill-formed expression.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 ;
 
@@ -220,7 +220,7 @@ data_declarations:
   with
     |Tagset.DuplicateElement s ->
       let pos = $startpos in
-      raise (ARTTree.SyntaxError ("This tag "^s^" has been already declared before.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+      raise (ARTTree.SyntaxError ("Tag '"^s^"' is declared at least twice.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
 | { {tag_set = Tagset.empty; syntax_tree = Cycle.empty_cycle} }
 ;
@@ -239,11 +239,11 @@ data_declaration:
   }
 |STACK_POINTER {
    let pos = $startpos in
-   raise (SyntaxError ("stack_pointer is a reserved tag", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+   raise (SyntaxError ("'stack_pointer' is a reserved tag", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
 | error {
   let pos = $startpos in
-   raise (SyntaxError ("ill formed tag declaration", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
+   raise (SyntaxError ("Ill-formed tag declaration", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
 
 ;
