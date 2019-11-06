@@ -20,6 +20,9 @@ let _ =
   | SyntaxError(msg, l, c) -> 
     Printf.printf "[ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
     exit 1
+  | Failure msg ->
+    Printf.printf "[ERROR] Syntax error. Message:\n%s\n" msg;
+    exit 1
   | _ ->
     Printf.printf "[ERROR] Syntax error\n";
     exit 1

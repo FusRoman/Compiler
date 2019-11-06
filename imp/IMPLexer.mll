@@ -54,7 +54,7 @@ rule token = parse
   | "/="
       { DIVASSIGN }
 
-  | "="
+  | "=="
       { EQ }
   | "!="
       { NEQ }

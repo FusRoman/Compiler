@@ -1,0 +1,67 @@
+.text
+a := 97;
+while ((a < 123)) {
+	print(a);
+	a := (a + 1);
+}
+a := 3;
+while ((a >= 1)) {
+	print(10);
+	a := (a - 1);
+}
+a := 97;
+while ((a < 123)) {
+	print(a);
+	break;
+	a := (a + 1);
+}
+a := 50;
+while ((a >= 1)) {
+	print(10);
+	a := (a * 0);
+}
+while ((b != 0)) {
+	b := 1;
+	continue;
+	print(98);
+}
+a := 97;
+while ((a < 100)) {
+	print(a);
+	b := 48;
+	while ((b < 58)) {
+		print(b);
+		b := (b + 1);
+	}
+	print(10);
+	a := (a + 1);
+}
+print(10);
+a := 97;
+b := 48;
+while (((a < 123) && (b < 58))) {
+	print(a);
+	print(b);
+	print(10);
+	a := (a + 1);
+	b := (b + 1);
+}
+print(10);
+b := 58;
+a := 100;
+if ((b == 58)) {
+	if ((a == 100)) {
+		if ((a <= (500 + 500))) {
+			print(97);
+		} else {
+			print(98);
+		}
+	} else {
+		print(99);
+	}
+}
+print(10);
+exit;
+.data
+a: 97
+b: 0

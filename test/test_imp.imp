@@ -16,10 +16,35 @@
   while (b != 0) {
     b := 1;
     continue;
-    print(97);
+    print(98);
   }
 
-  print(98);
+  for (a := 97; a < 100; a++) {
+    print(a);
+    for (b := 48; b < 58; b++)
+      print(b);
+    print(10);
+  }
+  print(10);
+
+  for (a := 97, b := 48; a < 123 && b < 58; a++, b++) {
+    print(a);
+    print(b);
+    print(10);
+  }
+  print(10);
+
+  b := 58;
+  a := 100;
+  if (b == 58) # vrai
+    if (a == 100) # vrai aussi
+      if (a <= 500 + 500)
+        print(97); # Devrait afficher 'a'
+      else
+        print(98);
+    else
+      print(99);
+
   print(10);
   exit;
   

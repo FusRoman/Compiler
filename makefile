@@ -4,28 +4,32 @@ build_asm:
 	ocamlc assembler/Assembler.ml -o assembler/Assembler
 
 run_asm: build_asm
-	./assembler/Assembler test/$(file).asm
-	./vm/VM test/$(file).btc
+	@./assembler/Assembler test/$(file).asm
+	@echo "\n\n\nExecuting $(file).btc:"
+	@./vm/VM test/$(file).btc
 
-build_stk: build_asm
+build_stk: 
+	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
 	ocamllex stk/STKCompiler.mll
 	ocamlc -I utils/ utils/cycle.cmo stk/STKCompiler.ml -o stk/STKCompiler
 
-build_stk_alloc: build_asm
+build_stk_alloc: 
+	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
 	ocamllex stk/STKCompilerAlloc.mll
 	ocamlc -I utils/ utils/cycle.cmo stk/STKCompilerAlloc.ml -o stk/STKCompilerAlloc
 
 run_stk: build_stk
-	./stk/STKCompiler test/$(file).stk
-	$(MAKE) run_asm file=$(file)
+	@./stk/STKCompiler test/$(file).stk
+	@$(MAKE) -s run_asm file=$(file)
 
 run_stk_alloc: build_stk_alloc
-	./stk/STKCompilerAlloc test/$(file).stk
-	$(MAKE) run_asm file=$(file)
+	@./stk/STKCompilerAlloc test/$(file).stk
+	@$(MAKE) -s run_asm file=$(file)
 
-build_art: build_stk
+build_art: 
+	@$(MAKE) -s build_stk
 	menhir -v art/ARTParser.mly
 	ocamlc -c -I utils/ utils/tagset.mli utils/tagset.ml
 	ocamlc -c -I utils/ utils/ARTTree.mli utils/ARTTree.ml
@@ -35,10 +39,11 @@ build_art: build_stk
 	ocamlc -I utils/ -I art/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml -o art/ARTCompiler
 
 run_art: build_art
-	./art/ARTCompiler test/$(file).art test/$(file).stk
-	$(MAKE) run_stk file=$(file)
+	@./art/ARTCompiler test/$(file).art test/$(file).stk
+	@$(MAKE) -s run_stk file=$(file)
 
-build_imp: build_art
+build_imp: 
+	@$(MAKE) -s build_art
 	ocamlc -c -I utils/ utils/IMPTree.mli utils/IMPTree.ml
 	menhir -v imp/IMPParser.mly
 	ocamlc -c -I imp/ -I utils/ imp/IMPParser.mli imp/IMPParser.ml
@@ -47,8 +52,8 @@ build_imp: build_art
 	ocamlc -I utils/ -I imp/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo imp/IMPLexer.cmo imp/IMPParser.cmo imp/IMPCompiler.ml -o imp/IMPCompiler
 
 run_imp: build_imp
-	./imp/IMPCompiler test/$(file).imp
-	$(MAKE) run_art file=$(file)
+	@./imp/IMPCompiler test/$(file).imp
+	@$(MAKE) -s run_art file=$(file)
 
 build_interprete_var :
 	menhir -v interprete_var/VARParser.mly
