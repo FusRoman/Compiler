@@ -1,0 +1,33 @@
+var a := 97;
+
+main(){
+    var i := 0;
+    var j := 97;
+    var k := 98;
+    var t := 5;
+    var pointer := 3;
+    var pointer2 := 4;
+    print(j);
+    print(10);
+    print(k);
+    print(10);
+    print(*pointer);
+    *pointer := 99;
+    print(10);
+    print(k);
+    print(10);
+    print(*pointer);
+    i := fact(*pointer2);
+    print(10);
+    print(i);
+    }
+    
+fact(n) {
+    var i := 0;
+    if (n <= 1){
+        return (1);
+    }else{
+        i := fact(n - 1);
+        return (n * i);
+    }
+    }
