@@ -51,7 +51,19 @@ run_imp: build_imp
 	$(MAKE) run_art file=$(file)
 
 build_interprete_var :
-	
+	menhir -v interprete_var/VARParser.mly
+	ocamllex interprete_var/VARLexer.mll
+	ocamlc -c interprete_var/Op.ml
+	ocamlc -c -I interprete_var/ interprete_var/IMPExpr.ml
+	ocamlc -c -I interprete_var/ interprete_var/FUNInstr.ml
+	ocamlc -c -I interprete_var/ interprete_var/VAR.ml
+	ocamlc -c -I interprete_var/ interprete_var/VARParser.mli interprete_var/VARParser.ml
+	ocamlc -c -I interprete_var/ interprete_var/VARLexer.ml
+	ocamlc -I interprete_var/ -c interprete_var/VAREvals.ml
+	ocamlc -I interprete_var/ interprete_var/Op.cmo interprete_var/VARLexer.cmo interprete_var/VARParser.cmo interprete_var/VAREvals.cmo interprete_var/VARInterpreter.ml -o interprete_var/VARInterpreter
+
+run_interprete_var: build_interprete_var
+	./interprete_var/VARInterpreter test/$(file).var
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
@@ -61,3 +73,5 @@ clear:
 	rm -rf test/*.asm test/*.btc a.out
 	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler
 	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler
+	rm -rf interprete_var/*.cmi interprete_var/*.cmo interprete_var/VARParser.conflicts interprete_var/VARParser.automaton
+	rm -rf interprete_var/VARParser.ml interprete_var/VARParser.mli interprete_var/VARInterpreter interprete_var/VARLexer.ml

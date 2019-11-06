@@ -10,6 +10,15 @@
 **/*.automaton
 a.out
 
+interprete_var/*.cmi 
+interprete_var/*.cmo 
+interprete_var/VARParser.conflicts 
+interprete_var/VARParser.automaton
+interprete_var/VARParser.ml 
+interprete_var/VARParser.mli 
+interprete_var/VARInterpreter 
+interprete_var/VARLexer.ml
+
 imp/*.o
 imp/IMPLexer.ml
 imp/IMPParser.ml

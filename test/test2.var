@@ -1,0 +1,23 @@
+var a := 97;
+
+main(a, b, c){
+    var i := 0;
+    print(a);
+    print(10);
+    print(b);
+    print(10);
+    i := fact(c);
+    print(i);
+    print(10);
+    exit;
+    }
+    
+fact(n) {
+    var i := 0;
+    if (n <= 1){
+        return (1);
+    }else{
+        i := fact(n - 1);
+        return (n * i);
+    }
+    }
