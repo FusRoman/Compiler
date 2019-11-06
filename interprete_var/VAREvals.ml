@@ -9,6 +9,10 @@ exception SyntaxError of string
 type global_env = { functions: (string, function_definition) Hashtbl.t; variables_globale: (string, int) Hashtbl.t }
 type local_env = { variables_locale: (string, int) Hashtbl.t; }
 
+type ram_env = { ram : int array; mutable stack_pointer: int }
+
+let ram = {ram = Array.make 65536 0; stack_pointer = -1}
+
 exception Return of int
 
 let bool_of_int i =
@@ -16,6 +20,16 @@ let bool_of_int i =
     true
   else
     false
+
+let read_ram adress =
+  ram.ram.(adress)
+
+let write_ram adress new_value =
+  ram.ram.(adress) <- new_value
+
+let add_var_into_ram value =
+  ram.stack_pointer <- ram.stack_pointer + 1;
+  ram.ram.(ram.stack_pointer) <- value
 
 let reach_value lenv genv name_var f =
   match Hashtbl.find_opt lenv.variables_locale name_var with
@@ -32,13 +46,14 @@ let eval_program prog =
   let functions = Hashtbl.create 17 in
   let variables_globale = Hashtbl.create 17 in
   List.iter (fun fdef -> Hashtbl.add functions fdef.name fdef) prog.text;
-  List.iter (fun (name_var, value_var) -> Hashtbl.add variables_globale name_var value_var) prog.globals;
+  List.iter (fun (name_var, value_var) -> add_var_into_ram value_var;Hashtbl.add variables_globale name_var ram.stack_pointer) prog.globals;
 
   let rec eval_function fdef params genv =
     let lenv = { variables_locale = Hashtbl.create 17 } in
-    List.iter (fun (name_var,value_var) -> Hashtbl.add lenv.variables_locale name_var value_var) fdef.locals;
-    List.iter2 (fun name_params val_params -> Hashtbl.add lenv.variables_locale name_params val_params) fdef.parameters params;
-    eval_sequence fdef.code lenv genv
+    List.iter (fun (name_var,value_var) -> add_var_into_ram value_var;Hashtbl.add lenv.variables_locale name_var ram.stack_pointer) fdef.locals;
+    List.iter2 (fun name_params val_params -> add_var_into_ram val_params;Hashtbl.add lenv.variables_locale name_params ram.stack_pointer) fdef.parameters params;
+    eval_sequence fdef.code lenv genv;
+    ram.stack_pointer <- ram.stack_pointer - (List.length params)
 
   and eval_sequence s lenv genv =
     List.iter (fun i -> eval_instruction i lenv genv) s
@@ -48,19 +63,9 @@ let eval_program prog =
     | Print(e) ->
       Printf.printf "%c" ( char_of_int (eval_expression e lenv genv))
     | Write (l_e, e) ->
-      let name_var = eval_id l_e lenv genv in
+      let adress_var = eval_expression l_e lenv genv in
       let val_var = eval_expression e lenv genv in
-      begin
-        match Hashtbl.find_opt lenv.variables_locale name_var with
-        |None -> 
-          begin
-            match Hashtbl.find_opt genv.variables_globale name_var with
-            |None -> raise (SyntaxError ("This tag "^name_var^" was not declared before. write"))
-            |Some n -> Hashtbl.replace genv.variables_globale name_var val_var
-          end
-        |Some n ->
-          Hashtbl.replace lenv.variables_locale name_var val_var
-      end
+      write_ram adress_var val_var
     | If (e, s1, s2) -> 
       let v = eval_expression e lenv genv in
       if bool_of_int v then
@@ -69,9 +74,6 @@ let eval_program prog =
         eval_sequence s2 lenv genv
 
     | While (e, s) ->
-    (*
-      if bool_of_int (eval_expression e lenv genv) then
-        eval_sequence (s::[While(e,s)]) lenv genv *)
       let rec fun_while e =
         if bool_of_int (eval_expression e lenv genv) then
           begin
@@ -80,7 +82,7 @@ let eval_program prog =
           end in
       fun_while e
 
-    | Call (adress, name_function, params) ->
+    | Call (name_return, name_function, params) ->
 
       let val_params = List.map (fun a -> eval_expression a lenv genv) params in
       let name_function = eval_id name_function lenv genv in
@@ -91,22 +93,19 @@ let eval_program prog =
             eval_function f val_params genv
           with 
           | Return n ->
-            let function_return = eval_id adress lenv genv in
-            if Hashtbl.mem lenv.variables_locale function_return then
-              Hashtbl.replace lenv.variables_locale function_return n
-            else
-              raise (SyntaxError ("This tag "^function_return^" was not declared before"))
+            let return_adress = reach_value lenv genv (eval_id name_return lenv genv) (fun a -> a) in
+            write_ram return_adress n
       end
     | Return e ->
-      begin
-        raise (Return (eval_expression e lenv genv))
-      end
+      raise (Return (eval_expression e lenv genv))
     | Nop -> ()
 
   and eval_expression e lenv genv = match e with
     | Immediate(n) -> n
     | Name s -> reach_value lenv genv s (fun a -> a)
-    | Deref e -> eval_expression e lenv genv
+    | Deref e -> 
+      let adress = eval_expression e lenv genv in
+      ram.ram.(adress)
     | Binop (op, e1, e2) ->
       let v1 = eval_expression e1 lenv genv in
       let v2 = eval_expression e2 lenv genv in
@@ -137,4 +136,4 @@ let eval_program prog =
       eval_function main main_params { functions; variables_globale }
     end
   else
-      eval_function main [] { functions; variables_globale }
+    eval_function main [] { functions; variables_globale }
