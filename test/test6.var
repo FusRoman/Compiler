@@ -1,0 +1,27 @@
+main(){
+    var fact_addr := 1;
+    var t := 0;
+    var mult_addr := 2;
+    print(97);
+    print(10);
+    t := *fact_addr(5, mult_addr);
+    print(t);
+    print(10);
+    exit;
+}
+
+
+fact(n, fun) {
+    var i := 0;
+    if (n <= 1){
+        return (1);
+    }else{
+        i := fact(n - 1, fun);
+        i := *fun(i, n);
+        return (i);
+    }
+}
+
+mult(x, y) {
+    return (x * y);
+}

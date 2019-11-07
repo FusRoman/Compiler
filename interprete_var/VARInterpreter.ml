@@ -7,4 +7,9 @@ let lexing_buffer = Lexing.from_channel input
 
 let source = VARParser.program VARLexer.token lexing_buffer
 let _ =
-  VAREvals.eval_program source
+  try
+    VAREvals.eval_program source;
+    exit 0
+  with VAREvals.SyntaxError msg ->
+    Printf.printf "[ERROR] %s\n" msg;
+    exit 1
