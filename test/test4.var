@@ -1,0 +1,28 @@
+var a := 97;
+
+main(a, b, c){
+    var i := 97;
+    var j := 1;
+    var args := 5;
+    var pointer_args := 6;
+    print(*pointer_args);
+    j := fact(*pointer_args);
+    print(j);
+    print(10);
+}
+    
+fact(n) {
+    var i := 0;
+    if (n <= 1){
+        return (1);
+    }else{
+        i := fact(n - 1);
+        return (n * i);
+    }
+}
+
+test(a){
+    var a := 101;
+    print(a);
+    return (a+5);
+}

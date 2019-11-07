@@ -24,8 +24,8 @@ let bool_of_int i =
 let read_ram adress =
   ram.ram.(adress)
 
-let write_ram adress new_value =
-  ram.ram.(adress) <- new_value
+let write_ram address new_value =
+  ram.ram.(address) <- new_value
 
 let add_var_into_ram value =
   ram.stack_pointer <- ram.stack_pointer + 1;
@@ -50,8 +50,8 @@ let eval_program prog =
 
   let rec eval_function fdef params genv =
     let lenv = { variables_locale = Hashtbl.create 17 } in
-    List.iter (fun (name_var,value_var) -> add_var_into_ram value_var;Hashtbl.add lenv.variables_locale name_var ram.stack_pointer) fdef.locals;
     List.iter2 (fun name_params val_params -> add_var_into_ram val_params;Hashtbl.add lenv.variables_locale name_params ram.stack_pointer) fdef.parameters params;
+    List.iter (fun (name_var,value_var) -> add_var_into_ram value_var;Hashtbl.add lenv.variables_locale name_var ram.stack_pointer) fdef.locals;
     eval_sequence fdef.code lenv genv;
     ram.stack_pointer <- ram.stack_pointer - (List.length params)
 
@@ -93,7 +93,7 @@ let eval_program prog =
             eval_function f val_params genv
           with 
           | Return n ->
-            let return_adress = reach_value lenv genv (eval_id name_return lenv genv) (fun a -> a) in
+            let return_adress = eval_expression name_return lenv genv  in
             write_ram return_adress n
       end
     | Return e ->
