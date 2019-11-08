@@ -6,15 +6,13 @@ main(a, b, c){
     var k := 98;
     var t := 5;
     var pointer := 3;
-    var pointer2 := 4;
+    var pointer2 := 10;
     print(j);
     print(10);
     print(k);
     print(10);
     print(*pointer);
     *pointer := 99;
-    print(10);
-    print(k);
     print(10);
     print(*pointer);
     i := fact(*pointer2);
@@ -25,12 +23,11 @@ main(a, b, c){
     print(10);
     print(b);
     print(10);
-    print(c);
-    print(10);
     *pointer2 := test(*pointer);
     print(*pointer2);
     print(10);
-    print(115);
+    i := fact(c);
+    print(i);
     print(10);
 }
     
@@ -46,6 +43,7 @@ fact(n) {
 
 test(a){
     var a := 3;
-    print(a);
+    print(a+48);
+    print(10);
     return (a+94);
 }

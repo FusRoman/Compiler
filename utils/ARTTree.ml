@@ -38,11 +38,11 @@ and art_instrs = art_instr Cycle.cycle
 
 and art_instr = 
   | Print of expression
-  | Assign of l_expr * expression
+  | Assign of expression * expression
   | Nop
   | Exit
-  | Jump of l_expr
-  | JumpWhen of l_expr * expression
+  | Jump of expression
+  | JumpWhen of expression * expression
   | TagDeclaration of string node 
 
 and data = (string * int) node
@@ -52,13 +52,10 @@ and datas = data Cycle.cycle
 and expression =
   | Int of int
   | Bool of bool
-  | LExpr of l_expr
   | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
   | Address of string node
-
-and l_expr = 
   | Id of string node
   | LStar of expression
 
@@ -118,10 +115,6 @@ let optimize_expression e =
     | Bool b -> (e, Some (Arith.int_of_bool b), 1)
     | StackPointer | Address _ -> (e, None, 1)
 
-    | LExpr l ->
-      let opt, nb_register = opt_l_expr l in
-      (LExpr opt, None, nb_register)
-
     | Unop(op, e') ->
       begin
         let (sub, cte, nb_register) = opt_inner e' in
@@ -151,6 +144,7 @@ let optimize_expression e =
       end
 
     | Binop(e1, op, e2) ->
+    begin
       let (sub1, cte1, nb_register_e1) = opt_inner e1 in
       let (sub2, cte2, nb_register_e2) = opt_inner e2 in
       let e1, e2, nb_register_e =
@@ -170,15 +164,12 @@ let optimize_expression e =
       | (_, Some v1, Some v2) ->
         let v = binop_fun op v1 v2 in
         (Int v, Some v, nb_register_e1 + nb_register_e2)
-
       | _ -> default
-
-  and opt_l_expr l =
-    match l with
-    | Id i -> (Id i, 1)
+    end
+    | Id i -> (Id i, None, 1)
     | LStar e ->
       let (opt, _, nb_register) = opt_inner e in
-      (LStar opt, nb_register)
+      (LStar opt, None, nb_register)
   in
 
   let (sub, v, _) = opt_inner e in
@@ -187,52 +178,7 @@ let optimize_expression e =
 let opt_exp_sub e =
   fst (optimize_expression e)
 
-(* 
-  Compile une expression gauche.
-  Entre une expression gauche e et cette même expression dans un contexte non gauche,
-  la seule différence est que la première aura un READ en moins.
-
-  Expression      A gauche          Pas à gauche
-  t               t                 t READ
-  *t              t READ            t READ READ
-  &t              Syntax Error      t                     
-  *(&t)           t                 t READ                => t = *(&t)
-  *(t+2)          t READ 2 ADD      t READ 2 ADD READ
-  *(t+c)          t READ            t READ
-                  c READ            c READ
-                  ADD               ADD READ
-  *(&t+c)         t c READ ADD      t c READ ADD READ
-
-  Si l'expression gauche qu'on souhaite compiler est incluse dans une expression plus large,
-  dereference doit valoir true, et sinon false.
-
-*)
-let rec compile_l_expr dereference file tag_set l_e = 
-  match l_e with
-  | Id {contents = i; line = line; column = column} -> 
-    if Tagset.mem i tag_set then
-      begin
-        fprintf file "%s\n" i;
-        if dereference then
-          fprintf file "READ\n"
-      end
-    else
-      raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
-
-  | LStar e -> 
-    compile_exprs file tag_set e;
-    if dereference then
-      fprintf file "READ\n"
-
-(* Compile une expression gauche dans un contexte gauche. *)
-and compile_l_expr_l file tag_set l_e = 
-  compile_l_expr false file tag_set l_e
-
-(* Compile une expression gauche dans le contexte d'une expression normale. *)
-and compile_l_expr_r file tag_set l_e = 
-  compile_l_expr true file tag_set l_e
-
-and compile_exprs file tag_set e =
+let rec compile_exprs file tag_set e =
   match e with
   | Int i -> fprintf file "%s\n" (string_of_int i)
   | Bool b -> fprintf file "%s\n" (string_of_int (int_of_bool b))
@@ -241,13 +187,23 @@ and compile_exprs file tag_set e =
     fprintf file "%s\n" (string_of_binop op)
   | Unop (op,e) -> compile_exprs file tag_set e;
     fprintf file "%s\n" (string_of_unop op)
-  | LExpr l_e -> compile_l_expr_r file tag_set l_e
   | StackPointer -> fprintf file "stack_pointer\n"
+
   | Address {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
       fprintf file "%s\n" i
     else
       raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
+
+  | Id {contents = i; line = line; column = column} -> 
+    if Tagset.mem i tag_set then
+      fprintf file "%s\n" i
+    else
+      raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
+
+  | LStar e -> 
+    compile_exprs file tag_set e;
+    fprintf file "READ\n"
 
 let compile_instr file tag_set instr = 
   match instr with
@@ -256,15 +212,14 @@ let compile_instr file tag_set instr =
   | Print e -> compile_exprs file tag_set e;
     fprintf file "PRINT\n"
   | Jump l_e ->
-    compile_l_expr_l file tag_set l_e;
+    compile_exprs file tag_set l_e;
     fprintf file "JUMP\n"
   | JumpWhen (l_e, e) ->
-    compile_l_expr_l file tag_set l_e;
+    compile_exprs file tag_set l_e;
     compile_exprs file tag_set e;
     fprintf file "JUMPWHEN\n"
-  | Assign (l_e,e) -> 
-    (*compile_l_expr_for_assign file tag_set l_e;*)
-    compile_l_expr_l file tag_set l_e;
+  | Assign (l_e,e) ->
+    compile_exprs file tag_set l_e;
     compile_exprs file tag_set e;
     fprintf file "WRITE\n"
   | TagDeclaration t ->
@@ -323,16 +278,7 @@ let string_of_unop_direct op =
   | Not -> "!"
   | Cpl -> "~"
 
-let rec write_art_l_expr file l_e =
-  match l_e with
-  | Id {contents = i; line = line; column = column} -> 
-    fprintf file "%s" i
-  | LStar e -> 
-    fprintf file "*";
-    (*write_art_l_expr file e*)
-    write_art_expr file e
-
-and write_art_expr file e =
+let rec write_art_expr file e =
   match e with
   | Int i -> fprintf file "%d" i
   | Bool b -> fprintf file "%b" b
@@ -347,12 +293,15 @@ and write_art_expr file e =
     fprintf file "%s" (string_of_unop_direct op); 
     write_art_expr file e;
     fprintf file ")"
-  | LExpr l_e -> 
-    write_art_l_expr file l_e
   | StackPointer -> 
     fprintf file "stack_pointer"
   | Address {contents = i; line = line; column = column} -> 
     fprintf file "&%s" i
+  | Id {contents = i; line = line; column = column} -> 
+    fprintf file "%s" i
+  | LStar e -> 
+    fprintf file "*";
+    write_art_expr file e
 
 let write_art_data = compile_datas
 
@@ -366,16 +315,16 @@ let direct_print_instr file tag_set instr =
     fprintf file ");\n"
   | Jump l_e -> 
     fprintf file "jump "; 
-    write_art_l_expr file l_e;
+    write_art_expr file l_e;
     fprintf file ";\n"
   | JumpWhen (l_e,e) -> 
     fprintf file "jump "; 
-    write_art_l_expr file l_e; 
+    write_art_expr file l_e; 
     fprintf file " when "; 
     write_art_expr file e;
     fprintf file ";\n"
   | Assign (l_e,e) -> 
-    write_art_l_expr file l_e; 
+    write_art_expr file l_e; 
     fprintf file " := "; 
     write_art_expr file e;
     fprintf file ";\n"

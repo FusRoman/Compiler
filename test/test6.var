@@ -2,10 +2,14 @@ main(){
     var fact_addr := 1;
     var t := 0;
     var mult_addr := 2;
+    var add_addr := 3;
     print(97);
     print(10);
     t := *fact_addr(5, mult_addr);
     print(t);
+    print(10);
+    t := fact(4, add_addr);
+    print(t+97);
     print(10);
     exit;
 }
@@ -24,4 +28,8 @@ fact(n, fun) {
 
 mult(x, y) {
     return (x * y);
+}
+
+add(x, y) {
+    return (x + y);
 }

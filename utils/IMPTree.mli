@@ -12,8 +12,8 @@ type imp_instr =
   | Break of unit node
   | Continue of unit node
   | Print of expression
-  | Goto of l_expr
-  | Assign of l_expr * expression
+  | Goto of expression
+  | Assign of expression * expression
   | IfElse of expression * imp_instrs * imp_instrs
   | If of expression * imp_instrs
   | While of expression * imp_instrs

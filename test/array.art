@@ -2,7 +2,7 @@
 
 fill:
   nop;
-  # a l READ ADD l READ 96 ADD WRITE
+  # a l READ ADD l READ 97 ADD WRITE
   *(&a+l) := l + 97;
   nop;
   l := l - 1;

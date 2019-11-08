@@ -70,6 +70,13 @@ build_interprete_var :
 run_interprete_var: build_interprete_var
 	./interprete_var/VARInterpreter test/$(file).var
 
+build_cll:
+	@$(MAKE) -s build_imp
+	ocamlc -c cll/CLL.ml
+	ocamlc -c CLLInstr.ml
+	ocamlc -c CLLtoIMP.ml
+	
+
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
