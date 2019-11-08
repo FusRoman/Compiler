@@ -1,0 +1,40 @@
+.text
+b
+a
+WRITE
+b
+READ
+READ
+PRINT
+test
+JUMP
+loop:
+a
+READ
+PRINT
+10
+PRINT
+b
+READ
+b
+READ
+READ
+1
+ADD
+WRITE
+test:
+loop
+a
+READ
+123
+LT
+0
+OR
+JUMPWHEN
+48
+PRINT
+EXIT
+.data
+a: 97
+b: 97
+c: 97

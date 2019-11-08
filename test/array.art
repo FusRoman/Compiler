@@ -1,0 +1,26 @@
+.text
+
+fill:
+  nop;
+  # a l READ ADD l READ 96 ADD WRITE
+  *(&a+l) := l + 97;
+  nop;
+  l := l - 1;
+  print(97);
+  jump fill when (l >= 0);
+
+  print(10);
+  l := 0;
+display:
+  print(*(&a+l));
+  l := l + 1;
+  jump display when l <= 25;
+
+  print(10);
+  print(97);
+  print(10);
+  exit;
+  
+.data
+  l: 25
+  a: 0

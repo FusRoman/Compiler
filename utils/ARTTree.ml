@@ -60,7 +60,7 @@ and expression =
 
 and l_expr = 
   | Id of string node
-  | LStar of l_expr
+  | LStar of expression
 
 type 'a compiler_type = {
   tag_set: Tagset.t;
@@ -116,7 +116,11 @@ let optimize_expression e =
     match e with
     | Int v -> (e, Some v, 1)
     | Bool b -> (e, Some (Arith.int_of_bool b), 1)
-    | LExpr _ | StackPointer | Address _ -> (e, None, 1)
+    | StackPointer | Address _ -> (e, None, 1)
+
+    | LExpr l ->
+      let opt, nb_register = opt_l_expr l in
+      (LExpr opt, None, nb_register)
 
     | Unop(op, e') ->
       begin
@@ -168,46 +172,67 @@ let optimize_expression e =
         (Int v, Some v, nb_register_e1 + nb_register_e2)
 
       | _ -> default
+
+  and opt_l_expr l =
+    match l with
+    | Id i -> (Id i, 1)
+    | LStar e ->
+      let (opt, _, nb_register) = opt_inner e in
+      (LStar opt, nb_register)
   in
+
   let (sub, v, _) = opt_inner e in
   (sub, v)
 
 let opt_exp_sub e =
   fst (optimize_expression e)
 
-let rec compile_l_expr file tag_set l_e =
+(* 
+  Compile une expression gauche.
+  Entre une expression gauche e et cette même expression dans un contexte non gauche,
+  la seule différence est que la première aura un READ en moins.
+
+  Expression      A gauche          Pas à gauche
+  t               t                 t READ
+  *t              t READ            t READ READ
+  &t              Syntax Error      t                     
+  *(&t)           t                 t READ                => t = *(&t)
+  *(t+2)          t READ 2 ADD      t READ 2 ADD READ
+  *(t+c)          t READ            t READ
+                  c READ            c READ
+                  ADD               ADD READ
+  *(&t+c)         t c READ ADD      t c READ ADD READ
+
+  Si l'expression gauche qu'on souhaite compiler est incluse dans une expression plus large,
+  dereference doit valoir true, et sinon false.
+
+*)
+let rec compile_l_expr dereference file tag_set l_e = 
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
       begin
         fprintf file "%s\n" i;
-        fprintf file "READ\n"
+        if dereference then
+          fprintf file "READ\n"
       end
     else
       raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
-  | LStar suite -> compile_l_expr file tag_set suite;
-    fprintf file "READ\n"
 
-let rec compile_l_expr_for_assign file tag_set l_e =
-  match l_e with
-  | Id {contents = i; line = line; column = column} -> 
-    if Tagset.mem i tag_set then
-      fprintf file "%s\n" i
-    else
-      raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
-  | LStar suite -> compile_l_expr_for_assign file tag_set suite;
-    fprintf file "READ\n"
+  | LStar e -> 
+    compile_exprs file tag_set e;
+    if dereference then
+      fprintf file "READ\n"
 
-let rec compile_l_expr_without_read file tag_set l_e =
-  match l_e with
-  | Id {contents = i; line = line; column = column} ->
-    if Tagset.mem i tag_set then
-      fprintf file "%s\n" i
-    else
-      raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
-  | LStar s_l_e -> compile_l_expr_without_read file tag_set s_l_e
+(* Compile une expression gauche dans un contexte gauche. *)
+and compile_l_expr_l file tag_set l_e = 
+  compile_l_expr false file tag_set l_e
 
-let rec compile_exprs file tag_set e =
+(* Compile une expression gauche dans le contexte d'une expression normale. *)
+and compile_l_expr_r file tag_set l_e = 
+  compile_l_expr true file tag_set l_e
+
+and compile_exprs file tag_set e =
   match e with
   | Int i -> fprintf file "%s\n" (string_of_int i)
   | Bool b -> fprintf file "%s\n" (string_of_int (int_of_bool b))
@@ -216,7 +241,7 @@ let rec compile_exprs file tag_set e =
     fprintf file "%s\n" (string_of_binop op)
   | Unop (op,e) -> compile_exprs file tag_set e;
     fprintf file "%s\n" (string_of_unop op)
-  | LExpr l_e -> compile_l_expr file tag_set l_e
+  | LExpr l_e -> compile_l_expr_r file tag_set l_e
   | StackPointer -> fprintf file "stack_pointer\n"
   | Address {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
@@ -230,12 +255,16 @@ let compile_instr file tag_set instr =
   | Exit -> fprintf file "EXIT\n"
   | Print e -> compile_exprs file tag_set e;
     fprintf file "PRINT\n"
-  | Jump l_e -> compile_l_expr_without_read file tag_set l_e;
+  | Jump l_e ->
+    compile_l_expr_l file tag_set l_e;
     fprintf file "JUMP\n"
-  | JumpWhen (l_e,e) -> compile_l_expr_without_read file tag_set l_e;
+  | JumpWhen (l_e, e) ->
+    compile_l_expr_l file tag_set l_e;
     compile_exprs file tag_set e;
     fprintf file "JUMPWHEN\n"
-  | Assign (l_e,e) -> compile_l_expr_for_assign file tag_set l_e;
+  | Assign (l_e,e) -> 
+    (*compile_l_expr_for_assign file tag_set l_e;*)
+    compile_l_expr_l file tag_set l_e;
     compile_exprs file tag_set e;
     fprintf file "WRITE\n"
   | TagDeclaration t ->
@@ -298,11 +327,12 @@ let rec write_art_l_expr file l_e =
   match l_e with
   | Id {contents = i; line = line; column = column} -> 
     fprintf file "%s" i
-  | LStar suite -> 
+  | LStar e -> 
     fprintf file "*";
-    write_art_l_expr file suite
+    (*write_art_l_expr file e*)
+    write_art_expr file e
 
-let rec write_art_expr file e =
+and write_art_expr file e =
   match e with
   | Int i -> fprintf file "%d" i
   | Bool b -> fprintf file "%b" b

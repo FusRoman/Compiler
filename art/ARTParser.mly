@@ -146,7 +146,7 @@ l_express:
       contents = i
     }
   }
-| MUL e=l_express { LStar e }
+| MUL e=expression { LStar e }
 ;
 
 expression:

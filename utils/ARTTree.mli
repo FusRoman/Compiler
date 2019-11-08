@@ -66,7 +66,7 @@ and expression =
 
 and l_expr = 
   | Id of string node
-  | LStar of l_expr
+  | LStar of expression
 
 type 'a compiler_type = {
   tag_set: Tagset.t;
