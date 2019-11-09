@@ -34,7 +34,7 @@
     {line = get_line pos; column = get_column pos; contents}
 
   let make_compiler_type (tag_set, proc_decl_cycle) (name, block) =
-    (* 
+    (*
     
     Cette fonction est utilisé dans les fold_left des régles 'start' de la grammaire. Elle permet
     de faire la transformation de la liste renvoyé par la règle ' program -> list(procedure_declaration)' 

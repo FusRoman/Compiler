@@ -61,18 +61,29 @@ let rec translate_instruction i =
   |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, i1, i2)
   |If (e,i) -> IMPTree.If (e,i)
   |While (e,i) -> IMPTree.While (e,i)
-  |Call s -> 
+  |Call s -> IMPTree.Goto s
 
 and translate_instructions is =
+
+and translate_procedure p =
+  let tag_proc = TagDeclaration p.name in
   
 
-(**
-   Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible
-   d'écrire dans un fichier ou de compiler en STK directement.
-   Vérifie la correction du programme et tente de l'optimiser.
-*)
-let cll_to_imp cll_prog =
+  (**
+     Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible
+     d'écrire dans un fichier ou de compiler en STK directement.
+     Vérifie la correction du programme et tente de l'optimiser.
+  *)
+  let cll_to_imp cll_prog =
     let return_adress = {line = 0;column = 0; contents = ("return_adress", 0)} in
     let frame_pointer = {line = 0;column = 0; contents = ("frame_pointer", 0)} in
-
-  { tag_set = empty; syntax_tree = Text Cycle.empty_cycle }
+    let syntax_tree = match cll_prog.syntax_tree with
+      |Procedure_Definition_Data (proc_def_cycle,data_cycle) -> 
+        let new_data_cycle = prepend (prepend data_cycle return_adress) frame_pointer in
+        (map proc_def_cycle translate_procedure,new_data_cycle)
+      |Procedure_Definition proc_def_cycle ->
+        let data_cycle = prepend (prepend empty_cycle return_adress) frame_pointer in
+        (map proc_def_cycle translate_procedure, data_cycle)
+    in
+    let tag_set = cll_prog.tag_set in
+    { tag_set; syntax_tree = Text Cycle.empty_cycle }
