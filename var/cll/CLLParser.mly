@@ -34,7 +34,13 @@
     {line = get_line pos; column = get_column pos; contents}
 
   let make_compiler_type (tag_set, proc_decl_cycle) (name, block) =
-    (* En c, une variable globale n'a pas le droit d'avoir le même nom qu'une procédure mais 
+    (* 
+    
+    Cette fonction est utilisé dans les fold_left des régles 'start' de la grammaire. Elle permet
+    de faire la transformation de la liste renvoyé par la règle ' program -> list(procedure_declaration)' 
+    en un couple (tag_set, CLL.instrs) utilisé pour construire cll_prog compiler_type
+    
+    En c, une variable globale n'a pas le droit d'avoir le même nom qu'une procédure mais 
     une variable local peut avoir le même nom qu'une procédure, y compris si cette variable local 
     à la même nom que sa procédure. Y penser quand on fera Var.*)
     let proc_decl = {name; syntax_tree = block.syntax_tree} in
