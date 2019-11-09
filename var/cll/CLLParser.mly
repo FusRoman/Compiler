@@ -32,6 +32,13 @@
 
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
+
+  let make_compiler_type (tag_set, proc_decl_cycle) (name, block) =
+    (* En c, une variable globale n'a pas le droit d'avoir le même nom qu'une procédure mais 
+    une variable local peut avoir le même nom qu'une procédure, y compris si cette variable local 
+    à la même nom que sa procédure. Y penser quand on fera Var.*)
+    let proc_decl = {name; syntax_tree = block.syntax_tree} in
+    ((union (add name_proc tag_set) block.tag_set), Cycle.prepend proc_decl_cycle proc_decl)
 %}
 
 %token TEXT DATA
@@ -85,25 +92,33 @@ program:
 | globals=list(procedure_declaration) DATA data=data_declarations EOF
     {
       try
-        let tag_set = union text.tag_set data.tag_set in
-        let syntax_tree = TextData(text.syntax_tree, data.syntax_tree) in
+        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,empty_cycle) globals in
+        let syntax_tree = Procedure_Definition syntax_tree in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
         raise_duplicate_element $startpos t
     }
 | globals=list(procedure_declaration) EOF
-    { {tag_set = text.tag_set; syntax_tree = Text text.syntax_tree} }
+    {
+      try
+        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,empty_cycle) globals in
+        let syntax_tree = Procedure_Definition syntax_tree in
+        {tag_set; syntax_tree}
+      with
+      | DuplicateElement t ->
+        raise_duplicate_element $startpos t
+    }
 | error
     { 
-      raise_syntax_error $startpos "IMP program structure: .text <instructions> .data <declarations>" 
+      raise_syntax_error $startpos "CLL program structure: list procedure declaration .data <declarations>" 
     }
 ;
 (* La règle des déclaration de procédure en cll *)
 procedure_declaration:
 name=LABEL LP RP b=block 
   {
-    
+    { name, b }
   }
 
 instructions:

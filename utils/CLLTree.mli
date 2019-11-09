@@ -18,7 +18,6 @@ type cll_instr =
   | If of expression * cll_instrs
   | While of expression * cll_instrs
   | Call of string node
-  | DataDeclaration of string node
 
 (** Analogue à son équivalent ART *)
 and cll_instrs = cll_instr Cycle.cycle
