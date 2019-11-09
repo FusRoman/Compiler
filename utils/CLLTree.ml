@@ -26,7 +26,7 @@ type cll_instr =
 and cll_instrs = cll_instr Cycle.cycle
 
 (* Le type des déclarations de procédure en cll *)
-type procedure_definition = {name:string; block:cll_instrs}
+type procedure_definition = {name:string node; block:cll_instrs}
 
 and procedure_definitions = procedure_definition Cycle.cycle
 
@@ -58,32 +58,37 @@ let rec translate_instruction i =
   |Continue n -> IMPTree.Continue n
   |Print e -> IMPTree.Print e
   |Assign (e1,e2) -> IMPTree.Assign (e1,e2)
-  |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, i1, i2)
-  |If (e,i) -> IMPTree.If (e,i)
-  |While (e,i) -> IMPTree.While (e,i)
-  |Call s -> IMPTree.Goto s
+  |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, translate_instructions i1, translate_instructions i2)
+  |If (e,i) -> IMPTree.If (e,translate_instructions i)
+  |While (e,i) -> IMPTree.While (e,translate_instructions i)
+  |Call s -> IMPTree.Exit
+  |Return -> IMPTree.Exit
 
 and translate_instructions is =
+  map is translate_instruction
 
-and translate_procedure p =
-  let tag_proc = TagDeclaration p.name in
-  
+and translate_procedure proc_def imp_instr_cycle =
+  let tag_proc = TagDeclaration proc_def.name in
+  let imp_proc_block = translate_instructions proc_def.block in
+  extend (append imp_instr_cycle tag_proc) imp_proc_block 
 
-  (**
-     Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible
-     d'écrire dans un fichier ou de compiler en STK directement.
-     Vérifie la correction du programme et tente de l'optimiser.
-  *)
-  let cll_to_imp cll_prog =
-    let return_adress = {line = 0;column = 0; contents = ("return_adress", 0)} in
-    let frame_pointer = {line = 0;column = 0; contents = ("frame_pointer", 0)} in
-    let syntax_tree = match cll_prog.syntax_tree with
-      |Procedure_Definition_Data (proc_def_cycle,data_cycle) -> 
-        let new_data_cycle = prepend (prepend data_cycle return_adress) frame_pointer in
-        (map proc_def_cycle translate_procedure,new_data_cycle)
-      |Procedure_Definition proc_def_cycle ->
-        let data_cycle = prepend (prepend empty_cycle return_adress) frame_pointer in
-        (map proc_def_cycle translate_procedure, data_cycle)
-    in
-    let tag_set = cll_prog.tag_set in
-    { tag_set; syntax_tree = Text Cycle.empty_cycle }
+(**
+   Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible
+   d'écrire dans un fichier ou de compiler en STK directement.
+   Vérifie la correction du programme et tente de l'optimiser.
+*)
+let cll_to_imp cll_prog =
+  let return_adress = {line = 0;column = 0; contents = ("return_adress", 0)} in
+  let frame_pointer = {line = 0;column = 0; contents = ("frame_pointer", 0)} in
+  let syntax_tree,data = match cll_prog.syntax_tree with
+    |Procedure_Definition_Data (proc_def_cycle,data_cycle) -> 
+      let new_data_cycle = prepend (prepend data_cycle return_adress) frame_pointer in
+      let proc_def_to_imp = iter proc_def_cycle translate_procedure empty_cycle in
+      (proc_def_to_imp,new_data_cycle)
+    |Procedure_Definition proc_def_cycle ->
+      let data_cycle = prepend (prepend empty_cycle return_adress) frame_pointer in
+      let proc_def_to_imp = iter proc_def_cycle translate_procedure empty_cycle in
+      (proc_def_to_imp, data_cycle)
+  in
+  let tag_set = cll_prog.tag_set in
+  { tag_set; syntax_tree = TextData (syntax_tree, data) }

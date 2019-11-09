@@ -33,7 +33,7 @@
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 
-  let make_compiler_type (tag_set, proc_decl_cycle) (name, block) =
+  let make_compiler_type (tag_set, proc_decl_cycle) (name_node, block) =
     (*
     
     Cette fonction est utilisé dans les fold_left des régles 'start' de la grammaire. Elle permet
@@ -43,8 +43,8 @@
     En c, une variable globale n'a pas le droit d'avoir le même nom qu'une procédure mais 
     une variable local peut avoir le même nom qu'une procédure, y compris si cette variable local 
     à la même nom que sa procédure. Y penser quand on fera Var.*)
-    let proc_decl = {name; block = block.syntax_tree} in
-    ((union (add name tag_set) block.tag_set), Cycle.prepend proc_decl_cycle proc_decl)
+    let proc_decl = {name = name_node; block = block.syntax_tree} in
+    ((union (add name_node.contents tag_set) block.tag_set), Cycle.prepend proc_decl_cycle proc_decl)
 %}
 
 %token TEXT DATA
@@ -128,7 +128,7 @@ program:
 procedure_declaration:
 name=LABEL LP RP b=block 
   {
-    name, b
+    {line = get_line $startpos; column = get_column $startpos; contents = name}, b
   }
 
 instructions:

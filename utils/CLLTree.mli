@@ -24,7 +24,7 @@ type cll_instr =
 and cll_instrs = cll_instr Cycle.cycle
 
 (* Le type des déclarations de procédure en cll *)
-type procedure_definition = {name:string; block:cll_instrs}
+type procedure_definition = {name:string node; block:cll_instrs}
 
 and procedure_definitions = procedure_definition Cycle.cycle
 
