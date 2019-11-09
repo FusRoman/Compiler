@@ -36,8 +36,6 @@ rule token = parse
       { CONTINUE }
   | "break"
       { BREAK }
-  | "stack_pointer"
-      { STACKPOINTER }
 
   | ":="
       { ASSIGN }

@@ -7,7 +7,7 @@
 
 
 %token TEXT DATA
-%token PRINT EXIT NOP STACK_POINTER
+%token PRINT EXIT NOP
 %token SEMI TWO_POINT
 %token <int>INT
 %token EOF
@@ -118,10 +118,6 @@ tag:
     syntax_tree = TagDeclaration tag
     }
   }
-|STACK_POINTER {
-    let pos = $startpos in
-    raise (SyntaxError ("'stack_pointer' is a reserved tag.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
- }
 ;
 
 instruction:
@@ -151,7 +147,6 @@ l_express:
 
 expression:
 | i=INT  { Int i }
-| STACK_POINTER { StackPointer }
 | l_e=l_express { LStar l_e }
 | b=BOOL { Bool b }
 | SUB e=expression { Unop (Minus,e) }
@@ -236,10 +231,6 @@ data_declaration:
     {
       tag_set = Tagset.singleton t; syntax_tree = data
     }
-  }
-|STACK_POINTER {
-   let pos = $startpos in
-   raise (SyntaxError ("'stack_pointer' is a reserved tag", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
   }
 | error {
   let pos = $startpos in

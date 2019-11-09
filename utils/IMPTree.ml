@@ -1,5 +1,16 @@
 open ARTTree
 
+type assign_binop =
+  | Standard
+  | AddAssign
+  | SubAssign
+  | MultAssign 
+  | DivAssign
+
+type assign_unop =
+  | Incr 
+  | Decr 
+
 type imp_instr =
   | Nop
   | Exit
@@ -151,6 +162,19 @@ let get_ends_loop t _break _continue =
   | _ ->
     failwith "get_ends_loop: contradictory information from _break and _continue"
 
+let simplify_assign_binop l op e =
+  match op with
+  | Standard -> Assign(l, e)
+  | AddAssign -> Assign(l, Binop(l, Add, e))
+  | SubAssign -> Assign(l, Binop(l, Sub, e)) 
+  | MultAssign -> Assign(l, Binop(l, Mult, e))
+  | DivAssign -> (Assign(l, Binop(l, Div, e)))
+
+let simplify_assign_unop l op =
+  match op with
+  | Incr -> Assign(l, Binop(l, Add, Int 1))
+  | Decr -> Assign(l, Binop(l, Sub, Int 1))
+
 let rec translate_instruction i maker _break _continue acc =
   let append = Cycle.append acc in
   match i with
@@ -159,7 +183,10 @@ let rec translate_instruction i maker _break _continue acc =
   | Goto t -> append (Jump t)
   | Print e -> append (Print e)
   | Assign(l, e) -> append (Assign(l, e))
-  | TagDeclaration t -> append (TagDeclaration t)
+  | TagDeclaration t -> 
+    if t.contents = "stack_pointer" then
+      raise (SyntaxError ("'stack_pointer' is a reserved tag and can not be declared.", t.line, t.column));
+    append (TagDeclaration t)
 
   | Break t ->
     let _end = fst (get_ends_loop t _break _continue) in
@@ -204,6 +231,7 @@ and translate_instructions is maker _break _continue acc =
     translate_instructions s maker _break _continue acc'
 
 let imp_to_art imp =
+  let imp = {imp with tag_set = Tagset.add "stack_pointer" imp.tag_set} in
   (* Phase d'optimisation *)
   let opt_instrs, data = 
     match imp.syntax_tree with

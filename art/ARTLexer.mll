@@ -30,12 +30,6 @@ rule token = parse
   | "print"
       { PRINT }
 
-  | boolean as b
-      { BOOL (bool_of_string b) }
-
-  |  "stack_pointer"
-      {STACK_POINTER }
-
   | comment
     { token lexbuf }
 

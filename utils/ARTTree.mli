@@ -58,7 +58,6 @@ and datas = data Cycle.cycle
 and expression =
   | Int of int
   | Bool of bool
-  | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
   | Address of string node

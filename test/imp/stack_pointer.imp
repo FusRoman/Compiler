@@ -1,0 +1,7 @@
+.text
+print(97);
+stack_pointer := 60000;
+*stack_pointer := 97;
+print(*60000);
+print(10);
+exit;

@@ -52,7 +52,6 @@ and datas = data Cycle.cycle
 and expression =
   | Int of int
   | Bool of bool
-  | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
   | Address of string node
@@ -113,7 +112,7 @@ let optimize_expression e =
     match e with
     | Int v -> (e, Some v, 1)
     | Bool b -> (e, Some (Arith.int_of_bool b), 1)
-    | StackPointer | Address _ -> (e, None, 1)
+    | Address _ -> (e, None, 1)
 
     | Unop(op, e') ->
       begin
@@ -178,6 +177,10 @@ let optimize_expression e =
 let opt_exp_sub e =
   fst (optimize_expression e)
 
+let check_stack_pointer t line column =
+  if t = "stack_pointer" then
+    raise (SyntaxError ("'stack_pointer' is a reserved tag and can not be declared.", line, column))
+
 let rec compile_exprs file tag_set e =
   match e with
   | Int i -> fprintf file "%s\n" (string_of_int i)
@@ -187,7 +190,6 @@ let rec compile_exprs file tag_set e =
     fprintf file "%s\n" (string_of_binop op)
   | Unop (op,e) -> compile_exprs file tag_set e;
     fprintf file "%s\n" (string_of_unop op)
-  | StackPointer -> fprintf file "stack_pointer\n"
 
   | Address {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
@@ -223,6 +225,7 @@ let compile_instr file tag_set instr =
     compile_exprs file tag_set e;
     fprintf file "WRITE\n"
   | TagDeclaration t ->
+    check_stack_pointer t.contents t.line t.column;
     fprintf file "%s:\n" t.contents
 
 let rec compile_instrs file tag_set instrs = 
@@ -235,7 +238,8 @@ let rec compile_instrs file tag_set instrs =
 
 let compile_data file data =
   match data with
-  | {contents = (s, i); line = _; column = _} ->
+  | {contents = (s, i); line = l; column = c} ->
+    check_stack_pointer s l c;
     fprintf file "%s: %d\n" s i
 
 let rec compile_datas file datas =
@@ -246,7 +250,8 @@ let rec compile_datas file datas =
       compile_datas file s
     end
 
-let rec compile file tag_set tree = 
+let rec compile file tag_set tree =
+  let tag_set = Tagset.add "stack_pointer" tag_set in
   match tree with
   | Prog is -> fprintf file ".text\n";
     compile_instrs file tag_set is
@@ -293,8 +298,6 @@ let rec write_art_expr file e =
     fprintf file "%s" (string_of_unop_direct op); 
     write_art_expr file e;
     fprintf file ")"
-  | StackPointer -> 
-    fprintf file "stack_pointer"
   | Address {contents = i; line = line; column = column} -> 
     fprintf file "&%s" i
   | Id {contents = i; line = line; column = column} -> 

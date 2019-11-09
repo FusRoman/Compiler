@@ -4,17 +4,6 @@
   open ARTTree
   open IMPTree
 
-  type assign_binop =
-    | Standard
-    | AddAssign
-    | SubAssign
-    | MultAssign 
-    | DivAssign
-
-  type assign_unop =
-    | Incr 
-    | Decr 
-
   let get_line pos =
     pos.pos_lnum
 
@@ -39,7 +28,6 @@
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
 %token CONTINUE BREAK
-%token STACKPOINTER
 %token ASSIGN INCR DECR
 %token ADDASSIGN SUBASSIGN
 %token MULTASSIGN DIVASSIGN
@@ -159,8 +147,6 @@ expr:
     { Bool b }
 | l=l_expr
     { (* pas de déréférencement ! ARTParser le fait déjà *) l }
-| STACKPOINTER
-    { StackPointer }
 | LP e=expr RP
     { e }
 | e1=expr ADD e2=expr
@@ -202,7 +188,7 @@ expr:
 l_expr:
 | t=LABEL
     { Id (make_node $startpos t) }
-| MULT l=l_expr
+| MULT l=expr
     { LStar l }
 ;
 
@@ -237,30 +223,13 @@ instruction:
 assign:
 | l=l_expr op=assign_binop e=expr
     {
-      match op with
-      | Standard -> Assign(l, e)
-      | AddAssign -> Assign(l, Binop(l, Add, e))
-      | SubAssign -> Assign(l, Binop(l, Sub, e)) 
-      | MultAssign -> Assign(l, Binop(l, Mult, e))
-      | DivAssign -> (Assign(l, Binop(l, Div, e)))
+      simplify_assign_binop l op e
     }
-
-(*| expr assign_binop expr
-    {
-      raise_syntax_error $startpos "Expected left expression, found a regular expression."
-    }*)
 
 | l=l_expr op=assign_unop
     {
-      match op with
-      | Incr -> Assign(l, Binop(l, Add, Int 1))
-      | Decr -> Assign(l, Binop(l, Sub, Int 1))
+      simplify_assign_unop l op
     }
-
-(*| expr assign_unop
-    {
-      raise_syntax_error $startpos "Expected left expression, found a regular expression."
-    }*)
 ;
 
 assign_binop:

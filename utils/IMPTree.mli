@@ -1,5 +1,17 @@
 open ARTTree
 
+(** Les différents types d'assignation *)
+type assign_binop =
+  | Standard
+  | AddAssign
+  | SubAssign
+  | MultAssign 
+  | DivAssign
+
+type assign_unop =
+  | Incr 
+  | Decr 
+
 (**
   Les instructions en IMP, ressemblant à celles en ART à part les différences suivantes :
   - Disparition de JumpWhen (émulable avec un if)
@@ -26,6 +38,12 @@ and imp_instrs = imp_instr Cycle.cycle
 and imp_prog =
   | TextData of imp_instrs * datas
   | Text of imp_instrs
+
+(** Traduit une assignation utilisant un opérateur binaire en instruction IMP *)
+val simplify_assign_binop : expression -> assign_binop -> expression -> imp_instr
+
+(** Analogue à simplify_assign_binop *)
+val simplify_assign_unop : expression -> assign_unop -> imp_instr
 
 (** 
   Traduit une boucle for en une boucle while IMP.
