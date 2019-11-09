@@ -39,7 +39,7 @@
 %type <ARTTree.art_prog ARTTree.compiler_type> source
 %type <ARTTree.art_instrs ARTTree.compiler_type> instructions
 %type <ARTTree.art_instr> instruction
-%type <ARTTree.l_expr> l_express
+%type <ARTTree.expression> l_express
 %type <ARTTree.expression> expression
 %type <ARTTree.datas ARTTree.compiler_type> data_declarations
 %type <ARTTree.data ARTTree.compiler_type> data_declaration
@@ -146,13 +146,13 @@ l_express:
       contents = i
     }
   }
-| MUL e=expression { LStar e }
+| MUL e=expression { e }
 ;
 
 expression:
 | i=INT  { Int i }
 | STACK_POINTER { StackPointer }
-| l_e=l_express { LExpr l_e }
+| l_e=l_express { LStar l_e }
 | b=BOOL { Bool b }
 | SUB e=expression { Unop (Minus,e) }
 | NOT e=expression { Unop (Not,e) }

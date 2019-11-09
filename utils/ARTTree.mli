@@ -44,11 +44,11 @@ and art_instrs = art_instr Cycle.cycle
 
 and art_instr = 
   | Print of expression
-  | Assign of l_expr * expression
+  | Assign of expression * expression
   | Nop
   | Exit
-  | Jump of l_expr
-  | JumpWhen of l_expr * expression
+  | Jump of expression
+  | JumpWhen of expression * expression
   | TagDeclaration of string node 
 
 and data = (string * int) node
@@ -58,13 +58,10 @@ and datas = data Cycle.cycle
 and expression =
   | Int of int
   | Bool of bool
-  | LExpr of l_expr
   | StackPointer
   | Binop of expression * binop * expression
   | Unop of unop * expression
   | Address of string node
-
-and l_expr = 
   | Id of string node
   | LStar of expression
 
@@ -106,9 +103,6 @@ val optimize_expression : expression -> expression * int option
 
 (** Compile un programme ART vers STK *)
 val compile : out_channel -> Tagset.t -> art_prog -> unit
-
-(** Print une expression gauche ART/IMP dans le fichier donné. *)
-val write_art_l_expr : out_channel -> l_expr -> unit
 
 (** Print une expression ART/IMP dans le fichier donné. *)
 val write_art_expr : out_channel -> expression -> unit

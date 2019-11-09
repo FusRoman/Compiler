@@ -6,8 +6,8 @@ type imp_instr =
   | Break of unit node
   | Continue of unit node
   | Print of expression
-  | Goto of l_expr
-  | Assign of l_expr * expression
+  | Goto of expression
+  | Assign of expression * expression
   | IfElse of expression * imp_instrs * imp_instrs
   | If of expression * imp_instrs
   | While of expression * imp_instrs
@@ -232,7 +232,7 @@ let rec write_instr file i depth =
   | Goto l -> 
     tabs depth;
     Printf.fprintf file "goto(";
-    write_art_l_expr file l;
+    write_art_expr file l;
     Printf.fprintf file ");\n"
   | Print e ->
     tabs depth;
@@ -241,7 +241,7 @@ let rec write_instr file i depth =
     Printf.fprintf file ");\n"
   | Assign(l, e) ->
     tabs depth;
-    write_art_l_expr file l;
+    write_art_expr file l;
     Printf.fprintf file " := ";
     write_art_expr file e;
     Printf.fprintf file ";\n"

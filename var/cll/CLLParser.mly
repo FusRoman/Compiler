@@ -61,7 +61,7 @@
 %type <IMPTree.imp_prog ARTTree.compiler_type> program
 %type <IMPTree.imp_instrs ARTTree.compiler_type> instructions
 %type <ARTTree.expression> expr
-%type <ARTTree.expression> l_expr
+%type <ARTTree.l_expr> l_expr
 %type <IMPTree.imp_instr> instruction
 %type <IMPTree.imp_instr> assign
 %type <IMPTree.imp_instrs ARTTree.compiler_type> block
@@ -80,7 +80,7 @@
 %%
 
 program:
-| TEXT text=instructions DATA data=data_declarations EOF
+| globals=list(data_declaration) text=list(function_definition) EOF
     {
       try
         let tag_set = union text.tag_set data.tag_set in
@@ -90,12 +90,16 @@ program:
       | DuplicateElement t ->
         raise_duplicate_element $startpos t
     }
-| TEXT text=instructions EOF
-    { {tag_set = text.tag_set; syntax_tree = Text text.syntax_tree} }
 | error
     { 
       raise_syntax_error $startpos "IMP program structure: .text <instructions> .data <declarations>" 
     }
+;
+
+function_definition:
+| name=LABEL LP parameters=separated_list(COMMA, LABEL) RP
+    BEGIN locals=list(data_declaration) code=list(terminated_instruction) END
+    { { name; code; parameters; locals } }
 ;
 
 instructions:
@@ -158,7 +162,7 @@ expr:
 | b=BOOL 
     { Bool b }
 | l=l_expr
-    { (* pas de déréférencement ! ARTParser le fait déjà *) l }
+    { LExpr l }
 | STACKPOINTER
     { StackPointer }
 | LP e=expr RP
@@ -213,8 +217,6 @@ instruction:
     { Exit }
 | PRINT LP e=expr RP  
     { Print e }
-| GOTO LP e=l_expr RP
-    { Goto e}
 | BREAK
     { 
       Break (make_node $startpos ())
@@ -239,10 +241,10 @@ assign:
     {
       match op with
       | Standard -> Assign(l, e)
-      | AddAssign -> Assign(l, Binop(l, Add, e))
-      | SubAssign -> Assign(l, Binop(l, Sub, e)) 
-      | MultAssign -> Assign(l, Binop(l, Mult, e))
-      | DivAssign -> (Assign(l, Binop(l, Div, e)))
+      | AddAssign -> Assign(l, Binop(LExpr l, Add, e))
+      | SubAssign -> Assign(l, Binop(LExpr l, Sub, e)) 
+      | MultAssign -> Assign(l, Binop(LExpr l, Mult, e))
+      | DivAssign -> (Assign(l, Binop(LExpr l, Div, e)))
     }
 
 (*| expr assign_binop expr
@@ -253,8 +255,8 @@ assign:
 | l=l_expr op=assign_unop
     {
       match op with
-      | Incr -> Assign(l, Binop(l, Add, Int 1))
-      | Decr -> Assign(l, Binop(l, Sub, Int 1))
+      | Incr -> Assign(l, Binop(LExpr l, Add, Int 1))
+      | Decr -> Assign(l, Binop(LExpr l, Sub, Int 1))
     }
 
 (*| expr assign_unop
