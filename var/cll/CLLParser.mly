@@ -43,8 +43,8 @@
     En c, une variable globale n'a pas le droit d'avoir le même nom qu'une procédure mais 
     une variable local peut avoir le même nom qu'une procédure, y compris si cette variable local 
     à la même nom que sa procédure. Y penser quand on fera Var.*)
-    let proc_decl = {name; syntax_tree = block.syntax_tree} in
-    ((union (add name_proc tag_set) block.tag_set), Cycle.prepend proc_decl_cycle proc_decl)
+    let proc_decl = {name; block = block.syntax_tree} in
+    ((union (add name tag_set) block.tag_set), Cycle.prepend proc_decl_cycle proc_decl)
 %}
 
 %token TEXT DATA
@@ -75,8 +75,8 @@
 %type <CLLTree.cll_instrs ARTTree.compiler_type> instructions
 %type <ARTTree.expression> expr
 %type <ARTTree.expression> l_expr
-%type <CLL.instr> instruction
-%type <CLL.instr> assign
+%type <CLLTree.cll_instr> instruction
+%type <CLLTree.cll_instr> assign
 %type <CLLTree.cll_instrs ARTTree.compiler_type> block
 %type <CLLTree.cll_instrs ARTTree.compiler_type> control
 %type <CLLTree.cll_instrs> assigns
@@ -98,8 +98,9 @@ program:
 | globals=list(procedure_declaration) DATA data=data_declarations EOF
     {
       try
-        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,empty_cycle) globals in
-        let syntax_tree = Procedure_Definition syntax_tree in
+        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,Cycle.empty_cycle) globals in
+        let tag_set = union tag_set data.tag_set in
+        let syntax_tree = Procedure_Definition_Data (syntax_tree, data.syntax_tree) in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
@@ -108,7 +109,7 @@ program:
 | globals=list(procedure_declaration) EOF
     {
       try
-        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,empty_cycle) globals in
+        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,Cycle.empty_cycle) globals in
         let syntax_tree = Procedure_Definition syntax_tree in
         {tag_set; syntax_tree}
       with
@@ -124,7 +125,7 @@ program:
 procedure_declaration:
 name=LABEL LP RP b=block 
   {
-    { name, b }
+    name, b
   }
 
 instructions:

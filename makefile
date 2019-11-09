@@ -72,10 +72,12 @@ run_interprete_var: build_interprete_var
 
 build_cll:
 	@$(MAKE) -s build_imp
-	ocamlc -c cll/CLL.ml
-	ocamlc -c CLLInstr.ml
-	ocamlc -c CLLtoIMP.ml
-	
+	ocamlc -c -I utils/ utils/CLLTree.mli utils/CLLTree.ml
+	menhir -v var/cll/CLLParser.mly
+	ocamllex var/cll/CLLLexer.mll
+	ocamlc -c -I var/cll/ -I utils/ var/cll/CLLParser.mli var/cll/CLLParser.ml
+	ocamlc -c -I var/cll/ var/cll/CLLLexer.ml
+
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
@@ -87,3 +89,4 @@ clear:
 	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler
 	rm -rf interprete_var/*.cmi interprete_var/*.cmo interprete_var/VARParser.conflicts interprete_var/VARParser.automaton
 	rm -rf interprete_var/VARParser.ml interprete_var/VARParser.mli interprete_var/VARInterpreter interprete_var/VARLexer.ml
+	rm -rf var/cll/*.cmi var/cll/*.cmo var/cll/*.o var/cll/CLLParser.ml var/cll/CLLParser.mli var/cll/CLLParser.automaton var/cll/CLLParser.conflicts var/cll/CLLLexer.ml

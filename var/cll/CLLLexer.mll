@@ -1,5 +1,5 @@
 {
-  open IMPParser
+  open CLLParser
 }
 
 let digit = ['0'-'9']
