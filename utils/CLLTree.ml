@@ -42,7 +42,7 @@ let for_to_while init cond it block =
       let (a, s) = Cycle.take assigns in
       match a with
       | Assign(l, e) ->
-        append_assign s (Cycle.append acc a) 
+        append_assign s (Cycle.append acc a)
       | _ ->
         failwith "for_to_while: only assignments are allowed in init and it"
   in
@@ -50,11 +50,29 @@ let for_to_while init cond it block =
   let block' = append_assign it block in
   Cycle.append result (While(cond, block'))
 
+let rec translate_instruction i =
+  match i with
+  |Nop -> IMPTree.Nop
+  |Exit -> IMPTree.Exit
+  |Break n -> IMPTree.Break n
+  |Continue n -> IMPTree.Continue n
+  |Print e -> IMPTree.Print e
+  |Assign (e1,e2) -> IMPTree.Assign (e1,e2)
+  |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, i1, i2)
+  |If (e,i) -> IMPTree.If (e,i)
+  |While (e,i) -> IMPTree.While (e,i)
+  |Call s -> 
+
+and translate_instructions is =
+  
 
 (**
    Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible
    d'écrire dans un fichier ou de compiler en STK directement.
    Vérifie la correction du programme et tente de l'optimiser.
-*) 
-let cll_to_imp prog =
+*)
+let cll_to_imp cll_prog =
+    let return_adress = {line = 0;column = 0; contents = ("return_adress", 0)} in
+    let frame_pointer = {line = 0;column = 0; contents = ("frame_pointer", 0)} in
+
   { tag_set = empty; syntax_tree = Text Cycle.empty_cycle }

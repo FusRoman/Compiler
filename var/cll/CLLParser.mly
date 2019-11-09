@@ -92,8 +92,11 @@
 
 %%
 (* La grammaire que j'ai utilisé est essentiellement celle de IMP, j'ai rajouté le return dans le lexer
-et dans cette grammaire. globals est une liste de déclaration de procédure qu'il faut convertir en 
-cycle. *)
+et dans cette grammaire.Un programme Cll est composé d'une liste de déclaration de procédure sans 
+paramètres ainsi qu'une liste de déclaration de donnée globales associées à des étiquettes précédé
+de l'etiquette '.data'.
+
+globals est une liste de déclaration de procédure qu'il faut convertir en cycle. *)
 program:
 | globals=list(procedure_declaration) DATA data=data_declarations EOF
     {
