@@ -2,7 +2,7 @@
   open Lexing
   open Tagset
   open ARTTree
-  open IMPTree
+  open CLLTree
 
   type assign_binop =
     | Standard
@@ -32,13 +32,26 @@
 
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
+
+  let make_compiler_type (tag_set, proc_decl_cycle) (name_node, block) =
+    (*
+    
+    Cette fonction est utilisé dans les fold_left des régles 'start' de la grammaire. Elle permet
+    de faire la transformation de la liste renvoyé par la règle ' program -> list(procedure_declaration)' 
+    en un couple (tag_set, CLL.instrs) utilisé pour construire cll_prog compiler_type
+    
+    En c, une variable globale n'a pas le droit d'avoir le même nom qu'une procédure mais 
+    une variable local peut avoir le même nom qu'une procédure, y compris si cette variable local 
+    à la même nom que sa procédure. Y penser quand on fera Var.*)
+    let proc_decl = {name = name_node; block = block.syntax_tree} in
+    ((union (add name_node.contents tag_set) block.tag_set), Cycle.prepend proc_decl_cycle proc_decl)
 %}
 
 %token TEXT DATA
-%token NOP PRINT EXIT GOTO
+%token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
-%token CONTINUE BREAK
+%token CONTINUE BREAK RETURN
 %token STACKPOINTER
 %token ASSIGN INCR DECR
 %token ADDASSIGN SUBASSIGN
@@ -58,15 +71,15 @@
 %token EOF
 
 %start program
-%type <IMPTree.imp_prog ARTTree.compiler_type> program
-%type <IMPTree.imp_instrs ARTTree.compiler_type> instructions
+%type <CLLTree.cll_prog ARTTree.compiler_type> program
+%type <CLLTree.cll_instrs ARTTree.compiler_type> instructions
 %type <ARTTree.expression> expr
-%type <ARTTree.l_expr> l_expr
-%type <IMPTree.imp_instr> instruction
-%type <IMPTree.imp_instr> assign
-%type <IMPTree.imp_instrs ARTTree.compiler_type> block
-%type <IMPTree.imp_instrs ARTTree.compiler_type> control
-%type <IMPTree.imp_instrs> assigns
+%type <ARTTree.expression> l_expr
+%type <CLLTree.cll_instr> instruction
+%type <CLLTree.cll_instr> assign
+%type <CLLTree.cll_instrs ARTTree.compiler_type> block
+%type <CLLTree.cll_instrs ARTTree.compiler_type> control
+%type <CLLTree.cll_instrs> assigns
 %type <ARTTree.datas ARTTree.compiler_type> data_declarations
 
 %nonassoc NO_ELSE
@@ -78,13 +91,29 @@
 %left NOT CPL
 
 %%
+(* La grammaire que j'ai utilisé est essentiellement celle de IMP, j'ai rajouté le return dans le lexer
+et dans cette grammaire.Un programme Cll est composé d'une liste de déclaration de procédure sans 
+paramètres ainsi qu'une liste de déclaration de donnée globales associées à des étiquettes précédé
+de l'etiquette '.data'.
 
+globals est une liste de déclaration de procédure qu'il faut convertir en cycle. *)
 program:
-| globals=list(data_declaration) text=list(function_definition) EOF
+| globals=list(procedure_declaration) DATA data=data_declarations EOF
     {
       try
-        let tag_set = union text.tag_set data.tag_set in
-        let syntax_tree = TextData(text.syntax_tree, data.syntax_tree) in
+        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,Cycle.empty_cycle) globals in
+        let tag_set = union tag_set data.tag_set in
+        let syntax_tree = Procedure_Definition_Data (syntax_tree, data.syntax_tree) in
+        {tag_set; syntax_tree}
+      with
+      | DuplicateElement t ->
+        raise_duplicate_element $startpos t
+    }
+| globals=list(procedure_declaration) EOF
+    {
+      try
+        let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,Cycle.empty_cycle) globals in
+        let syntax_tree = Procedure_Definition syntax_tree in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
@@ -92,15 +121,15 @@ program:
     }
 | error
     { 
-      raise_syntax_error $startpos "IMP program structure: .text <instructions> .data <declarations>" 
+      raise_syntax_error $startpos "CLL program structure: list procedure declaration .data <declarations>" 
     }
 ;
-
-function_definition:
-| name=LABEL LP parameters=separated_list(COMMA, LABEL) RP
-    BEGIN locals=list(data_declaration) code=list(terminated_instruction) END
-    { { name; code; parameters; locals } }
-;
+(* La règle des déclaration de procédure en cll *)
+procedure_declaration:
+name=LABEL LP RP b=block 
+  {
+    {line = get_line $startpos; column = get_column $startpos; contents = name}, b
+  }
 
 instructions:
 | i=instruction SEMI s=instructions 
@@ -108,18 +137,6 @@ instructions:
       try
         let syntax_tree = Cycle.prepend s.syntax_tree i in
         {tag_set = s.tag_set; syntax_tree}
-      with
-      | DuplicateElement t ->
-        raise_duplicate_element $startpos t
-    }
-
-| t=LABEL COLON s=instructions 
-    {
-      try
-        let tag_set = add t s.tag_set in
-        let tag = make_node $startpos t in
-        let syntax_tree = Cycle.prepend s.syntax_tree (TagDeclaration tag) in
-        {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
         raise_duplicate_element $startpos t
@@ -162,7 +179,7 @@ expr:
 | b=BOOL 
     { Bool b }
 | l=l_expr
-    { LExpr l }
+    { (* pas de déréférencement ! ARTParser le fait déjà *) l }
 | STACKPOINTER
     { StackPointer }
 | LP e=expr RP
@@ -227,6 +244,16 @@ instruction:
       Continue (make_node $startpos ())
     }
 
+| RETURN
+    {
+      Return
+    }
+
+| l_e=l_expr LP RP
+    {
+      Call l_e
+    }
+
 | a=assign
     { a }
 
@@ -241,10 +268,10 @@ assign:
     {
       match op with
       | Standard -> Assign(l, e)
-      | AddAssign -> Assign(l, Binop(LExpr l, Add, e))
-      | SubAssign -> Assign(l, Binop(LExpr l, Sub, e)) 
-      | MultAssign -> Assign(l, Binop(LExpr l, Mult, e))
-      | DivAssign -> (Assign(l, Binop(LExpr l, Div, e)))
+      | AddAssign -> Assign(l, Binop(l, Add, e))
+      | SubAssign -> Assign(l, Binop(l, Sub, e)) 
+      | MultAssign -> Assign(l, Binop(l, Mult, e))
+      | DivAssign -> (Assign(l, Binop(l, Div, e)))
     }
 
 (*| expr assign_binop expr
@@ -255,8 +282,8 @@ assign:
 | l=l_expr op=assign_unop
     {
       match op with
-      | Incr -> Assign(l, Binop(LExpr l, Add, Int 1))
-      | Decr -> Assign(l, Binop(LExpr l, Sub, Int 1))
+      | Incr -> Assign(l, Binop(l, Add, Int 1))
+      | Decr -> Assign(l, Binop(l, Sub, Int 1))
     }
 
 (*| expr assign_unop
@@ -281,11 +308,11 @@ assign_unop:
 block:
 | i=instruction SEMI
     {
-      (* Pour l'instant, une déclaration d'étiquette suivie d'une seule intrusction, sans {}, n'est pas autorisée *) 
+      (* Pour l'instant, une déclaration d'étiquette suivie d'une seule instruction, sans {}, n'est pas autorisée *) 
       {syntax_tree = Cycle.from_elt i; tag_set = empty} 
     }
 
-| c=control 
+| c=control
     { c }
 
 | LB i=instructions RB

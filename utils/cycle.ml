@@ -36,7 +36,7 @@ let count q =
 let count_k q k =
   let rec count_tr q acc =
     if acc >= k then
-     true
+      true
     else
       match q with
       | ([], []) -> false
@@ -52,7 +52,7 @@ let count_1 q =
   | _ -> true
 
 (* Récupère le premier élément du cycle sans affecter son placement. 
-  La queue étant potentiellement mise à jour, on la renvoit en même temps. *)
+   La queue étant potentiellement mise à jour, on la renvoit en même temps. *)
 let rec peek q =
   match q with
   | ([], []) -> raise Not_found
