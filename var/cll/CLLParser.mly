@@ -249,6 +249,11 @@ instruction:
       Return
     }
 
+| l_e=l_expr LP RP
+    {
+      Call l_e
+    }
+
 | a=assign
     { a }
 

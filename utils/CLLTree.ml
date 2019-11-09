@@ -20,7 +20,7 @@ type cll_instr =
   | IfElse of expression * cll_instrs * cll_instrs
   | If of expression * cll_instrs
   | While of expression * cll_instrs
-  | Call of string node
+  | Call of expression
 
 (** Analogue à son équivalent IMP *)
 and cll_instrs = cll_instr Cycle.cycle
@@ -50,6 +50,12 @@ let for_to_while init cond it block =
   let block' = append_assign it block in
   Cycle.append result (While(cond, block'))
 
+let rec make_tag e = 
+  match e with
+  |Id s -> TagDeclaration {line=0;column=0;contents=("return_" ^ s.contents)}
+  |LStar e -> make_tag e
+  |_ -> failwith "bad tag declaration" 
+
 let rec translate_instruction i =
   match i with
   |Nop -> IMPTree.Nop
@@ -61,11 +67,16 @@ let rec translate_instruction i =
   |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, translate_instructions i1, translate_instructions i2)
   |If (e,i) -> IMPTree.If (e,translate_instructions i)
   |While (e,i) -> IMPTree.While (e,translate_instructions i)
-  |Call s -> IMPTree.Exit
-  |Return -> IMPTree.Exit
+  |_ -> failwith "erreur sur l'appel à translate_instruction"
 
 and translate_instructions is =
-  map is translate_instruction
+  iter is (
+    fun cll_instr imp_cycle ->
+      match cll_instr with
+      |Call e -> append (append imp_cycle (IMPTree.Goto e)) (make_tag e)
+      |Return -> append imp_cycle IMPTree.Exit
+      |other_instruction -> append imp_cycle (translate_instruction other_instruction)
+  ) empty_cycle
 
 and translate_procedure proc_def imp_instr_cycle =
   let tag_proc = TagDeclaration proc_def.name in
