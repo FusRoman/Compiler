@@ -1,0 +1,15 @@
+var a := 97;
+
+main(){
+    var i := 0;
+    while(i<=25){
+        print(a+i);
+        i := i + 1;
+        print(10);
+    }
+    exit;
+}
+
+succ(n){
+    return(n+1);
+}
