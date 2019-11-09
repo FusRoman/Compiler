@@ -4,6 +4,7 @@ open ARTTree
   Les instructions en CLL, ressemblant à celles en IMP à part les différences suivantes :
   - Disparition de GOTO et des déclarations d'étiquettes
   - Apparition des définitions des procedures sans paramètres possibles
+  - Ajout des appels de procédure
 *)
 type cll_instr =
   | Nop
@@ -16,15 +17,21 @@ type cll_instr =
   | IfElse of expression * cll_instrs * cll_instrs
   | If of expression * cll_instrs
   | While of expression * cll_instrs
-  | TagDeclaration of string node
+  | Call of string node
+  | DataDeclaration of string node
 
 (** Analogue à son équivalent ART *)
 and cll_instrs = cll_instr Cycle.cycle
 
+(* Le type des déclarations de procédure en cll *)
+type procedure_definition = {name:string; block:cll_instrs}
+
+and procedure_definitions = procedure_definition Cycle.cycle
+
 (** Analogue à son équivalent ART *)
 and cll_prog =
-  | Procedure_Definition_Data of cll_instrs * datas
-  | Procedure_Definition of cll_instrs
+  | Procedure_Definition_Data of procedure_definitions * datas
+  | Procedure_Definition of procedure_definitions
 
 (**
   Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible

@@ -62,8 +62,8 @@
 %type <CLLTree.cll_instrs ARTTree.compiler_type> instructions
 %type <ARTTree.expression> expr
 %type <ARTTree.expression> l_expr
-%type <IMPTree.imp_instr> instruction
-%type <IMPTree.imp_instr> assign
+%type <CLL.instr> instruction
+%type <CLL.instr> assign
 %type <CLLTree.cll_instrs ARTTree.compiler_type> block
 %type <CLLTree.cll_instrs ARTTree.compiler_type> control
 %type <CLLTree.cll_instrs> assigns
@@ -79,9 +79,10 @@
 
 %%
 (* La grammaire que j'ai utilisé est essentiellement celle de IMP, j'ai rajouté le return dans le lexer
-et dans cette grammaire *)
+et dans cette grammaire. globals est une liste de déclaration de procédure qu'il faut convertir en 
+cycle. *)
 program:
-| globals=list(data_declaration) DATA data=data_declarations EOF
+| globals=list(procedure_declaration) DATA data=data_declarations EOF
     {
       try
         let tag_set = union text.tag_set data.tag_set in
@@ -91,13 +92,19 @@ program:
       | DuplicateElement t ->
         raise_duplicate_element $startpos t
     }
-| globals=list(data_declaration) EOF
+| globals=list(procedure_declaration) EOF
     { {tag_set = text.tag_set; syntax_tree = Text text.syntax_tree} }
 | error
     { 
       raise_syntax_error $startpos "IMP program structure: .text <instructions> .data <declarations>" 
     }
 ;
+(* La règle des déclaration de procédure en cll *)
+procedure_declaration:
+name=LABEL LP RP b=block 
+  {
+    
+  }
 
 instructions:
 | i=instruction SEMI s=instructions 
@@ -105,18 +112,6 @@ instructions:
       try
         let syntax_tree = Cycle.prepend s.syntax_tree i in
         {tag_set = s.tag_set; syntax_tree}
-      with
-      | DuplicateElement t ->
-        raise_duplicate_element $startpos t
-    }
-
-| t=LABEL COLON s=instructions 
-    {
-      try
-        let tag_set = add t s.tag_set in
-        let tag = make_node $startpos t in
-        let syntax_tree = Cycle.prepend s.syntax_tree (TagDeclaration tag) in
-        {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
         raise_duplicate_element $startpos t
@@ -283,11 +278,11 @@ assign_unop:
 block:
 | i=instruction SEMI
     {
-      (* Pour l'instant, une déclaration d'étiquette suivie d'une seule intrusction, sans {}, n'est pas autorisée *) 
+      (* Pour l'instant, une déclaration d'étiquette suivie d'une seule instruction, sans {}, n'est pas autorisée *) 
       {syntax_tree = Cycle.from_elt i; tag_set = empty} 
     }
 
-| c=control 
+| c=control
     { c }
 
 | LB i=instructions RB
