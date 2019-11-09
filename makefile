@@ -1,4 +1,5 @@
 build_asm:
+	ocamlc -c -I utils/ utils/tagset.mli utils/tagset.ml
 	ocamlc -c -I utils/ utils/arith.mli utils/arith.ml
 	ocamlc -I utils/ utils/arith.cmo vm/VM.ml -o vm/VM
 	ocamlc assembler/Assembler.ml -o assembler/Assembler
@@ -18,7 +19,7 @@ build_stk_alloc:
 	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
 	ocamllex stk/STKCompilerAlloc.mll
-	ocamlc -I utils/ utils/cycle.cmo stk/STKCompilerAlloc.ml -o stk/STKCompilerAlloc
+	ocamlc -I utils/ utils/cycle.cmo utils/tagset.cmo stk/STKCompilerAlloc.ml -o stk/STKCompilerAlloc
 
 run_stk: build_stk
 	@./stk/STKCompiler test/$(file).stk
@@ -31,7 +32,6 @@ run_stk_alloc: build_stk_alloc
 build_art: 
 	@$(MAKE) -s build_stk
 	menhir -v art/ARTParser.mly
-	ocamlc -c -I utils/ utils/tagset.mli utils/tagset.ml
 	ocamlc -c -I utils/ utils/ARTTree.mli utils/ARTTree.ml
 	ocamlc -c -I art/ -I utils/ art/ARTParser.mli art/ARTParser.ml
 	ocamllex art/ARTLexer.mll
@@ -69,6 +69,14 @@ build_interprete_var :
 
 run_interprete_var: build_interprete_var
 	./interprete_var/VARInterpreter test/$(file).var
+
+build_cll:
+	@$(MAKE) -s build_imp
+	ocamlc -c -I utils/ utils/CLLTree.mli utils/CLLTree.ml
+	menhir -v var/cll/CLLParser.mly
+	ocamllex var/cll/CLLLexer.mll
+	ocamlc -c -I var/cll/ -I utils/ var/cll/CLLParser.mli var/cll/CLLParser.ml
+	ocamlc -c -I var/cll/ var/cll/CLLLexer.ml
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc

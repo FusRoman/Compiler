@@ -12,7 +12,10 @@ fill:
   print(10);
   l := 0;
 display:
+  nop;
+  # a l READ ADD READ PRINT
   print(*(&a+l));
+  nop;
   l := l + 1;
   jump display when l <= 25;
 

@@ -1,0 +1,104 @@
+.text
+# Le but est de vérifier que STKCompilerAlloc fonctionne bien
+# On a 16 registres en tout (dont 2 spéciaux)
+# Le but est d'avoir une expression utilisant plus de 16 registres
+# pour voir si le compilateur réagit bien, en dépilant et empilant seulement quand nécessaire
+
+# Devrait afficher 'a'
+a 
+READ
+96
+ADD
+PRINT
+10
+PRINT
+
+# 33 'a READ' de suite
+NOP
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+NOP
+
+# 16 'ADD' de suite'
+NOP
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+16
+ADD
+PRINT # Devrait afficher '!' (code ASCII : 33)
+NOP
+
+# 15 derniers 'ADD' : même output
+NOP
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+17
+ADD
+PRINT
+NOP
+
+NOP
+10 
+PRINT
+EXIT
+
+.data
+a: 1

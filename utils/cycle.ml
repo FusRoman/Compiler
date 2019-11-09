@@ -121,3 +121,13 @@ let rec iter q f acc =
     iter q' f (f x acc)
   else
     acc
+
+let map q f =
+  let rec map_rec q f acc =
+    if count_1 q then
+      let (x, q') = take q in
+      map_rec q' f (append acc (f x))
+    else
+      acc
+  in
+  map_rec q f empty_cycle
