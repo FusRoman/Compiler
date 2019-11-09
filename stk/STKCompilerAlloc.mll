@@ -1,71 +1,3 @@
-(*
-  La version Alloc du programme n'a pas été faite.
-  Nous avons fait quelques tentatives dans ce sens, mais suite à une perte de données et parce que nous 
-  devions nous occuper de IMP, cette optimisation n'a jamais été finie.
-
-  Cependant, nous avons déjà une idée assez claire de comment nous allons l'implémenter.
-  Les constantes suivantes sont déclarées :
-    - sp : le registre stack_pointer, conservé depuis la version Acc
-    - max_reg, le nombre de registres qu'on peut utiliser pour simuler la pile.
-
-  Pendant la seconde passe, à chaque nouvelle instruction compilée, on met à jour les variables suivantes :
-    - stack_depth : la profondeur de la pile actuelle
-    - unused_regs : le nombre de registres inutilisés
-
-  Lorsqu'on rencontre un tag ('tag:'), on suit les règles suivantes :
-      - stack_depth est réinitialisé à 0, puisqu'on suit la supposition de l'énoncé
-      - en conséquence, unused_regs passe à max_reg.
-  Pendant la seconde passe, à chaque nouvelle instruction compilée, on met à jour les variables suivantes :
-    - stack_depth : la profondeur de la pile actuelle
-    - unused_regs : le nombre de registres inutilisés
-
-  Lorsqu'on rencontre un tag ('tag:'), on suit les règles suivantes :
-      - stack_depth est réinitialisé à 0, puisqu'on suit la supposition de l'énoncé
-  Pendant la seconde passe, à chaque nouvelle instruction compilée, on met à jour les variables suivantes :
-    - stack_depth : la profondeur de la pile actuelle
-    - unused_regs : le nombre de registres inutilisés
-
-  Lorsqu'on rencontre un tag ('tag:'), on suit les règles suivantes :
-      - stack_depth est réinitialisé à 0, puisqu'on suit la supposition de l'énoncé
-
-  On définit le registre courant (pour une instruction donnée) comme stack_depth % max_reg.
-  Ce registre sera toujours celui qu'on utilisera quand on veut empiler une valeur sur la pile.
-  Un registre est dit occupé si on considère qu'il contient une valeur de la pile.
-  Si au contraire on n'accorde plus de sens à sa valeur, on dit qu'il est libre ou disponible.
-
-  Chaque instruction a un effet particulier sur la type qui dépend de sa 'signature'. Par exemple,
-  on considère MINUS comme une fonction unaire car elle prend un élément de la pile et en empile un.
-  PRINT est une procédure unaire, car elle ne retourne rien. On peut donc classer les instructions selon
-  leur signature. C'est ce qui a été fait dans la version Acc en prévision, bien que cette version n'en tire
-  aucun avantage.
-
-  Pour le pop,on sait que la valeur précédente est contenue dans un registre et pas la pile physique avec
-  unused_regs < max_reg. Autrement dit, au moins un registre est occupé ; par construction, il s'agit du dernier.
-  Si unused_regs >= max_reg ou, de manière équivalente, unused_regs = max_reg, alors il va falloir dépiler 
-  un élément de la pile physique : on décrémente stack_depth et incrémente unused_regs.
-  On place le résultat dans (stack_depth - 1) % max_reg (en supposant que la soustraction est circulaire ;
-  le calcul concret est donc un peu plus long).
-  Si on a besoin d'une deuxième valeur, on procède de manière similaire.
-
-  Si on veut au contraire empiler une valeur, alors on vérifie que le registre courant est libre avec
-  unused_regs > 0. Par construction, si un registre est libre, alors le registre courant l'est forcément.
-  On incrémente stack_depth et décrémente unused_regs. Si ce registre n'est pas disponible, on empile
-  sa valeur.
-
-  Evidemment, puisque nous n'avons jamais testé cet algorithme, il est probable qu'il ne fonctionne pas 
-  et qu'il faille l'adapter pour le rendre fonctionnel. Nous projetons toujours de l'implémenter,
-    PRINT
-  même si c'est trop tard pour le STK.
-
-    PRINT
-  A cause de nos suppositions que nous avons interprété de l'énoncé, tous les programmes STK pourtant valides
-  ne pourront pas être correctement compilés par Alloc, en particulier le suivant :
-  1ère boucle, 10 itérations :
-    a # On empile a en excédent ; le reste de la boucle laisse la pile dans le même état qu'au début
-  2ème boucle, 10 itérations :
-    PRINT
-*)
-
 {
   (* Version Acc (avec 1 seul registre accumulateur) *)
   open Printf
@@ -275,7 +207,7 @@
 
   let initial_info () = {
     current_line = {num = 1; line = ""};
-    tags = Tagset.empty;
+    tags = Tagset.singleton "stack_pointer";
     instr = empty_cycle;
     data = empty_cycle;
     previous_is_cte = false;
@@ -464,11 +396,11 @@
     remaining_data = info.data
   }
 
-  let reset_state state = 
+  let reset_state state =
     {state with
       stack_depth = 0;
       unused_regs = max_reg;
-      commit = false;
+      commit = false
     }
 
   (* Affiche un warning à destination de l'utilisateur *)
@@ -521,14 +453,20 @@
   let push pushable state =
     let (s, r) = get_current_register state in
     let () =
-      commit_stack state;
+      commit_stack s;
       match pushable with
       | Tag s ->
         fprintf output "ADDRESS %s %s\n" r s
       | DirectTag s ->
         fprintf output "DIRECTREAD %s %s\n" r s
       | Int i ->
-        fprintf output "CONST %s %d\n" r i
+        if i >= 0 then
+          fprintf output "CONST %s %d\n" r i
+        else
+        begin
+          fprintf output "CONST %s %d\n" r (-i);
+          fprintf output "MINUS %s %s\n" r r
+        end
       | Reg r2 ->
         (* Devrait être inutile maintenant que stack_pointer n'est plus un registre *)
         fprintf output "MOVE %s %s\n" r r2
@@ -555,7 +493,6 @@
     else
     begin
       (* Sinon elle se trouve dans la pile ; on doit d'abord charger la valeur dans le registre avant de le renvoyer *)
-      fprintf output "# Désempilement de la plus récente valeur du stack\n";
       fprintf output "INCR %s 1\n" sp;
       fprintf output "READ %s %s\n" previous_reg sp;
       ({state with stack_depth; commit = true}, previous_reg)
@@ -607,44 +544,48 @@
     (* Procédures unaires *)
     | Print | Jump ->
       let (s, r) = pop state line instr in
-      commit_stack state;
+      commit_stack s;
       fprintf output "%s %s\n" (get_name_instr instr) r;
       s
 
     (* Procédures binaires *)
     | Write ->
       let (s, r1, r2) = pop2 state line instr in
-      commit_stack state;
+      commit_stack s;
       fprintf output "WRITE %s %s\n" r1 r2;
       s
 
     | JumpWhen ->
       let (s, r1, r2) = pop2 state line instr in
-      commit_stack state;
+      commit_stack s;
       fprintf output "JUMP %s WHEN %s\n" r1 r2;
       s
 
     (* Fonctions unaires *)
     | Incr n ->
       let (s, r) = pop state line instr in
+      commit_stack s;
       fprintf output "INCR %s %d\n" r n;
       finish_fun s
 
     | Decr n ->
       let (s, r) = pop state line instr in
+      commit_stack s;
       fprintf output "DECR %s %d\n" r n;
       finish_fun s
 
     | Read | Minus | Cpl | Not ->
       let (s, r) = pop state line instr in
+      commit_stack s;
       fprintf output "%s %s %s\n" (get_name_instr instr) r r;
       finish_fun s
 
     (* Fonctions binaires *)
     | _ ->
       let (s, r1, r2) = pop2 state line instr in
-      fprintf output "DECR %s 1\n" sp; (* Le push à la fin compense un des pop *)
-      commit_stack state;
+      if s.commit then 
+        fprintf output "DECR %s 1\n" sp; (* Le push à la fin compense un des pop *)
+      commit_stack s;
       fprintf output "%s %s %s %s\n" (get_name_instr instr) r1 r1 r2;
       finish_fun s
 
@@ -654,8 +595,7 @@
         let (l, i), c' = take state.remaining_instr in
         let state' = {state with remaining_instr = c'} in
         let state'' = compile_instr state' l i in
-        print_state state'';
-        compile_instrs state''
+        compile_instrs {state'' with commit = false}
     in
 
     let rec compile_data data =

@@ -9,23 +9,23 @@ run_asm: build_asm
 	@echo "\n\n\nExecuting $(file).btc:"
 	@./vm/VM test/$(file).btc
 
-build_stk: 
+build_stk_acc: 
 	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
 	ocamllex stk/STKCompiler.mll
 	ocamlc -I utils/ utils/cycle.cmo stk/STKCompiler.ml -o stk/STKCompiler
 
-build_stk_alloc: 
+build_stk: 
 	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
 	ocamllex stk/STKCompilerAlloc.mll
 	ocamlc -I utils/ utils/cycle.cmo utils/tagset.cmo stk/STKCompilerAlloc.ml -o stk/STKCompilerAlloc
 
-run_stk: build_stk
+run_stk_acc: build_stk_acc
 	@./stk/STKCompiler test/$(file).stk
 	@$(MAKE) -s run_asm file=$(file)
 
-run_stk_alloc: build_stk_alloc
+run_stk: build_stk
 	@./stk/STKCompilerAlloc test/$(file).stk
 	@$(MAKE) -s run_asm file=$(file)
 

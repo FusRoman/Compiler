@@ -1,0 +1,17 @@
+.text
+97
+PRINT
+
+stack_pointer
+60000
+WRITE
+stack_pointer
+READ
+97
+WRITE
+60000
+READ
+PRINT
+10
+PRINT
+EXIT

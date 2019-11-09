@@ -8,6 +8,8 @@
 **/*.cmi
 **/*.conflicts
 **/*.automaton
+**/*.btc
+**/*.asm
 a.out
 
 interprete_var/*.cmi 
@@ -26,7 +28,6 @@ imp/IMPParser.mli
 imp/IMPCompiler
 test/imp/*.art
 test/imp/*.stk
-test/imp/*.btc
 
 art/*.o
 art/ARTLexer.ml 
@@ -34,7 +35,6 @@ art/ARTParser.ml
 art/ARTParser.mli 
 art/ARTCompiler
 test/art/*.stk
-test/art/*.btc
 
 stk/*.byte 
 stk/*.cmo 
@@ -43,7 +43,6 @@ stk/*.cmx
 stk/*.ml
 stk/STKCompiler
 stk/STKCompilerAlloc
-test/stk/*.btc
 
 vm/*.byte 
 vm/*.cmo 

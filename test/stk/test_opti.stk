@@ -1,3 +1,4 @@
+# Ne peut marcher qu'avec la version Acc de STK
 .text
   97
   PRINT

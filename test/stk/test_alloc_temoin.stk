@@ -1,0 +1,54 @@
+# Similaire à test_alloc, mais cette fois ne devrait pas interagir du tout avec la pile
+
+.text
+# Devrait afficher 'a'
+a 
+READ
+96
+ADD
+PRINT
+10
+PRINT
+
+# 13 'a READ' de suite
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+a READ
+
+# 6 'ADD' de suite
+ADD
+ADD
+ADD
+ADD
+ADD
+ADD
+26
+ADD
+PRINT
+
+# 5 'ADD' de suite
+ADD
+ADD
+ADD
+ADD
+ADD
+27
+ADD
+PRINT
+
+10
+PRINT
+EXIT
+
+.data
+a: 1
