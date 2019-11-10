@@ -3,6 +3,7 @@
   open Tagset
   open ARTTree
   open CLLTree
+  open IMPTree
 
   let get_line pos =
     pos.pos_lnum
@@ -92,7 +93,7 @@ program:
       try
         let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,Cycle.empty_cycle) globals in
         let tag_set = union tag_set data.tag_set in
-        let syntax_tree = Procedure_Definition_Data (syntax_tree, data.syntax_tree) in
+        let syntax_tree = ProcedureDefinitionData (syntax_tree, data.syntax_tree) in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
@@ -102,7 +103,7 @@ program:
     {
       try
         let (tag_set,syntax_tree) = List.fold_left make_compiler_type (empty,Cycle.empty_cycle) globals in
-        let syntax_tree = Procedure_Definition syntax_tree in
+        let syntax_tree = ProcedureDefinition syntax_tree in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
@@ -291,14 +292,14 @@ block:
 control:
 | IF LP e=expr RP b=block %prec NO_ELSE
     {
-      let syntax_tree = Cycle.from_elt (If(e, b.syntax_tree)) in
+      let syntax_tree = Cycle.from_elt (CLLTree.If(e, b.syntax_tree)) in
       {syntax_tree; tag_set = b.tag_set}
     } 
 
 | IF LP c=expr RP t=block ELSE e=block
     { 
       try
-        let syntax_tree = Cycle.from_elt (IfElse(c, t.syntax_tree, e.syntax_tree)) in
+        let syntax_tree = Cycle.from_elt (CLLTree.IfElse(c, t.syntax_tree, e.syntax_tree)) in
         let tag_set = union t.tag_set e.tag_set in
         {tag_set; syntax_tree}
       with
@@ -308,13 +309,13 @@ control:
 
 | WHILE LP e=expr RP b=block
     {
-      let syntax_tree = Cycle.from_elt (While(e, b.syntax_tree)) in
+      let syntax_tree = Cycle.from_elt (CLLTree.While(e, b.syntax_tree)) in
       {syntax_tree; tag_set = b.tag_set}
     }
 
 | FOR LP init=assigns SEMI cond=expr SEMI it=assigns RP b=block
     {
-      let syntax_tree = CYcle.from_elt (For(init, cond, it, b)) in
+      let syntax_tree = Cycle.from_elt (For(init, cond, it, b.syntax_tree)) in
       {syntax_tree; tag_set = b.tag_set}
     }
 

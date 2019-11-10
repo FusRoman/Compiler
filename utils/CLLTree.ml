@@ -16,7 +16,7 @@ type cll_instr =
   | Break of unit node
   | Continue of unit node
   | Print of expression
-  | UnopAssign of expression * unop_assign
+  | UnopAssign of expression * assign_unop
   | BinopAssign of expression * assign_binop * expression
   | IfElse of expression * cll_instrs * cll_instrs
   | If of expression * cll_instrs
@@ -69,7 +69,8 @@ let rec translate_instruction i =
   |Break n -> IMPTree.Break n
   |Continue n -> IMPTree.Continue n
   |Print e -> IMPTree.Print e
-  |Assign (e1,e2) -> IMPTree.Assign (e1,e2)
+  |BinopAssign (e1,op,e2) -> IMPTree.simplify_assign_binop e1 op e2
+  |UnopAssign (e,op) -> IMPTree.simplify_assign_unop e op
   |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, translate_instructions i1, translate_instructions i2)
   |If (e,i) -> IMPTree.If (e,translate_instructions i)
   |While (e,i) -> IMPTree.While (e,translate_instructions i)

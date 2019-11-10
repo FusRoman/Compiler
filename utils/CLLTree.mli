@@ -14,7 +14,7 @@ type cll_instr =
   | Break of unit node
   | Continue of unit node
   | Print of expression
-  | UnopAssign of expression * unop_assign
+  | UnopAssign of expression * assign_unop
   | BinopAssign of expression * assign_binop * expression
   | IfElse of expression * cll_instrs * cll_instrs
   | If of expression * cll_instrs
