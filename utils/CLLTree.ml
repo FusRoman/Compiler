@@ -16,10 +16,12 @@ type cll_instr =
   | Break of unit node
   | Continue of unit node
   | Print of expression
-  | Assign of expression * expression
+  | UnopAssign of expression * unop_assign
+  | BinopAssign of expression * assign_binop * expression
   | IfElse of expression * cll_instrs * cll_instrs
   | If of expression * cll_instrs
   | While of expression * cll_instrs
+  | For of cll_instrs * expression * cll_instrs * cll_instrs
   | Call of expression
 
 (** Analogue à son équivalent IMP *)
@@ -31,9 +33,10 @@ type procedure_definition = {name:string node; block:cll_instrs}
 and procedure_definitions = procedure_definition Cycle.cycle
 
 and cll_prog =
-  | Procedure_Definition_Data of procedure_definitions * datas
-  | Procedure_Definition of procedure_definitions
+  | ProcedureDefinitionData of procedure_definitions * datas
+  | ProcedureDefinition of procedure_definitions
 
+(* Guigui : j'ai pas trop regardé mais je suppose que c'est inutile vu qu'on a For maintenant *)
 let for_to_while init cond it block =
   let rec append_assign assigns acc =
     if assigns = Cycle.empty_cycle then
@@ -107,12 +110,12 @@ let cll_to_imp cll_prog =
   let return_adress = {line = 0;column = 0; contents = ("return_adress", 0)} in
   let frame_pointer = {line = 0;column = 0; contents = ("frame_pointer", 0)} in
   let syntax_tree,data = match cll_prog.syntax_tree with
-    |Procedure_Definition_Data (proc_def_cycle,data_cycle) -> 
+    |ProcedureDefinitionData (proc_def_cycle,data_cycle) -> 
       let new_data_cycle = append (prepend data_cycle return_adress) frame_pointer in
       (* Parcours le cycle de procedure et traduit chaque procedure en code IMP correspondant *)
       let proc_def_to_imp = iter proc_def_cycle translate_procedure empty_cycle in
       (proc_def_to_imp,new_data_cycle)
-    |Procedure_Definition proc_def_cycle ->
+    |ProcedureDefinition proc_def_cycle ->
       let data_cycle = append (prepend empty_cycle return_adress) frame_pointer in
       let proc_def_to_imp = iter proc_def_cycle translate_procedure empty_cycle in
       (proc_def_to_imp, data_cycle)

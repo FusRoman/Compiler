@@ -5239,7 +5239,7 @@ and _menhir_goto_list_procedure_declaration_ : _menhir_env -> 'ttv_tail -> _menh
         ((let ((_menhir_stack, _endpos_x_, _menhir_s, (x : 'tv_procedure_declaration), _startpos_x_), _, (xs : 'tv_list_procedure_declaration_), _startpos_xs_) = _menhir_stack in
         let _startpos = _startpos_x_ in
         let _v : 'tv_list_procedure_declaration_ = 
-# 201 "/home/fusroman/.opam/4.06.0/lib/menhir/standard.mly"
+# 187 "/usr/share/menhir/standard.mly"
     ( x :: xs )
 # 5245 "var/cll/CLLParser.ml"
          in
@@ -6148,7 +6148,7 @@ and _menhir_reduce68 : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return 
   fun _menhir_env _menhir_stack _menhir_s ->
     let (_, _startpos) = Obj.magic _menhir_stack in
     let _v : 'tv_list_procedure_declaration_ = 
-# 199 "/home/fusroman/.opam/4.06.0/lib/menhir/standard.mly"
+# 185 "/usr/share/menhir/standard.mly"
     ( [] )
 # 6154 "var/cll/CLLParser.ml"
      in
@@ -6278,7 +6278,8 @@ and program : (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (
         _menhir_env._menhir_error <- true;
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) MenhirState0) : 'freshtv2))
 
-# 233 "/home/fusroman/.opam/4.06.0/lib/menhir/standard.mly"
+# 219 "/usr/share/menhir/standard.mly"
   
 
-# 6285 "var/cll/CLLParser.ml"
+
+# 6286 "var/cll/CLLParser.ml"

@@ -4,17 +4,6 @@
   open ARTTree
   open CLLTree
 
-  type assign_binop =
-    | Standard
-    | AddAssign
-    | SubAssign
-    | MultAssign 
-    | DivAssign
-
-  type assign_unop =
-    | Incr 
-    | Decr 
-
   let get_line pos =
     pos.pos_lnum
 
@@ -179,9 +168,7 @@ expr:
 | b=BOOL 
     { Bool b }
 | l=l_expr
-    { (* pas de déréférencement ! ARTParser le fait déjà *) l }
-| STACKPOINTER
-    { StackPointer }
+    { l }
 | LP e=expr RP
     { e }
 | e1=expr ADD e2=expr
@@ -266,30 +253,13 @@ instruction:
 assign:
 | l=l_expr op=assign_binop e=expr
     {
-      match op with
-      | Standard -> Assign(l, e)
-      | AddAssign -> Assign(l, Binop(l, Add, e))
-      | SubAssign -> Assign(l, Binop(l, Sub, e)) 
-      | MultAssign -> Assign(l, Binop(l, Mult, e))
-      | DivAssign -> (Assign(l, Binop(l, Div, e)))
+      BinopAssign(l, op, e)
     }
-
-(*| expr assign_binop expr
-    {
-      raise_syntax_error $startpos "Expected left expression, found a regular expression."
-    }*)
 
 | l=l_expr op=assign_unop
     {
-      match op with
-      | Incr -> Assign(l, Binop(l, Add, Int 1))
-      | Decr -> Assign(l, Binop(l, Sub, Int 1))
+      UnopAssign(l, op)
     }
-
-(*| expr assign_unop
-    {
-      raise_syntax_error $startpos "Expected left expression, found a regular expression."
-    }*)
 ;
 
 assign_binop:
@@ -308,7 +278,6 @@ assign_unop:
 block:
 | i=instruction SEMI
     {
-      (* Pour l'instant, une déclaration d'étiquette suivie d'une seule instruction, sans {}, n'est pas autorisée *) 
       {syntax_tree = Cycle.from_elt i; tag_set = empty} 
     }
 
@@ -345,8 +314,8 @@ control:
 
 | FOR LP init=assigns SEMI cond=expr SEMI it=assigns RP b=block
     {
-      {syntax_tree = for_to_while init cond it b.syntax_tree; 
-      tag_set = b.tag_set}
+      let syntax_tree = CYcle.from_elt (For(init, cond, it, b)) in
+      {syntax_tree; tag_set = b.tag_set}
     }
 
 | WHILE block
