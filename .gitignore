@@ -19,6 +19,10 @@ var/cll/CLLParser.automaton
 var/cll/CLLParser.mli
 var/cll/CLLParser.ml
 var/cll/CLLLexer.ml
+var/cll/CLLCompiler
+test/cll/*.imp
+test/cll/*.art
+test/cll/*.stk
 
 interprete_var/*.cmi 
 interprete_var/*.cmo 

@@ -1,0 +1,17 @@
+.text
+print(97);
+print(10);
+goto(lol);
+mdr:
+print(100);
+print(101);
+print(102);
+goto(end);
+lol:
+print(97);
+print(98);
+print(99);
+goto(mdr);
+end:
+print(10);
+exit;

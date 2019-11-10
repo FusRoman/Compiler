@@ -55,7 +55,7 @@ run_imp: build_imp
 	@./imp/IMPCompiler test/$(file).imp
 	@$(MAKE) -s run_art file=$(file)
 
-build_interprete_var :
+build_var_interpreter:
 	menhir -v interprete_var/VARParser.mly
 	ocamllex interprete_var/VARLexer.mll
 	ocamlc -c interprete_var/Op.ml
@@ -67,16 +67,21 @@ build_interprete_var :
 	ocamlc -I interprete_var/ -c interprete_var/VAREvals.ml
 	ocamlc -I interprete_var/ interprete_var/Op.cmo interprete_var/VARLexer.cmo interprete_var/VARParser.cmo interprete_var/VAREvals.cmo interprete_var/VARInterpreter.ml -o interprete_var/VARInterpreter
 
-run_interprete_var: build_interprete_var
+run_var_interpreter: build_interprete_var
 	./interprete_var/VARInterpreter test/$(file).var
 
-build_cll:
+build_cll: 
 	@$(MAKE) -s build_imp
 	ocamlc -c -I utils/ utils/CLLTree.mli utils/CLLTree.ml
 	menhir -v var/cll/CLLParser.mly
 	ocamllex var/cll/CLLLexer.mll
 	ocamlc -c -I var/cll/ -I utils/ var/cll/CLLParser.mli var/cll/CLLParser.ml
 	ocamlc -c -I var/cll/ var/cll/CLLLexer.ml
+	ocamlc -I utils/ -I var/cll/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo var/cll/CLLLexer.cmo var/cll/CLLParser.cmo var/cll/CLLCompiler.ml -o var/cll/CLLCompiler
+
+run_cll: build_cll
+	@./var/cll/CLLCompiler test/$(file).cll
+	@$(MAKE) -s run_imp file=$(file)
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc

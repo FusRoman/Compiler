@@ -1,0 +1,12 @@
+main() {
+  print(97);
+  hi();
+  print(99);
+  print(10);
+  exit;
+}
+
+hi() {
+  print(98);
+  return;
+}

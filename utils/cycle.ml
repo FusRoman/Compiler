@@ -11,16 +11,6 @@ let rec clean q =
   | (l, []) -> q
   | (l, x::s) -> clean (x::l, s)
 
-(* Crée un cycle à partir d'une liste *)
-let from_list l =
-  let rec from_rec l (l1, l2) =
-    match l with
-    | [] -> (l1, l2)
-    | x::s ->
-      from_rec s (l1, x::l2)
-  in
-  from_rec l empty_cycle
-
 (* Renvoie le nombre d'éléments dans le cycle *)
 let count q =
   let rec count_tr q acc =
@@ -76,6 +66,19 @@ let rec take q =
 (* Rajoute un élément à la fin *)
 let append (l1, l2) x =
   (l1, x::l2)
+
+(* Rajoute tous les éléments d'une liste à la fin du cycle *)
+let append_list q l =
+  let rec from_rec l (l1, l2) =
+    match l with
+    | [] -> (l1, l2)
+    | x::s ->
+      from_rec s (l1, x::l2)
+  in
+  from_rec l q
+
+(* Crée un cycle à partir d'une liste *)
+let from_list l = append_list empty_cycle l
 
 (** Rajoute un élément au début *)
 let prepend (l1, l2) x =

@@ -49,6 +49,7 @@ let exec_instruction i =
     begin
       try
         print_char (char_of_int registers.(op1 i))
+        (*Printf.printf "%d\n" registers.(op1 i)*) 
       with
       | Invalid_argument msg ->
         raise (Invalid_argument (Printf.sprintf "char_of_int: invalid value %d" registers.(op1 i)))

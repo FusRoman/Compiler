@@ -107,6 +107,18 @@ let unop_fun op =
   | Not -> Arith.anot
   | Cpl -> Arith.cpl
 
+let rec check_expression e tag_set =
+  match e with
+  | Int _ | Bool _ -> ()
+  | Id t | Address t ->
+    if not (Tagset.mem t.contents tag_set) then
+      raise (SyntaxError (Printf.sprintf "Tag '%s' was not declared" t.contents, t.line, t.column))
+  | Unop(_, e') | LStar e' ->
+    check_expression e' tag_set
+  | Binop(e1, _, e2) ->
+    check_expression e1 tag_set;
+    check_expression e2 tag_set
+
 let optimize_expression e =
   let rec opt_inner e =
     match e with
@@ -201,7 +213,7 @@ let rec compile_exprs file tag_set e =
     if Tagset.mem i tag_set then
       fprintf file "%s\n" i
     else
-      raise (SyntaxError (("Tag '"^i^ "' was not declared before"), line, column))
+      raise (SyntaxError (("Tag '"^i^ "' was not declared"), line, column))
 
   | LStar e -> 
     compile_exprs file tag_set e;

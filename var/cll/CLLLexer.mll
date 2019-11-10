@@ -8,8 +8,6 @@ let label = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let comment = '#' [^ '\n']* ('\n' | eof)
   
 rule token = parse
-  | ".text"
-      { TEXT }
   | ".data"
       { DATA }
   | "true"

@@ -3,10 +3,8 @@
 
 type token = 
   | WHILE
-  | TEXT
   | SUBASSIGN
   | SUB
-  | STACKPOINTER
   | SEMI
   | RP
   | RETURN

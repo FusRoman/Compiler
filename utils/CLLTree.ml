@@ -3,12 +3,13 @@ open Tagset
 open Cycle
 open IMPTree
 
-(**
-   Les instructions en CLL, ressemblant à celles en IMP à part les différences suivantes :
-   - Disparition de GOTO et des déclarations d'étiquettes
-   - Apparition des définitions des procedures sans paramètres possibles
-   - Ajout des appels de procédure
-*)
+let cll_variables =
+  add "frame_pointer" (add "return_address" (singleton "stack_pointer"))
+
+let stack_pointer = {contents = "stack_pointer"; line = -1; column = -1}
+let return_address = {contents = "return_address"; line = -1; column = -1}
+let frame_pointer = {contents = "frame_pointer"; line = -1; column = -1}
+
 type cll_instr =
   | Nop
   | Exit
@@ -36,90 +37,186 @@ and cll_prog =
   | ProcedureDefinitionData of procedure_definitions * datas
   | ProcedureDefinition of procedure_definitions
 
-(* Guigui : j'ai pas trop regardé mais je suppose que c'est inutile vu qu'on a For maintenant *)
-let for_to_while init cond it block =
-  let rec append_assign assigns acc =
-    if assigns = Cycle.empty_cycle then
-      acc
-    else
-      let (a, s) = Cycle.take assigns in
-      match a with
-      | Assign(l, e) ->
-        append_assign s (Cycle.append acc a)
-      | _ ->
-        failwith "for_to_while: only assignments are allowed in init and it"
-  in
-  let result = append_assign init Cycle.empty_cycle in
-  let block' = append_assign it block in
-  Cycle.append result (While(cond, block'))
+let lol = ref 0
+let rec make_tag () = 
+  (* A refaire pour s'assurer que c'est pas déjà pris *)
+  incr lol;
+  {line = -1; column = -1; contents = "return_" ^ (string_of_int (!lol - 1))}
 
-let rec make_tag e = 
-  (* cette fonction prend en parametre le nom d'une procedure et creer son etiquette 
-  de retour, ne devrait normalement pas poser de problème de duplication de tag vis a vis
-  du programmeur vu qu'il n'est pas possible de déclarer d'étiquette en CLL *)
-  match e with
-  |Id s -> TagDeclaration {line=0;column=0;contents=("return_" ^ s.contents)}
-  |LStar e -> make_tag e
-  |_ -> failwith "bad tag declaration" 
-
-let rec translate_instruction i =
-  match i with
-  |Nop -> IMPTree.Nop
-  |Exit -> IMPTree.Exit
-  |Break n -> IMPTree.Break n
-  |Continue n -> IMPTree.Continue n
-  |Print e -> IMPTree.Print e
-  |BinopAssign (e1,op,e2) -> IMPTree.simplify_assign_binop e1 op e2
-  |UnopAssign (e,op) -> IMPTree.simplify_assign_unop e op
-  |IfElse (e1, i1, i2) -> IMPTree.IfElse (e1, translate_instructions i1, translate_instructions i2)
-  |If (e,i) -> IMPTree.If (e,translate_instructions i)
-  |While (e,i) -> IMPTree.While (e,translate_instructions i)
-  |_ -> failwith "erreur sur l'appel à translate_instruction"
-
-and translate_instructions is =
-  iter is (
-    fun cll_instr imp_cycle ->
-    (* On parcours chaque instrcution du bloc d'instruction d'une procedure
-    et on le traduit en code IMP.
-        - Call et Return ne sont pas terminé, pour l'instant, j'ajoute le saut vers la procédure
-            appelé et l'etiquette de retour une fois l'execution de la procédure terminé.contents
-            Du coup, il manque tous les appels a stack_pointer et les modifs de return_adress
-            et frame_pointer *)
-      match cll_instr with
-      |Call e -> append (append imp_cycle (IMPTree.Goto e)) (make_tag e)
-      |Return -> append imp_cycle IMPTree.Exit
-      |other_instruction -> append imp_cycle (translate_instruction other_instruction)
-  ) empty_cycle
-
-and translate_procedure proc_def imp_instr_cycle =
-(* Ajoute le tag correspondant a la procedure dans le code IMP *)
-  let tag_proc = TagDeclaration proc_def.name in
-  (* Traduit le bloc d'instruction de la procédure en code IMP *)
-  let imp_proc_block = translate_instructions proc_def.block in
-  extend (append imp_instr_cycle tag_proc) imp_proc_block 
-
-(**
-   Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP, qu'il est ensuite possible
-   d'écrire dans un fichier ou de compiler en STK directement.
-   Vérifie la correction du programme et tente de l'optimiser.
+(* 
+  Vérifie si :
+  - les ids utilisés sont bien tous déclarés
+  - les break et continue sont situés dans des boucles
+  - les procédures finissent par un return dans toutes les branches
+  Contrairement à ce qu'indique l'énoncé, main peut finir avec return.
+  De cette façon, d'autres procédures peuvent l'appeler.
+  La façon dont la procédure est déterminée valide ou pas est assez grossière.
+  Par exemple, le code 'if (true) exit; print(10);' est considéré comme invalide,
+  alors qu'en pratique exit serait toujours exécuté.
+  Des exit ou des return non nécessaires seront alors nécessaires.
+  En pratique, ça ne devrait pas être un trop grand problème.
+  Si besoin, on peut ignorer les erreurs de return / exit,
+  mais la vérification des expressions restent nécessaires
+  (du point de vue de l'utilisateur ; IMP s'en charge aussi, mais les messages d'erreurs
+  seront peu explicites pour l'utilisateur).
 *)
-let cll_to_imp cll_prog =
-  (* - return_address sert à transmettre à une procédure appelée l’adresse à laquelle elle
-      devra revenir une fois qu’elle aura terminé son exécution
-     - frame_pointer contient l’adresse de la cellule courante de la chaîne d’appels
-     Ces deux données sont ajouté au .data du fichier IMP de sortie *)
-  let return_adress = {line = 0;column = 0; contents = ("return_adress", 0)} in
-  let frame_pointer = {line = 0;column = 0; contents = ("frame_pointer", 0)} in
-  let syntax_tree,data = match cll_prog.syntax_tree with
-    |ProcedureDefinitionData (proc_def_cycle,data_cycle) -> 
-      let new_data_cycle = append (prepend data_cycle return_adress) frame_pointer in
-      (* Parcours le cycle de procedure et traduit chaque procedure en code IMP correspondant *)
-      let proc_def_to_imp = iter proc_def_cycle translate_procedure empty_cycle in
-      (proc_def_to_imp,new_data_cycle)
-    |ProcedureDefinition proc_def_cycle ->
-      let data_cycle = append (prepend empty_cycle return_adress) frame_pointer in
-      let proc_def_to_imp = iter proc_def_cycle translate_procedure empty_cycle in
-      (proc_def_to_imp, data_cycle)
+let check_procedure proc tag_set =
+  let rec check_rec loop is =
+    if count_1 is then
+      let (x, is') = take is in
+      match x with
+      | Exit | Return -> 
+        (* On veut vérifier les expressions qui suivent. 
+          Par ailleurs les instructions suivantes sont inutiles et pourraient être omises. *)
+        ignore (check_rec loop is'); 
+        true
+
+      | Nop -> 
+        check_rec loop is'
+
+      | Print e | Call e | UnopAssign(e, _) ->
+        check_expression e tag_set;
+        check_rec loop is'
+
+      | BinopAssign(e1, _, e2) ->
+        check_expression e1 tag_set;
+        check_expression e2 tag_set;
+        check_rec loop is'
+
+      | If(c, b) ->
+        check_expression c tag_set;
+        ignore (check_rec loop b);
+        check_rec loop is'
+
+      | IfElse(c, t, e) ->
+        check_expression c tag_set;
+        (check_rec loop t && check_rec loop e) || check_rec loop is'
+
+      | While(c, b) ->
+        check_expression c tag_set;
+        ignore (check_rec true b);
+        check_rec loop is'
+
+      | For(init, c, it, b) ->
+        check_expression c tag_set;
+        ignore (check_rec loop init); (* placer un break ou un continue est absurde mais autorisé (en pratique la grammaire ne l'autorise pas cela dit), mais elle devrait) *)
+        ignore (check_rec true it);
+        ignore (check_rec true b);
+        check_rec loop is'
+
+      | Break _ | Continue _ when loop ->
+        check_rec loop is'
+
+      | Break n | Continue n ->
+        raise (SyntaxError("'break' and 'continue' statements are only allowed within loops.", n.line, n.column))
+    else 
+      false
   in
+  if not (check_rec false proc.block) then
+    raise (SyntaxError(
+      Printf.sprintf "Procedure '%s' does not end with 'return;' or 'exit;' in at least one branch" proc.name.contents, 
+      proc.name.line, proc.name.column
+    ))
+
+let rec translate_instruction tag_set i acc =
+  match i with
+  | Nop -> 
+    append acc IMPTree.Nop
+  | Exit -> 
+    append acc Exit
+  | Break n -> 
+    append acc (Break n)
+  | Continue n -> 
+    append acc (Continue n)
+  | Print e -> 
+    check_expression e tag_set;
+    append acc (Print e)
+  | BinopAssign (e1,op,e2) -> 
+    check_expression e1 tag_set;
+    check_expression e2 tag_set;
+    append acc (simplify_assign_binop e1 op e2)
+  | UnopAssign (e,op) -> 
+    check_expression e tag_set;
+    append acc (simplify_assign_unop e op)
+  | IfElse (e1, i1, i2) -> 
+    check_expression e1 tag_set;
+    append acc (IfElse (e1, translate_instructions tag_set i1, translate_instructions tag_set i2))
+  | If (e,i) -> 
+    check_expression e tag_set;
+    append acc (If (e,translate_instructions tag_set i))
+  | While (e,i) -> 
+    check_expression e tag_set;
+    append acc (While (e,translate_instructions tag_set i))
+
+  | For (init, c, it, b) ->
+    let imp_init = translate_instructions tag_set init in
+    check_expression c tag_set;
+    let imp_it = translate_instructions tag_set it in
+    let imp_b  = translate_instructions tag_set b in
+    extend acc (for_to_while imp_init c imp_it imp_b)
+
+  | Call e ->
+    (* Etape 1 du protocole d'appel *)
+    let return = make_tag () in
+    let acc = append acc (Assign(Id return_address, Address return)) in (* *stack_pointer := &return; *)
+    let acc = append acc (Goto e) in (* goto(e); *)
+    append acc (TagDeclaration return) (* return: *)
+
+  | Return ->
+    (* Etape 4 du protocle d'appel *)
+    let acc = append acc (Assign(Id stack_pointer, Id frame_pointer)) in (* stack_pointer := frame_pointer; *)
+    let acc = append acc (Assign(Id frame_pointer, LStar(Binop(Id stack_pointer, Sub, Int 1)))) in (* frame_pointer := *(stack_pointer - 1) *)
+    (* Pas besoin de mettre return_address à jour *)
+    append acc (Goto(LStar(LStar(Id stack_pointer)))) (* goto( **stack_pointer ) (goto utilise une expression gauche, les deux déréférencements sont donc explicites) *)
+
+and translate_instructions tag_set is =
+  iter is (fun i acc -> translate_instruction tag_set i acc) empty_cycle
+
+and translate_procedure tag_set proc_def acc =
+  check_procedure proc_def tag_set;
+  (* Ajoute le tag correspondant a la procedure dans le code IMP *)
+  let acc = append acc (TagDeclaration proc_def.name) in
+  (* Etape 2 du protocole d'appel *)
+  let deref_sp = LStar (Id stack_pointer) in
+  let decr_sp = simplify_assign_unop (Id stack_pointer) Decr in
+  let acc = append acc (Assign(deref_sp, Id return_address)) in (* *stack_pointer := return_adress; *)
+  let acc = append acc decr_sp in (* stack_pointer--; *)
+  let acc = append acc (Assign(deref_sp, Id frame_pointer)) in (* *stack_pointer := frame_pointer; *)
+  let acc = append acc decr_sp in (* stack_pointer--; *)
+  let acc = append acc (Assign(Id frame_pointer, Binop(Id stack_pointer, Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
+  (* Traduit le bloc d'instruction de la procédure en code IMP *)
+  extend acc (translate_instructions tag_set proc_def.block)
+
+let rec translate_procedures tag_set procs acc =
+  if count_1 procs then
+    let (p, s) = take procs in
+    let acc' = translate_procedure tag_set p acc in
+    translate_procedures tag_set s acc'
+  else
+    acc
+
+let cll_to_imp cll_prog =
+  (* Les variables frame_pointer, return_address et stack_pointer ont été rajoutés à tag_set dans CLLParser *)
+  let add_variables data =
+    let add_variable data var =
+      let var' = {line = var.line; column = var.column; contents = (var.contents, 0)} in
+      append data var'
+    in
+    let data' = add_variable data return_address in
+    add_variable data' frame_pointer
+  in
+
+  let syntax_tree, data = 
+    match cll_prog.syntax_tree with
+    | ProcedureDefinitionData(procs, data) -> 
+      let data = add_variables data in
+      let instr = translate_procedures cll_prog.tag_set procs empty_cycle in
+      (instr, data)
+    | ProcedureDefinition procs ->
+      let data = add_variables empty_cycle in
+      let instr = translate_procedures cll_prog.tag_set procs empty_cycle in
+      (instr, data)
+  in
+
   let tag_set = cll_prog.tag_set in
-  { tag_set; syntax_tree = TextData (syntax_tree, data) }
+  { tag_set; syntax_tree = TextData(syntax_tree, data) }

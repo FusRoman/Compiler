@@ -1,0 +1,5 @@
+.text
+  print(97);
+  if (false) print(10);
+  print(a); # Ne devrait pas compiler
+  exit;

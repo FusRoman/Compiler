@@ -583,8 +583,6 @@
     (* Fonctions binaires *)
     | _ ->
       let (s, r1, r2) = pop2 state line instr in
-      if s.commit then 
-        fprintf output "DECR %s 1\n" sp; (* Le push à la fin compense un des pop *)
       commit_stack s;
       fprintf output "%s %s %s %s\n" (get_name_instr instr) r1 r1 r2;
       finish_fun s

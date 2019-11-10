@@ -175,14 +175,21 @@ let simplify_assign_unop l op =
   | Incr -> Assign(l, Binop(l, Add, Int 1))
   | Decr -> Assign(l, Binop(l, Sub, Int 1))
 
-let rec translate_instruction i maker _break _continue acc =
+let rec translate_instruction tag_set i maker _break _continue acc =
   let append = Cycle.append acc in
   match i with
   | Nop -> append ARTTree.Nop
   | Exit -> append Exit
-  | Goto t -> append (Jump t)
-  | Print e -> append (Print e)
-  | Assign(l, e) -> append (Assign(l, e))
+  | Goto t -> 
+    check_expression t tag_set;
+    append (Jump t)
+  | Print e -> 
+    check_expression e tag_set;
+    append (Print e)
+  | Assign(l, e) -> 
+    check_expression l tag_set;
+    check_expression e tag_set;
+    append (Assign(l, e))
   | TagDeclaration t -> 
     if t.contents = "stack_pointer" then
       raise (SyntaxError ("'stack_pointer' is a reserved tag and can not be declared.", t.line, t.column));
@@ -198,37 +205,40 @@ let rec translate_instruction i maker _break _continue acc =
 
   | If(c, bthen) ->
     (* Durant la phase d'optimisation, la condition a été inversée *)
+    check_expression c tag_set;
     let _end = maker () in
     let acc2 = append (JumpWhen(Id _end, c)) in
-    let acc3 = translate_instructions bthen maker _break _continue acc2 in
+    let acc3 = translate_instructions tag_set bthen maker _break _continue acc2 in
     Cycle.append acc3 (ARTTree.TagDeclaration _end)
 
   | IfElse(c, bthen, belse) ->
+    check_expression c tag_set;
     let _else = maker () in
     let _end = maker () in
     let acc2 = append (JumpWhen(Id _else, c)) in
-    let acc3 = translate_instructions bthen maker _break _continue acc2 in
+    let acc3 = translate_instructions tag_set bthen maker _break _continue acc2 in
     let acc4 = Cycle.append acc3 (Jump (Id _end)) in
     let acc5 = Cycle.append acc4 (TagDeclaration _else) in
-    let acc6 = translate_instructions belse maker _break _continue acc5 in
+    let acc6 = translate_instructions tag_set belse maker _break _continue acc5 in
     Cycle.append acc6 (TagDeclaration _end)
 
   | While(c, body) ->
+    check_expression c tag_set;
     let _end = maker () in
     let _begin = maker () in
     let acc2 = append (TagDeclaration _begin) in
     let acc3 = Cycle.append acc2 (JumpWhen(Id _end, c)) in
-    let acc4 = translate_instructions body maker (Some _end) (Some _begin) acc3 in
+    let acc4 = translate_instructions tag_set body maker (Some _end) (Some _begin) acc3 in
     let acc5 = Cycle.append acc4 (Jump (Id _begin)) in
     Cycle.append acc5 (TagDeclaration _end)
 
-and translate_instructions is maker _break _continue acc =
+and translate_instructions tag_set is maker _break _continue acc =
   if is = Cycle.empty_cycle then
     acc
   else
     let (i, s) = Cycle.take is in
-    let acc' = translate_instruction i maker _break _continue acc in
-    translate_instructions s maker _break _continue acc'
+    let acc' = translate_instruction tag_set i maker _break _continue acc in
+    translate_instructions tag_set s maker _break _continue acc'
 
 let imp_to_art imp =
   let imp = {imp with tag_set = Tagset.add "stack_pointer" imp.tag_set} in
@@ -242,7 +252,7 @@ let imp_to_art imp =
   in
   (* Phase de compilation vers ART *)
   let tag_maker = meta_tag_maker imp in
-  let art_instrs = translate_instructions opt_instrs tag_maker None None Cycle.empty_cycle in
+  let art_instrs = translate_instructions imp.tag_set opt_instrs tag_maker None None Cycle.empty_cycle in
   {syntax_tree = ProgData(art_instrs, data); tag_set = imp.tag_set}
 
 let rec write_instr file i depth =

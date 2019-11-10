@@ -75,6 +75,9 @@ val binop_fun : binop -> int -> int -> int
 (** Renvoie la fonction correspondant à l'opérateur unaire donné *)
 val unop_fun : unop -> int -> int
 
+(** Vérifie qu'une expression n'utilise que des tags définis. *)
+val check_expression : expression -> Tagset.t -> unit
+
 (**
   Optimise une expression :
   - tant qu'il s'agit de calculs de constantes, simplifie

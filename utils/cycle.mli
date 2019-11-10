@@ -38,6 +38,9 @@ val take : 'a cycle -> 'a * ('a cycle)
 (** Rajoute un élément à la fin *)
 val append : 'a cycle -> 'a -> 'a cycle
 
+(** Rajoute tous les éléments d'une liste à la fin du cycle *)
+val append_list : 'a cycle -> 'a list -> 'a cycle
+
 (** Rajoute un élément au début *)
 val prepend : 'a cycle -> 'a -> 'a cycle
 
