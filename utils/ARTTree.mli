@@ -66,7 +66,6 @@ and expression =
   | Bool of bool
   | Binop of expression * binop * expression
   | Unop of unop * expression
-  | Address of string node
   | Id of string node
   | LStar of expression
 
@@ -112,8 +111,11 @@ val optimize_expression : expression -> expression * int option
 (** Compile un programme ART vers STK *)
 val compile : out_channel -> Tagset.t -> art_prog -> unit
 
-(** Print une expression ART/IMP dans le fichier donné. *)
-val write_art_expr : out_channel -> expression -> unit
+(** Print une expression droite (i.e. pas gauche) ART/IMP dans le fichier donné. *)
+val write_art_right_expr : out_channel -> expression -> unit
+
+(** Print une expression gauche ART dans le fichier donné *)
+val write_art_left_expr : out_channel -> expression -> unit
 
 (** Print une suite de déclarations de variables ART/IMP dans le fichier donné. *)
 val write_art_data : out_channel -> datas -> unit

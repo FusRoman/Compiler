@@ -1,0 +1,34 @@
+.text
+  # Copié-collé de art/pointers.art
+
+  # abc\n
+  print(a);
+  print(b);
+  print(c);
+  print(10);
+
+  # c
+  b := &c;
+  print(*b);
+
+  # c
+  a := &b;
+  print(**a);
+
+  # d\n
+  **a := 100;
+  print(c);
+  print(10);
+
+  # de\n
+  print(*&c);
+  *&c := 101;
+  print(c);
+  print(10);
+
+  exit;
+
+.data
+  a: 97
+  b: 98
+  c: 99

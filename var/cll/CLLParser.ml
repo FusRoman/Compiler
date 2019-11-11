@@ -1598,7 +1598,7 @@ and _menhir_reduce30 : _menhir_env -> 'ttv_tail * _menhir_state * (
 # 1599 "var/cll/CLLParser.ml"
     ) = 
 # 148 "var/cll/CLLParser.mly"
-    ( l )
+    ( LStar l )
 # 1603 "var/cll/CLLParser.ml"
      in
     _menhir_goto_expr _menhir_env _menhir_stack _menhir_s _v
@@ -2583,7 +2583,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 2584 "var/cll/CLLParser.ml"
         ) = 
 # 191 "var/cll/CLLParser.mly"
-    ( LStar l )
+    ( l )
 # 2588 "var/cll/CLLParser.ml"
          in
         _menhir_goto_l_expr _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv382)) : 'freshtv384)
@@ -4703,7 +4703,7 @@ and _menhir_run18 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
         ) = let _startpos = _startpos__1_ in
         
 # 184 "var/cll/CLLParser.mly"
-    ( Address (make_node _startpos t) )
+    ( Id (make_node _startpos t) )
 # 4708 "var/cll/CLLParser.ml"
          in
         _menhir_goto_expr _menhir_env _menhir_stack _menhir_s _v) : 'freshtv178)) : 'freshtv180)

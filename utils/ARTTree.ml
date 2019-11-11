@@ -64,7 +64,6 @@ and expression =
   | Bool of bool
   | Binop of expression * binop * expression
   | Unop of unop * expression
-  | Address of string node
   | Id of string node
   | LStar of expression
 
@@ -120,7 +119,7 @@ let unop_fun op =
 let rec check_expression e tag_set =
   match e with
   | Int _ | Bool _ -> ()
-  | Id t | Address t ->
+  | Id t->
     if not (Tagset.mem t.contents tag_set) then
       raise (SyntaxError (Printf.sprintf "Tag '%s' was not declared" t.contents, t.line, t.column))
   | Unop(_, e') | LStar e' ->
@@ -134,7 +133,6 @@ let optimize_expression e =
     match e with
     | Int v -> (e, Some v, 1)
     | Bool b -> (e, Some (Arith.int_of_bool b), 1)
-    | Address _ -> (e, None, 1)
 
     | Unop(op, e') ->
       begin
@@ -187,7 +185,7 @@ let optimize_expression e =
         (Int v, Some v, nb_register_e1 + nb_register_e2)
       | _ -> default
     end
-    | Id i -> (Id i, None, 1)
+    | Id i -> (e, None, 1)
     | LStar e ->
       let (opt, _, nb_register) = opt_inner e in
       (LStar opt, None, nb_register)
@@ -212,12 +210,6 @@ let rec compile_exprs file tag_set e =
     fprintf file "%s\n" (string_of_binop op)
   | Unop (op,e) -> compile_exprs file tag_set e;
     fprintf file "%s\n" (string_of_unop op)
-
-  | Address {contents = i; line = line; column = column} -> 
-    if Tagset.mem i tag_set then
-      fprintf file "%s\n" i
-    else
-      raise (SyntaxError ("Tag '"^i^"' was not declared before", line, column))
 
   | Id {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
@@ -305,28 +297,41 @@ let string_of_unop_direct op =
   | Not -> "!"
   | Cpl -> "~"
 
-let rec write_art_expr file e =
+let rec write_art_right_expr file e =
   match e with
   | Int i -> fprintf file "%d" i
   | Bool b -> fprintf file "%b" b
   | Binop (e1,op,e2) -> 
     fprintf file "(";
-    write_art_expr file e1;
+    write_art_right_expr file e1;
     fprintf file " %s " (string_of_binop_direct op);
-    write_art_expr file e2;
+    write_art_right_expr file e2;
     fprintf file ")"
   | Unop (op,e) -> 
     fprintf file "(";
     fprintf file "%s" (string_of_unop_direct op); 
-    write_art_expr file e;
+    write_art_right_expr file e;
     fprintf file ")"
-  | Address {contents = i; line = line; column = column} -> 
-    fprintf file "&%s" i
-  | Id {contents = i; line = line; column = column} -> 
-    fprintf file "%s" i
+  | LStar (Id i) ->
+    fprintf file "%s" i.contents
+  | Id i ->
+    fprintf file "&%s" i.contents
   | LStar e -> 
     fprintf file "*";
-    write_art_expr file e
+    write_art_right_expr file e
+
+and write_art_left_expr file e =
+  match e with
+  | Id i ->
+    fprintf file "%s" i.contents
+  | LStar (Id i) ->
+    fprintf file "*%s" i.contents
+  | LStar e ->
+    fprintf file "**";
+    write_art_right_expr file e
+  | _ ->
+    fprintf file "*";
+    write_art_right_expr file e
 
 let write_art_data = compile_datas
 
@@ -336,22 +341,22 @@ let direct_print_instr file tag_set instr =
   | Exit -> fprintf file "exit;\n"
   | Print e -> 
     fprintf file "print("; 
-    write_art_expr file e; 
+    write_art_right_expr file e; 
     fprintf file ");\n"
   | Jump l_e -> 
     fprintf file "jump "; 
-    write_art_expr file l_e;
+    write_art_left_expr file l_e;
     fprintf file ";\n"
-  | JumpWhen (l_e,e) -> 
+  | JumpWhen (l_e, e) -> 
     fprintf file "jump "; 
-    write_art_expr file l_e; 
+    write_art_left_expr file l_e; 
     fprintf file " when "; 
-    write_art_expr file e;
+    write_art_right_expr file e;
     fprintf file ";\n"
   | Assign (l_e,e) -> 
-    write_art_expr file l_e; 
+    write_art_left_expr file l_e; 
     fprintf file " := "; 
-    write_art_expr file e;
+    write_art_right_expr file e;
     fprintf file ";\n"
   | TagDeclaration t ->
     fprintf file "%s:\n" t.contents

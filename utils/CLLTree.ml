@@ -144,14 +144,14 @@ let rec translate_instruction tag_set maker i acc =
   | Call e ->
     (* Etape 1 du protocole d'appel *)
     let return = maker () in
-    let acc = append acc (Assign(Id return_address, Address return)) in (* *stack_pointer := &return; *)
+    let acc = append acc (Assign(Id return_address, Id return)) in (* *stack_pointer := &return; *)
     let acc = append acc (Goto e) in (* goto(e); *)
     append acc (TagDeclaration return) (* return: *)
 
   | Return ->
     (* Etape 4 du protocole d'appel *)
-    let acc = append acc (Assign(Id stack_pointer, Id frame_pointer)) in (* stack_pointer := frame_pointer; *)
-    let acc = append acc (Assign(Id frame_pointer, LStar(Binop(Id stack_pointer, Sub, Int 1)))) in (* frame_pointer := *(stack_pointer - 1) *)
+    let acc = append acc (Assign(Id stack_pointer, LStar(Id frame_pointer))) in (* stack_pointer := frame_pointer; *)
+    let acc = append acc (Assign(Id frame_pointer, LStar(Binop(LStar(Id stack_pointer), Sub, Int 1)))) in (* frame_pointer := *(stack_pointer - 1) *)
     (* Pas besoin de mettre return_address à jour *)
     append acc (Goto(LStar(LStar(Id stack_pointer)))) (* goto( **stack_pointer ) (goto utilise une expression gauche, les deux déréférencements sont donc explicites) *)
 
@@ -163,13 +163,13 @@ and translate_procedure tag_set maker proc_def acc =
   (* Ajoute le tag correspondant a la procedure dans le code IMP *)
   let acc = append acc (TagDeclaration proc_def.name) in
   (* Etape 2 du protocole d'appel *)
-  let deref_sp = LStar (Id stack_pointer) in
+  let deref_sp = LStar(Id stack_pointer) in
   let decr_sp = simplify_assign_unop (Id stack_pointer) Decr in
-  let acc = append acc (Assign(deref_sp, Id return_address)) in (* *stack_pointer := return_adress; *)
+  let acc = append acc (Assign(deref_sp, LStar(Id return_address))) in (* *stack_pointer := return_adress; *)
   let acc = append acc decr_sp in (* stack_pointer--; *)
-  let acc = append acc (Assign(deref_sp, Id frame_pointer)) in (* *stack_pointer := frame_pointer; *)
+  let acc = append acc (Assign(deref_sp, LStar(Id frame_pointer))) in (* *stack_pointer := frame_pointer; *)
   let acc = append acc decr_sp in (* stack_pointer--; *)
-  let acc = append acc (Assign(Id frame_pointer, Binop(Id stack_pointer, Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
+  let acc = append acc (Assign(Id frame_pointer, Binop(LStar(Id stack_pointer), Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
   (* Traduit le bloc d'instruction de la procédure en code IMP *)
   extend acc (translate_instructions tag_set maker proc_def.block)
 

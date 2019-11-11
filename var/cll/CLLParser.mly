@@ -145,7 +145,7 @@ expr:
 | b=BOOL 
     { Bool b }
 | l=l_expr
-    { l }
+    { LStar l }
 | LP e=expr RP
     { e }
 | e1=expr ADD e2=expr
@@ -181,14 +181,14 @@ expr:
 | NOT e=expr
     { Unop(Not, e) }
 | ADDRESS t=LABEL 
-    { Address (make_node $startpos t) }
+    { Id (make_node $startpos t) }
 ;
 
 l_expr:
 | t=LABEL
     { Id (make_node $startpos t) }
 | MULT l=expr
-    { LStar l }
+    { l }
 ;
 
 instruction:

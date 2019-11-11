@@ -6,13 +6,6 @@ STK :
     - l'algorithme bizarre
     - Les gros nombres (et petits probablement) sont soit mal interprétés par la VM, soit mal stockés par l'assembleur. Dans tous les cas, dans cte.stk, la valeur de h est lue comme -98. Pris en hexadécimal, ce nombre correspond à sa valeur attendue mais avec le bit de second plus grand poids à 1.
 
-ART : 
-    - En fait l'opérateur & est purement syntaxique !!! Je suis trop con parfois.
-    Enfin il n'est que depuis qu'on a viré le type left_expr. Mais quand même.
-    Le virer.
-    - Lié au premier point de IMP : modifier write_art pour qu'il "oublie" un déréférencement
-    pour les expressions gauches. Ce déréférencement est ajouté automatiquement à l'arbre de syntaxe abstrait mais n'apparaît pas dans la forme textuelle.
-
 IMP :
     - Lié au truc d'ART : dans imp_to_art, rajouter un déréférencement pour les expressions droites
     quand nécessaire. Quand ce sera fait, on pourra avoir un compilateur à la chaîne bien plus performant.

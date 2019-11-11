@@ -154,15 +154,15 @@ let get_ends_loop t _break _continue =
 let simplify_assign_binop l op e =
   match op with
   | Standard -> Assign(l, e)
-  | AddAssign -> Assign(l, Binop(l, Add, e))
-  | SubAssign -> Assign(l, Binop(l, Sub, e)) 
-  | MultAssign -> Assign(l, Binop(l, Mult, e))
-  | DivAssign -> (Assign(l, Binop(l, Div, e)))
+  | AddAssign -> Assign(l, Binop(LStar l, Add, e))
+  | SubAssign -> Assign(l, Binop(LStar l, Sub, e)) 
+  | MultAssign -> Assign(l, Binop(LStar l, Mult, e))
+  | DivAssign -> (Assign(l, Binop(LStar l, Div, e)))
 
 let simplify_assign_unop l op =
   match op with
-  | Incr -> Assign(l, Binop(l, Add, Int 1))
-  | Decr -> Assign(l, Binop(l, Sub, Int 1))
+  | Incr -> Assign(l, Binop(LStar l, Add, Int 1))
+  | Decr -> Assign(l, Binop(LStar l, Sub, Int 1))
 
 let rec translate_instruction tag_set i maker _break _continue acc =
   let append = Cycle.append acc in
@@ -259,18 +259,18 @@ let rec write_instr file i depth =
   | Goto l -> 
     tabs depth;
     Printf.fprintf file "goto(";
-    write_art_expr file l;
+    write_art_left_expr file l;
     Printf.fprintf file ");\n"
   | Print e ->
     tabs depth;
     Printf.fprintf file "print(";
-    write_art_expr file e;
+    write_art_right_expr file e;
     Printf.fprintf file ");\n"
   | Assign(l, e) ->
     tabs depth;
-    write_art_expr file l;
+    write_art_left_expr file l;
     Printf.fprintf file " := ";
-    write_art_expr file e;
+    write_art_right_expr file e;
     Printf.fprintf file ";\n"
   | TagDeclaration t -> 
     Printf.fprintf file "%s:\n" t.contents
@@ -283,7 +283,7 @@ let rec write_instr file i depth =
   | If(c, bthen) ->
     tabs depth;
     Printf.fprintf file "if (";
-    write_art_expr file c;
+    write_art_right_expr file c;
     Printf.fprintf file ") {\n";
     write_instrs file bthen (depth + 1);
     tabs depth;
@@ -291,7 +291,7 @@ let rec write_instr file i depth =
   | IfElse(c, bthen, belse) ->
     tabs depth;
     Printf.fprintf file "if (";
-    write_art_expr file c;
+    write_art_right_expr file c;
     Printf.fprintf file ") {\n";
     write_instrs file bthen (depth + 1);
     tabs depth;
@@ -302,7 +302,7 @@ let rec write_instr file i depth =
   | While(c, body) ->
     tabs depth;
     Printf.fprintf file "while (";
-    write_art_expr file c;
+    write_art_right_expr file c;
     Printf.fprintf file ") {\n";
     write_instrs file body (depth + 1);
     tabs depth;
