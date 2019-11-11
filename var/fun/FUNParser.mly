@@ -3,7 +3,7 @@
   open Tagset
   open ARTTree
   open CLLTree
-  open IMPTree
+  open FUNTree
 
   let get_line pos =
     pos.pos_lnum
@@ -14,14 +14,25 @@
   let raise_syntax_error pos msg =
     raise (SyntaxError(msg, get_line pos, get_column pos))
 
-  let raise_duplicate_element pos t =
-    raise_syntax_error pos (Printf.sprintf "Tag '%s' is declared at least twice" t)
+  let raise_duplicate_element t =
+    raise (SyntaxError(Printf.sprintf "Tag '%s' is declared at least twice" t.contents, 
+      t.line, t.column
+    ))
 
-  let raise_reserved_variable pos var=
+  let raise_reserved_variable pos var =
     raise_syntax_error pos (Printf.sprintf "'%s' is a reserved variable." var)
 
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
+
+  let make_genv fct data =
+    let f set name =
+      if Tagset.mem name.contents set then
+        raise_duplicate_element name;
+      Tagset.add f.contents set
+    in
+    let set = List.fold_left f Tagset.empty fct in
+    List.fold_left f set data
 %}
 
 %token DATA
@@ -47,17 +58,18 @@
 %token EOF
 
 %start program
-%type <CLLTree.cll_prog ARTTree.compiler_type> program
-%type <CLLTree.cll_instrs> instructions
-%type <ARTTree.expression> expr
-%type <ARTTree.expression> l_expr
-%type <CLLTree.cll_instr> instruction
-%type <CLLTree.cll_instr> assign
-%type <CLLTree.cll_instrs> block
-%type <CLLTree.cll_instrs> control
-%type <CLLTree.cll_instrs> assigns
-%type <ARTTree.datas ARTTree.compiler_type> data_declarations
-%type <(CLLTree.procedure_definition Cycle.cycle) ARTTree.compiler_type> procedure_definitions
+%type <FUNTree.fun_prog ARTTree.compiler_type> program
+%type <FUNTree.parameter> parameter;
+%type <FUNTree.function_definition> function_definition;
+%type <FUNTree.fun_instrs> instructions
+%type <FUNTree.fun_expr> expr
+%type <FUNTree.fun_expr> l_expr
+%type <FUNTree.fun_instr> instruction
+%type <FUNTree.fun_instr> assign
+%type <FUNTree.fun_instrs> block
+%type <FUNTree.fun_instrs> control
+%type <FUNTree.fun_instrs> assigns
+%type <(string ARTTree.node) * int> data_declaration
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -70,25 +82,16 @@
 %%
 
 program:
-| globals=procedure_definitions DATA data=data_declarations EOF
+| globals=list(function_definition) DATA data=list(data_declaration) EOF
     {
-      try
-        let tag_set = union globals.tag_set data.tag_set in
-        let syntax_tree = ProcedureDefinitionData(globals.syntax_tree, data.syntax_tree) in
-        {tag_set; syntax_tree}
-      with
-      | DuplicateElement t ->
-        raise_duplicate_element $startpos t
+      let genv = make_genv globals data in
+      {syntax_tree = (globals, data); tag_set = genv}
     }
 
-| globals=procedure_definitions EOF
+| globals=list(function_definition) EOF
     {
-      try
-        let syntax_tree = ProcedureDefinition globals.syntax_tree in
-        {tag_set = globals.tag_set; syntax_tree}
-      with
-      | DuplicateElement t ->
-        raise_duplicate_element $startpos t
+      let genv = make_genv globals [xw] in
+      {syntax_tree = (globals, []); tag_set = genv}
     }
 
 | error
@@ -97,37 +100,35 @@ program:
     }
 ;
 
-(* La règle des déclaration de procédure en cll *)
-procedure_definitions:
-| name=LABEL LP RP LB b=instructions RB s=procedure_definitions 
-  {
-    if Tagset.mem name cll_variables then
-      raise_reserved_variable $startpos name;
-    let name_node = make_node $startpos name in
-    let decl = {name = name_node; block = b} in
-    let syntax_tree = Cycle.prepend s.syntax_tree decl in
-    try
-      let tag_set = Tagset.add name s.tag_set in
-      {syntax_tree; tag_set}
-    with DuplicateElement t ->
-      raise_duplicate_element $startpos t
-  }
+parameter:
+| name=LABEL 
+    {
+      {name; reference = false}
+    }
 
-| {
-    {syntax_tree = Cycle.empty_cycle; tag_set = Tagset.empty}
-  }
+| ADDRESS name=LABEL
+    {
+      {name; reference = true}
+    }
+;
+
+function_definition:
+| name=LABEL LP params=separated_list(COMMA, parameter) RP LB b=instructions RB
+    {
+      {name; params; block = b}
+    }
 ;
 
 instructions:
 | i=instruction SEMI s=instructions 
     {
-      Cycle.prepend s i
+      s::i
     }
 
 | c=control s=instructions
 | c=control SEMI s=instructions
     {
-      Cycle.extend c s
+      c::s
     }
 
 | control COLON instructions
@@ -136,7 +137,7 @@ instructions:
       raise_syntax_error $startpos "Expected ';', found ':'."
     }
 
-|   { Cycle.empty_cycle }
+|   { [] }
 ;
 
 expr:
@@ -180,15 +181,16 @@ expr:
     { Unop(Cpl, e) }
 | NOT e=expr
     { Unop(Not, e) }
-| ADDRESS t=LABEL 
-    { Address (make_node $startpos t) }
+| ADDRESS e=l_expr 
+    { Address e }
+| f=l_expr LP args=separated_list(COMMA, expr) RP
 ;
 
 l_expr:
 | t=LABEL
     { Id (make_node $startpos t) }
 | MULT l=expr
-    { LStar l }
+    { Deref l }
 ;
 
 instruction:
@@ -208,15 +210,8 @@ instruction:
       Continue (make_node $startpos ())
     }
 
-| RETURN
-    {
-      Return
-    }
-
-| l_e=l_expr LP RP
-    {
-      Call l_e
-    }
+| RETURN LP e=expr RP
+    { Return e }
 
 | a=assign
     { a }
@@ -250,11 +245,11 @@ assign_unop:
 block:
 | i=instruction SEMI
     {
-      Cycle.from_elt i
+      [i]
     }
 
 | c=control
-    { c }
+    { [c] }
 
 | LB i=instructions RB
     { i }
@@ -263,22 +258,22 @@ block:
 control:
 | IF LP e=expr RP b=block %prec NO_ELSE
     {
-      Cycle.from_elt (CLLTree.If(e, b))
+      FUNTree.If(e, b)
     } 
 
 | IF LP c=expr RP t=block ELSE e=block
     { 
-      Cycle.from_elt (CLLTree.IfElse(c, t, e))
+      IfElse(c, t, e)
     }
 
 | WHILE LP e=expr RP b=block
     {
-      Cycle.from_elt (CLLTree.While(e, b))
+      While(e, b)
     }
 
-| FOR LP init=assigns SEMI cond=expr SEMI it=assigns RP b=block
+| FOR LP init=separated_list(COMMA, assign) SEMI cond=expr SEMI it=separated_list(COMMA, assign) RP b=block
     {
-      Cycle.from_elt (For(init, cond, it, b))
+      For(init, cond, it, b)
     }
 
 | WHILE block
@@ -300,39 +295,17 @@ control:
     }
 ;
 
-assigns:
-| a=assign  { Cycle.from_elt a }
-| a=assign COMMA s=assigns { Cycle.prepend s a }
-;
-
-data_declarations:
-| t=LABEL COLON v=INT s=data_declarations
+data_declaration:
+| t=LABEL COLON v=INT
     {
-      if Tagset.mem t cll_variables then
-        raise_reserved_variable $startpos t;
-      try
-        let tag_set = add t s.tag_set in
-        let tag = make_node $startpos (t, v) in
-        let syntax_tree = Cycle.prepend s.syntax_tree tag in
-        {syntax_tree; tag_set}
-      with
-      | DuplicateElement t ->
-        raise_duplicate_element $startpos t 
+      if Tagset.mem t.contents fun_variables then
+        raise_reserved_variable $startpos t.contents;
+      (t, v) 
     }
-
-| t=LABEL COLON b=BOOL s=data_declarations 
+| t=LABEL COLON b=BOOL
     {
-      if Tagset.mem t cll_variables then
-        raise_reserved_variable $startpos t;
-      try
-        let tag_set = add t s.tag_set in
-        let tag = make_node $startpos (t, Arith.int_of_bool b) in
-        let syntax_tree = Cycle.prepend s.syntax_tree tag in
-        {syntax_tree; tag_set}
-      with
-      | DuplicateElement t ->
-        raise_duplicate_element $startpos t 
+      if Tagset.mem t.contents fun_variables then
+        raise_reserved_variable $startpos t.contents; 
+      (t, Arith.int_of_bool b) 
     }
-
-|   { {syntax_tree = Cycle.empty_cycle; tag_set = empty} }
 ;

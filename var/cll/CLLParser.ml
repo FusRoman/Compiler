@@ -271,7 +271,7 @@ let rec _menhir_goto_assigns : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 273 "var/cll/CLLParser.ml"
         ) = 
-# 306 "var/cll/CLLParser.mly"
+# 305 "var/cll/CLLParser.mly"
                            ( Cycle.prepend s a )
 # 277 "var/cll/CLLParser.ml"
          in
@@ -551,7 +551,7 @@ and _menhir_goto_assign_unop : _menhir_env -> 'ttv_tail -> 'tv_assign_unop -> 't
       (CLLTree.cll_instr)
 # 553 "var/cll/CLLParser.ml"
     ) = 
-# 233 "var/cll/CLLParser.mly"
+# 232 "var/cll/CLLParser.mly"
     (
       UnopAssign(l, op)
     )
@@ -626,7 +626,7 @@ and _menhir_goto_assign : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instr)
 # 628 "var/cll/CLLParser.ml"
         ) = 
-# 223 "var/cll/CLLParser.mly"
+# 222 "var/cll/CLLParser.mly"
     ( a )
 # 632 "var/cll/CLLParser.ml"
          in
@@ -676,7 +676,7 @@ and _menhir_goto_assign : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 678 "var/cll/CLLParser.ml"
             ) = 
-# 305 "var/cll/CLLParser.mly"
+# 304 "var/cll/CLLParser.mly"
             ( Cycle.from_elt a )
 # 682 "var/cll/CLLParser.ml"
              in
@@ -1143,7 +1143,7 @@ and _menhir_goto_control : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 1145 "var/cll/CLLParser.ml"
         ) = 
-# 258 "var/cll/CLLParser.mly"
+# 257 "var/cll/CLLParser.mly"
     ( c )
 # 1149 "var/cll/CLLParser.ml"
          in
@@ -1326,7 +1326,7 @@ and _menhir_goto_data_declarations : _menhir_env -> 'ttv_tail -> _menhir_state -
 # 1327 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos_t_ in
         
-# 311 "var/cll/CLLParser.mly"
+# 310 "var/cll/CLLParser.mly"
     (
       if Tagset.mem t cll_variables then
         raise_reserved_variable _startpos t;
@@ -1391,7 +1391,7 @@ and _menhir_goto_data_declarations : _menhir_env -> 'ttv_tail -> _menhir_state -
 # 1392 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos_t_ in
         
-# 325 "var/cll/CLLParser.mly"
+# 324 "var/cll/CLLParser.mly"
     (
       if Tagset.mem t cll_variables then
         raise_reserved_variable _startpos t;
@@ -1462,7 +1462,7 @@ and _menhir_goto_data_declarations : _menhir_env -> 'ttv_tail -> _menhir_state -
 # 74 "var/cll/CLLParser.mly"
     (
       try
-        let tag_set = union cll_variables (union globals.tag_set data.tag_set) in
+        let tag_set = union globals.tag_set data.tag_set in
         let syntax_tree = ProcedureDefinitionData(globals.syntax_tree, data.syntax_tree) in
         {tag_set; syntax_tree}
       with
@@ -1497,7 +1497,7 @@ and _menhir_run67 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv449) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_binop = 
-# 241 "var/cll/CLLParser.mly"
+# 240 "var/cll/CLLParser.mly"
               ( SubAssign )
 # 1503 "var/cll/CLLParser.ml"
      in
@@ -1510,7 +1510,7 @@ and _menhir_run68 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv447) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_binop = 
-# 242 "var/cll/CLLParser.mly"
+# 241 "var/cll/CLLParser.mly"
               ( MultAssign )
 # 1516 "var/cll/CLLParser.ml"
      in
@@ -1523,7 +1523,7 @@ and _menhir_run69 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv445) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_unop = 
-# 247 "var/cll/CLLParser.mly"
+# 246 "var/cll/CLLParser.mly"
               ( Incr )
 # 1529 "var/cll/CLLParser.ml"
      in
@@ -1536,7 +1536,7 @@ and _menhir_run70 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv443) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_binop = 
-# 243 "var/cll/CLLParser.mly"
+# 242 "var/cll/CLLParser.mly"
               ( DivAssign )
 # 1542 "var/cll/CLLParser.ml"
      in
@@ -1549,7 +1549,7 @@ and _menhir_run71 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv441) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_unop = 
-# 248 "var/cll/CLLParser.mly"
+# 247 "var/cll/CLLParser.mly"
               ( Decr )
 # 1555 "var/cll/CLLParser.ml"
      in
@@ -1562,7 +1562,7 @@ and _menhir_run72 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv439) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_binop = 
-# 239 "var/cll/CLLParser.mly"
+# 238 "var/cll/CLLParser.mly"
               ( Standard )
 # 1568 "var/cll/CLLParser.ml"
      in
@@ -1575,7 +1575,7 @@ and _menhir_run73 : _menhir_env -> 'ttv_tail -> 'ttv_return =
     let (_menhir_stack : 'freshtv437) = Obj.magic _menhir_stack in
     ((let _1 = () in
     let _v : 'tv_assign_binop = 
-# 240 "var/cll/CLLParser.mly"
+# 239 "var/cll/CLLParser.mly"
               ( AddAssign )
 # 1581 "var/cll/CLLParser.ml"
      in
@@ -1597,7 +1597,7 @@ and _menhir_reduce30 : _menhir_env -> 'ttv_tail * _menhir_state * (
       (ARTTree.expression)
 # 1599 "var/cll/CLLParser.ml"
     ) = 
-# 149 "var/cll/CLLParser.mly"
+# 148 "var/cll/CLLParser.mly"
     ( l )
 # 1603 "var/cll/CLLParser.ml"
      in
@@ -1635,7 +1635,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1637 "var/cll/CLLParser.ml"
         ) = 
-# 181 "var/cll/CLLParser.mly"
+# 180 "var/cll/CLLParser.mly"
     ( Unop(Cpl, e) )
 # 1641 "var/cll/CLLParser.ml"
          in
@@ -1700,7 +1700,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1702 "var/cll/CLLParser.ml"
             ) = 
-# 151 "var/cll/CLLParser.mly"
+# 150 "var/cll/CLLParser.mly"
     ( e )
 # 1706 "var/cll/CLLParser.ml"
              in
@@ -1764,7 +1764,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1766 "var/cll/CLLParser.ml"
             ) = 
-# 155 "var/cll/CLLParser.mly"
+# 154 "var/cll/CLLParser.mly"
     ( Binop(e1, Sub, e2) )
 # 1770 "var/cll/CLLParser.ml"
              in
@@ -1820,7 +1820,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1822 "var/cll/CLLParser.ml"
         ) = 
-# 161 "var/cll/CLLParser.mly"
+# 160 "var/cll/CLLParser.mly"
     ( Binop(e1, Rem, e2) )
 # 1826 "var/cll/CLLParser.ml"
          in
@@ -1861,7 +1861,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1863 "var/cll/CLLParser.ml"
         ) = 
-# 157 "var/cll/CLLParser.mly"
+# 156 "var/cll/CLLParser.mly"
     ( Binop(e1, Mult, e2) )
 # 1867 "var/cll/CLLParser.ml"
          in
@@ -1902,7 +1902,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1904 "var/cll/CLLParser.ml"
         ) = 
-# 159 "var/cll/CLLParser.mly"
+# 158 "var/cll/CLLParser.mly"
     ( Binop(e1, Div, e2) )
 # 1908 "var/cll/CLLParser.ml"
          in
@@ -1969,7 +1969,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 1971 "var/cll/CLLParser.ml"
             ) = 
-# 165 "var/cll/CLLParser.mly"
+# 164 "var/cll/CLLParser.mly"
     ( Binop(e1, Or, e2) )
 # 1975 "var/cll/CLLParser.ml"
              in
@@ -2039,7 +2039,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2041 "var/cll/CLLParser.ml"
             ) = 
-# 177 "var/cll/CLLParser.mly"
+# 176 "var/cll/CLLParser.mly"
     ( Binop(e1, Neq, e2) )
 # 2045 "var/cll/CLLParser.ml"
              in
@@ -2105,7 +2105,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2107 "var/cll/CLLParser.ml"
             ) = 
-# 153 "var/cll/CLLParser.mly"
+# 152 "var/cll/CLLParser.mly"
     ( Binop(e1, Add, e2) )
 # 2111 "var/cll/CLLParser.ml"
              in
@@ -2175,7 +2175,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2177 "var/cll/CLLParser.ml"
             ) = 
-# 167 "var/cll/CLLParser.mly"
+# 166 "var/cll/CLLParser.mly"
     ( Binop(e1, Lt, e2) )
 # 2181 "var/cll/CLLParser.ml"
              in
@@ -2245,7 +2245,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2247 "var/cll/CLLParser.ml"
             ) = 
-# 169 "var/cll/CLLParser.mly"
+# 168 "var/cll/CLLParser.mly"
     ( Binop(e1, Le, e2) )
 # 2251 "var/cll/CLLParser.ml"
              in
@@ -2315,7 +2315,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2317 "var/cll/CLLParser.ml"
             ) = 
-# 171 "var/cll/CLLParser.mly"
+# 170 "var/cll/CLLParser.mly"
     ( Binop(e1, Gt, e2) )
 # 2321 "var/cll/CLLParser.ml"
              in
@@ -2385,7 +2385,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2387 "var/cll/CLLParser.ml"
             ) = 
-# 173 "var/cll/CLLParser.mly"
+# 172 "var/cll/CLLParser.mly"
     ( Binop(e1, Ge, e2) )
 # 2391 "var/cll/CLLParser.ml"
              in
@@ -2455,7 +2455,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2457 "var/cll/CLLParser.ml"
             ) = 
-# 175 "var/cll/CLLParser.mly"
+# 174 "var/cll/CLLParser.mly"
     ( Binop(e1, Eq, e2) )
 # 2461 "var/cll/CLLParser.ml"
              in
@@ -2537,7 +2537,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2539 "var/cll/CLLParser.ml"
             ) = 
-# 163 "var/cll/CLLParser.mly"
+# 162 "var/cll/CLLParser.mly"
     ( Binop(e1, And, e2) )
 # 2543 "var/cll/CLLParser.ml"
              in
@@ -2582,7 +2582,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2584 "var/cll/CLLParser.ml"
         ) = 
-# 192 "var/cll/CLLParser.mly"
+# 191 "var/cll/CLLParser.mly"
     ( LStar l )
 # 2588 "var/cll/CLLParser.ml"
          in
@@ -2611,7 +2611,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2613 "var/cll/CLLParser.ml"
         ) = 
-# 183 "var/cll/CLLParser.mly"
+# 182 "var/cll/CLLParser.mly"
     ( Unop(Not, e) )
 # 2617 "var/cll/CLLParser.ml"
          in
@@ -2650,7 +2650,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 2652 "var/cll/CLLParser.ml"
             ) = 
-# 179 "var/cll/CLLParser.mly"
+# 178 "var/cll/CLLParser.mly"
     ( Unop(Minus, e) )
 # 2656 "var/cll/CLLParser.ml"
              in
@@ -2728,7 +2728,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instr)
 # 2730 "var/cll/CLLParser.ml"
             ) = 
-# 201 "var/cll/CLLParser.mly"
+# 200 "var/cll/CLLParser.mly"
     ( Print e )
 # 2734 "var/cll/CLLParser.ml"
              in
@@ -2982,7 +2982,7 @@ and _menhir_goto_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instr)
 # 2984 "var/cll/CLLParser.ml"
             ) = 
-# 228 "var/cll/CLLParser.mly"
+# 227 "var/cll/CLLParser.mly"
     (
       BinopAssign(l, op, e)
     )
@@ -3290,7 +3290,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 3291 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 294 "var/cll/CLLParser.mly"
+# 293 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Ill-formed 'for' loop"
     )
@@ -3337,7 +3337,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 3338 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 299 "var/cll/CLLParser.mly"
+# 298 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
     )
@@ -3409,7 +3409,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 3411 "var/cll/CLLParser.ml"
         ) = 
-# 281 "var/cll/CLLParser.mly"
+# 280 "var/cll/CLLParser.mly"
     (
       Cycle.from_elt (For(init, cond, it, b))
     )
@@ -3469,7 +3469,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 3470 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 294 "var/cll/CLLParser.mly"
+# 293 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Ill-formed 'for' loop"
     )
@@ -3529,7 +3529,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 3530 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 294 "var/cll/CLLParser.mly"
+# 293 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Ill-formed 'for' loop"
     )
@@ -3576,7 +3576,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 3577 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 294 "var/cll/CLLParser.mly"
+# 293 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Ill-formed 'for' loop"
     )
@@ -3668,7 +3668,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 3670 "var/cll/CLLParser.ml"
             ) = 
-# 266 "var/cll/CLLParser.mly"
+# 265 "var/cll/CLLParser.mly"
     (
       Cycle.from_elt (CLLTree.If(e, b))
     )
@@ -3742,7 +3742,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 3744 "var/cll/CLLParser.ml"
         ) = 
-# 271 "var/cll/CLLParser.mly"
+# 270 "var/cll/CLLParser.mly"
     ( 
       Cycle.from_elt (CLLTree.IfElse(c, t, e))
     )
@@ -3788,7 +3788,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 3790 "var/cll/CLLParser.ml"
         ) = 
-# 276 "var/cll/CLLParser.mly"
+# 275 "var/cll/CLLParser.mly"
     (
       Cycle.from_elt (CLLTree.While(e, b))
     )
@@ -3821,7 +3821,7 @@ and _menhir_goto_block : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 3822 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 286 "var/cll/CLLParser.mly"
+# 285 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "No condition found for 'while'"
     )
@@ -3843,7 +3843,7 @@ and _menhir_reduce27 : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return 
       (ARTTree.datas ARTTree.compiler_type)
 # 3845 "var/cll/CLLParser.ml"
     ) = 
-# 338 "var/cll/CLLParser.mly"
+# 337 "var/cll/CLLParser.mly"
     ( {syntax_tree = Cycle.empty_cycle; tag_set = empty} )
 # 3849 "var/cll/CLLParser.ml"
      in
@@ -3986,7 +3986,7 @@ and _menhir_goto_instructions : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 3988 "var/cll/CLLParser.ml"
             ) = 
-# 261 "var/cll/CLLParser.mly"
+# 260 "var/cll/CLLParser.mly"
     ( i )
 # 3992 "var/cll/CLLParser.ml"
              in
@@ -4038,7 +4038,7 @@ and _menhir_goto_instructions : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 4040 "var/cll/CLLParser.ml"
         ) = 
-# 124 "var/cll/CLLParser.mly"
+# 123 "var/cll/CLLParser.mly"
     (
       Cycle.prepend s i
     )
@@ -4081,7 +4081,7 @@ and _menhir_goto_instructions : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 4083 "var/cll/CLLParser.ml"
         ) = 
-# 130 "var/cll/CLLParser.mly"
+# 129 "var/cll/CLLParser.mly"
     (
       Cycle.extend c s
     )
@@ -4125,7 +4125,7 @@ and _menhir_goto_instructions : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 4126 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 136 "var/cll/CLLParser.mly"
+# 135 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Expected ';', found ':'."
     )
@@ -4167,7 +4167,7 @@ and _menhir_goto_instructions : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 4169 "var/cll/CLLParser.ml"
         ) = 
-# 130 "var/cll/CLLParser.mly"
+# 129 "var/cll/CLLParser.mly"
     (
       Cycle.extend c s
     )
@@ -4211,7 +4211,7 @@ and _menhir_goto_instructions : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 4212 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 136 "var/cll/CLLParser.mly"
+# 135 "var/cll/CLLParser.mly"
     (
       raise_syntax_error _startpos "Expected ';', found ':'."
     )
@@ -4454,7 +4454,7 @@ and _menhir_goto_l_expr : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instr)
 # 4456 "var/cll/CLLParser.ml"
                 ) = 
-# 218 "var/cll/CLLParser.mly"
+# 217 "var/cll/CLLParser.mly"
     (
       Call l_e
     )
@@ -4601,7 +4601,7 @@ and _menhir_run15 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 4603 "var/cll/CLLParser.ml"
     ) = 
-# 145 "var/cll/CLLParser.mly"
+# 144 "var/cll/CLLParser.mly"
     ( Int i )
 # 4607 "var/cll/CLLParser.ml"
      in
@@ -4660,7 +4660,7 @@ and _menhir_run17 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (ARTTree.expression)
 # 4662 "var/cll/CLLParser.ml"
     ) = 
-# 147 "var/cll/CLLParser.mly"
+# 146 "var/cll/CLLParser.mly"
     ( Bool b )
 # 4666 "var/cll/CLLParser.ml"
      in
@@ -4702,7 +4702,7 @@ and _menhir_run18 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
 # 4703 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 185 "var/cll/CLLParser.mly"
+# 184 "var/cll/CLLParser.mly"
     ( Address (make_node _startpos t) )
 # 4708 "var/cll/CLLParser.ml"
          in
@@ -4758,7 +4758,7 @@ and _menhir_goto_instruction : _menhir_env -> 'ttv_tail -> _menhir_state -> (
       (CLLTree.cll_instrs)
 # 4760 "var/cll/CLLParser.ml"
             ) = 
-# 253 "var/cll/CLLParser.mly"
+# 252 "var/cll/CLLParser.mly"
     (
       Cycle.from_elt i
     )
@@ -4965,7 +4965,7 @@ and _menhir_goto_procedure_definitions : _menhir_env -> 'ttv_tail -> _menhir_sta
 # 4966 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos_name_ in
         
-# 104 "var/cll/CLLParser.mly"
+# 103 "var/cll/CLLParser.mly"
   (
     if Tagset.mem name cll_variables then
       raise_reserved_variable _startpos name;
@@ -5037,14 +5037,13 @@ and _menhir_goto_procedure_definitions : _menhir_env -> 'ttv_tail -> _menhir_sta
 # 85 "var/cll/CLLParser.mly"
     (
       try
-        let tag_set = union cll_variables globals.tag_set in
         let syntax_tree = ProcedureDefinition globals.syntax_tree in
-        {tag_set; syntax_tree}
+        {tag_set = globals.tag_set; syntax_tree}
       with
       | DuplicateElement t ->
         raise_duplicate_element _startpos t
     )
-# 5048 "var/cll/CLLParser.ml"
+# 5047 "var/cll/CLLParser.ml"
              in
             _menhir_goto_program _menhir_env _menhir_stack _menhir_s _v) : 'freshtv150)) : 'freshtv152)
         | _ ->
@@ -5054,7 +5053,7 @@ and _menhir_goto_procedure_definitions : _menhir_env -> 'ttv_tail -> _menhir_sta
             let (_menhir_stack : 'freshtv153 * _menhir_state * (
 # 60 "var/cll/CLLParser.mly"
       ((CLLTree.procedure_definition Cycle.cycle) ARTTree.compiler_type)
-# 5058 "var/cll/CLLParser.ml"
+# 5057 "var/cll/CLLParser.ml"
             ) * Lexing.position) = Obj.magic _menhir_stack in
             ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
             _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv154)) : 'freshtv156)
@@ -5066,11 +5065,11 @@ and _menhir_reduce62 : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return 
     let _v : (
 # 51 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5070 "var/cll/CLLParser.ml"
+# 5069 "var/cll/CLLParser.ml"
     ) = 
-# 140 "var/cll/CLLParser.mly"
+# 139 "var/cll/CLLParser.mly"
     ( Cycle.empty_cycle )
-# 5074 "var/cll/CLLParser.ml"
+# 5073 "var/cll/CLLParser.ml"
      in
     _menhir_goto_instructions _menhir_env _menhir_stack _menhir_s _v
 
@@ -5151,13 +5150,13 @@ and _menhir_run7 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position 
     let _v : (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5155 "var/cll/CLLParser.ml"
+# 5154 "var/cll/CLLParser.ml"
     ) = 
-# 213 "var/cll/CLLParser.mly"
+# 212 "var/cll/CLLParser.mly"
     (
       Return
     )
-# 5161 "var/cll/CLLParser.ml"
+# 5160 "var/cll/CLLParser.ml"
      in
     _menhir_goto_instruction _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv140)
 
@@ -5215,11 +5214,11 @@ and _menhir_run55 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
     let _v : (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5219 "var/cll/CLLParser.ml"
+# 5218 "var/cll/CLLParser.ml"
     ) = 
-# 197 "var/cll/CLLParser.mly"
+# 196 "var/cll/CLLParser.mly"
     ( Nop )
-# 5223 "var/cll/CLLParser.ml"
+# 5222 "var/cll/CLLParser.ml"
      in
     _menhir_goto_instruction _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv134)
 
@@ -5255,7 +5254,7 @@ and _menhir_run12 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
 and _menhir_run14 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5259 "var/cll/CLLParser.ml"
+# 5258 "var/cll/CLLParser.ml"
 ) -> Lexing.position -> 'ttv_return =
   fun _menhir_env _menhir_stack _menhir_s _v _startpos ->
     let _menhir_env = _menhir_discard _menhir_env in
@@ -5265,23 +5264,23 @@ and _menhir_run14 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
     let ((t : (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5269 "var/cll/CLLParser.ml"
+# 5268 "var/cll/CLLParser.ml"
     )) : (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5273 "var/cll/CLLParser.ml"
+# 5272 "var/cll/CLLParser.ml"
     )) = _v in
     let (_startpos_t_ : Lexing.position) = _startpos in
     ((let _startpos = _startpos_t_ in
     let _v : (
 # 53 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5280 "var/cll/CLLParser.ml"
+# 5279 "var/cll/CLLParser.ml"
     ) = let _startpos = _startpos_t_ in
     
-# 190 "var/cll/CLLParser.mly"
+# 189 "var/cll/CLLParser.mly"
     ( Id (make_node _startpos t) )
-# 5285 "var/cll/CLLParser.ml"
+# 5284 "var/cll/CLLParser.ml"
      in
     _menhir_goto_l_expr _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv132)
 
@@ -5381,11 +5380,11 @@ and _menhir_run82 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
     let _v : (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5385 "var/cll/CLLParser.ml"
+# 5384 "var/cll/CLLParser.ml"
     ) = 
-# 199 "var/cll/CLLParser.mly"
+# 198 "var/cll/CLLParser.mly"
     ( Exit )
-# 5389 "var/cll/CLLParser.ml"
+# 5388 "var/cll/CLLParser.ml"
      in
     _menhir_goto_instruction _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv122)
 
@@ -5401,14 +5400,14 @@ and _menhir_run83 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
     let _v : (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5405 "var/cll/CLLParser.ml"
+# 5404 "var/cll/CLLParser.ml"
     ) = let _startpos = _startpos__1_ in
     
-# 208 "var/cll/CLLParser.mly"
+# 207 "var/cll/CLLParser.mly"
     ( 
       Continue (make_node _startpos ())
     )
-# 5412 "var/cll/CLLParser.ml"
+# 5411 "var/cll/CLLParser.ml"
      in
     _menhir_goto_instruction _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv120)
 
@@ -5424,14 +5423,14 @@ and _menhir_run84 : _menhir_env -> 'ttv_tail -> _menhir_state -> Lexing.position
     let _v : (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5428 "var/cll/CLLParser.ml"
+# 5427 "var/cll/CLLParser.ml"
     ) = let _startpos = _startpos__1_ in
     
-# 203 "var/cll/CLLParser.mly"
+# 202 "var/cll/CLLParser.mly"
     ( 
       Break (make_node _startpos ())
     )
-# 5435 "var/cll/CLLParser.ml"
+# 5434 "var/cll/CLLParser.ml"
      in
     _menhir_goto_instruction _menhir_env _menhir_stack _menhir_s _v _startpos) : 'freshtv118)
 
@@ -5443,11 +5442,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : (('freshtv15 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5447 "var/cll/CLLParser.ml"
+# 5446 "var/cll/CLLParser.ml"
         ) * Lexing.position)) * (
 # 44 "var/cll/CLLParser.mly"
        (bool)
-# 5451 "var/cll/CLLParser.ml"
+# 5450 "var/cll/CLLParser.ml"
         )) = Obj.magic _menhir_stack in
         ((let ((_menhir_stack, _menhir_s, _, _), _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv16)
@@ -5456,11 +5455,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : (('freshtv17 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5460 "var/cll/CLLParser.ml"
+# 5459 "var/cll/CLLParser.ml"
         ) * Lexing.position)) * (
 # 45 "var/cll/CLLParser.mly"
        (int)
-# 5464 "var/cll/CLLParser.ml"
+# 5463 "var/cll/CLLParser.ml"
         )) = Obj.magic _menhir_stack in
         ((let ((_menhir_stack, _menhir_s, _, _), _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv18)
@@ -5469,7 +5468,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv19 * _menhir_state * (
 # 60 "var/cll/CLLParser.mly"
       ((CLLTree.procedure_definition Cycle.cycle) ARTTree.compiler_type)
-# 5473 "var/cll/CLLParser.ml"
+# 5472 "var/cll/CLLParser.ml"
         ) * Lexing.position)) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv20)
@@ -5478,11 +5477,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((('freshtv21 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5482 "var/cll/CLLParser.ml"
+# 5481 "var/cll/CLLParser.ml"
         ) * Lexing.position)))) * _menhir_state * (
 # 51 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5486 "var/cll/CLLParser.ml"
+# 5485 "var/cll/CLLParser.ml"
         )) * Lexing.position) = Obj.magic _menhir_stack in
         ((let ((_menhir_stack, _menhir_s, _), _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv22)
@@ -5491,7 +5490,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv23 * _menhir_state * (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5495 "var/cll/CLLParser.ml"
+# 5494 "var/cll/CLLParser.ml"
         ) * Lexing.position)) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv24)
@@ -5500,7 +5499,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv25 * _menhir_state * (
 # 57 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5504 "var/cll/CLLParser.ml"
+# 5503 "var/cll/CLLParser.ml"
         ) * Lexing.position) * _menhir_state) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv26)
@@ -5509,7 +5508,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv27 * _menhir_state * (
 # 57 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5513 "var/cll/CLLParser.ml"
+# 5512 "var/cll/CLLParser.ml"
         ) * Lexing.position) * _menhir_state) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv28)
@@ -5518,7 +5517,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : 'freshtv29 * _menhir_state * (
 # 57 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5522 "var/cll/CLLParser.ml"
+# 5521 "var/cll/CLLParser.ml"
         ) * Lexing.position) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv30)
@@ -5527,7 +5526,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv31 * _menhir_state * (
 # 54 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5531 "var/cll/CLLParser.ml"
+# 5530 "var/cll/CLLParser.ml"
         ) * Lexing.position)) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv32)
@@ -5536,11 +5535,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((('freshtv33 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5540 "var/cll/CLLParser.ml"
+# 5539 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 56 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5544 "var/cll/CLLParser.ml"
+# 5543 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv34)
@@ -5549,7 +5548,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv35 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5553 "var/cll/CLLParser.ml"
+# 5552 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv36)
@@ -5558,11 +5557,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((('freshtv37 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5562 "var/cll/CLLParser.ml"
+# 5561 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5566 "var/cll/CLLParser.ml"
+# 5565 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv38)
@@ -5571,11 +5570,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((('freshtv39 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5575 "var/cll/CLLParser.ml"
+# 5574 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5579 "var/cll/CLLParser.ml"
+# 5578 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv40)
@@ -5584,15 +5583,15 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((((('freshtv41 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5588 "var/cll/CLLParser.ml"
+# 5587 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5592 "var/cll/CLLParser.ml"
+# 5591 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5596 "var/cll/CLLParser.ml"
+# 5595 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv42)
@@ -5601,11 +5600,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((('freshtv43 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5605 "var/cll/CLLParser.ml"
+# 5604 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5609 "var/cll/CLLParser.ml"
+# 5608 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv44)
@@ -5614,7 +5613,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv45 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5618 "var/cll/CLLParser.ml"
+# 5617 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv46)
@@ -5623,7 +5622,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv47 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5627 "var/cll/CLLParser.ml"
+# 5626 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv48)
@@ -5632,7 +5631,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv49 * _menhir_state * (
 # 55 "var/cll/CLLParser.mly"
       (CLLTree.cll_instr)
-# 5636 "var/cll/CLLParser.ml"
+# 5635 "var/cll/CLLParser.ml"
         ) * Lexing.position)) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv50)
@@ -5641,11 +5640,11 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((((('freshtv51 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5645 "var/cll/CLLParser.ml"
+# 5644 "var/cll/CLLParser.ml"
         ))) * _menhir_state * (
 # 58 "var/cll/CLLParser.mly"
       (CLLTree.cll_instrs)
-# 5649 "var/cll/CLLParser.ml"
+# 5648 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv52)
@@ -5654,7 +5653,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv53 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5658 "var/cll/CLLParser.ml"
+# 5657 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv54)
@@ -5663,7 +5662,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv55 * _menhir_state * (
 # 53 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5667 "var/cll/CLLParser.ml"
+# 5666 "var/cll/CLLParser.ml"
         ) * Lexing.position) * 'tv_assign_binop) = Obj.magic _menhir_stack in
         ((let ((_menhir_stack, _menhir_s, _, _), _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv56)
@@ -5677,7 +5676,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv59 * _menhir_state * Lexing.position)) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5681 "var/cll/CLLParser.ml"
+# 5680 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv60)
@@ -5696,7 +5695,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv65 * _menhir_state * Lexing.position) * _menhir_state) * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5700 "var/cll/CLLParser.ml"
+# 5699 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv66)
@@ -5710,7 +5709,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv69 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5714 "var/cll/CLLParser.ml"
+# 5713 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv70)
@@ -5719,7 +5718,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv71 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5723 "var/cll/CLLParser.ml"
+# 5722 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv72)
@@ -5728,7 +5727,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv73 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5732 "var/cll/CLLParser.ml"
+# 5731 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv74)
@@ -5737,7 +5736,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv75 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5741 "var/cll/CLLParser.ml"
+# 5740 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv76)
@@ -5746,7 +5745,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv77 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5750 "var/cll/CLLParser.ml"
+# 5749 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv78)
@@ -5755,7 +5754,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv79 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5759 "var/cll/CLLParser.ml"
+# 5758 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv80)
@@ -5764,7 +5763,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv81 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5768 "var/cll/CLLParser.ml"
+# 5767 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv82)
@@ -5773,7 +5772,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv83 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5777 "var/cll/CLLParser.ml"
+# 5776 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv84)
@@ -5782,7 +5781,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv85 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5786 "var/cll/CLLParser.ml"
+# 5785 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv86)
@@ -5791,7 +5790,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv87 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5795 "var/cll/CLLParser.ml"
+# 5794 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv88)
@@ -5800,7 +5799,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv89 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5804 "var/cll/CLLParser.ml"
+# 5803 "var/cll/CLLParser.ml"
         )) * Lexing.position) = Obj.magic _menhir_stack in
         ((let ((_menhir_stack, _menhir_s, _), _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv90)
@@ -5809,7 +5808,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv91 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5813 "var/cll/CLLParser.ml"
+# 5812 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv92)
@@ -5818,7 +5817,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ('freshtv93 * _menhir_state * (
 # 52 "var/cll/CLLParser.mly"
       (ARTTree.expression)
-# 5822 "var/cll/CLLParser.ml"
+# 5821 "var/cll/CLLParser.ml"
         ))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv94)
@@ -5862,7 +5861,7 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let (_menhir_stack : ((('freshtv109 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5866 "var/cll/CLLParser.ml"
+# 5865 "var/cll/CLLParser.ml"
         ) * Lexing.position)))) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv110)
@@ -5881,14 +5880,14 @@ and _menhir_errorcase : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return
         let _v : (
 # 50 "var/cll/CLLParser.mly"
       (CLLTree.cll_prog ARTTree.compiler_type)
-# 5885 "var/cll/CLLParser.ml"
+# 5884 "var/cll/CLLParser.ml"
         ) = let _startpos = _startpos__1_ in
         
-# 96 "var/cll/CLLParser.mly"
+# 95 "var/cll/CLLParser.mly"
     ( 
       raise_syntax_error _startpos "CLL program structure: list procedure declaration .data <declarations>" 
     )
-# 5892 "var/cll/CLLParser.ml"
+# 5891 "var/cll/CLLParser.ml"
          in
         _menhir_goto_program _menhir_env _menhir_stack _menhir_s _v) : 'freshtv112)) : 'freshtv114)) : 'freshtv116)
 
@@ -5898,20 +5897,20 @@ and _menhir_reduce66 : _menhir_env -> 'ttv_tail -> _menhir_state -> 'ttv_return 
     let _v : (
 # 60 "var/cll/CLLParser.mly"
       ((CLLTree.procedure_definition Cycle.cycle) ARTTree.compiler_type)
-# 5902 "var/cll/CLLParser.ml"
+# 5901 "var/cll/CLLParser.ml"
     ) = 
-# 117 "var/cll/CLLParser.mly"
+# 116 "var/cll/CLLParser.mly"
   (
     {syntax_tree = Cycle.empty_cycle; tag_set = Tagset.empty}
   )
-# 5908 "var/cll/CLLParser.ml"
+# 5907 "var/cll/CLLParser.ml"
      in
     _menhir_goto_procedure_definitions _menhir_env _menhir_stack _menhir_s _v _startpos
 
 and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5915 "var/cll/CLLParser.ml"
+# 5914 "var/cll/CLLParser.ml"
 ) -> Lexing.position -> 'ttv_return =
   fun _menhir_env _menhir_stack _menhir_s _v _startpos ->
     let _menhir_stack = (_menhir_stack, _menhir_s, _v, _startpos) in
@@ -5923,7 +5922,7 @@ and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
         let (_menhir_stack : 'freshtv11 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5927 "var/cll/CLLParser.ml"
+# 5926 "var/cll/CLLParser.ml"
         ) * Lexing.position) = Obj.magic _menhir_stack in
         ((let _menhir_env = _menhir_discard _menhir_env in
         let _tok = _menhir_env._menhir_token in
@@ -5933,7 +5932,7 @@ and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
             let (_menhir_stack : ('freshtv7 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5937 "var/cll/CLLParser.ml"
+# 5936 "var/cll/CLLParser.ml"
             ) * Lexing.position)) = Obj.magic _menhir_stack in
             ((let _menhir_env = _menhir_discard _menhir_env in
             let _tok = _menhir_env._menhir_token in
@@ -5943,7 +5942,7 @@ and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
                 let (_menhir_stack : (('freshtv3 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5947 "var/cll/CLLParser.ml"
+# 5946 "var/cll/CLLParser.ml"
                 ) * Lexing.position))) = Obj.magic _menhir_stack in
                 ((let _menhir_env = _menhir_discard _menhir_env in
                 let _tok = _menhir_env._menhir_token in
@@ -5983,7 +5982,7 @@ and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
                 let (_menhir_stack : (('freshtv5 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5987 "var/cll/CLLParser.ml"
+# 5986 "var/cll/CLLParser.ml"
                 ) * Lexing.position))) = Obj.magic _menhir_stack in
                 ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
                 _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv6)) : 'freshtv8)
@@ -5994,7 +5993,7 @@ and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
             let (_menhir_stack : ('freshtv9 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 5998 "var/cll/CLLParser.ml"
+# 5997 "var/cll/CLLParser.ml"
             ) * Lexing.position)) = Obj.magic _menhir_stack in
             ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
             _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv10)) : 'freshtv12)
@@ -6005,7 +6004,7 @@ and _menhir_run2 : _menhir_env -> 'ttv_tail -> _menhir_state -> (
         let (_menhir_stack : 'freshtv13 * _menhir_state * (
 # 46 "var/cll/CLLParser.mly"
        (string)
-# 6009 "var/cll/CLLParser.ml"
+# 6008 "var/cll/CLLParser.ml"
         ) * Lexing.position) = Obj.magic _menhir_stack in
         ((let (_menhir_stack, _menhir_s, _, _) = _menhir_stack in
         _menhir_errorcase _menhir_env (Obj.magic _menhir_stack) _menhir_s) : 'freshtv14)
@@ -6025,7 +6024,7 @@ and _menhir_discard : _menhir_env -> _menhir_env =
 and program : (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (
 # 50 "var/cll/CLLParser.mly"
       (CLLTree.cll_prog ARTTree.compiler_type)
-# 6029 "var/cll/CLLParser.ml"
+# 6028 "var/cll/CLLParser.ml"
 ) =
   fun lexer lexbuf ->
     let _menhir_env =
@@ -6057,4 +6056,4 @@ and program : (Lexing.lexbuf -> token) -> Lexing.lexbuf -> (
   
 
 
-# 6061 "var/cll/CLLParser.ml"
+# 6060 "var/cll/CLLParser.ml"

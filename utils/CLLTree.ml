@@ -6,9 +6,9 @@ open IMPTree
 let cll_variables =
   add "frame_pointer" (add "return_address" (singleton "stack_pointer"))
 
-let stack_pointer = {contents = "stack_pointer"; line = -1; column = -1}
-let return_address = {contents = "return_address"; line = -1; column = -1}
-let frame_pointer = {contents = "frame_pointer"; line = -1; column = -1}
+let stack_pointer = default_node "stack_pointer"
+let return_address = default_node "return_address"
+let frame_pointer = default_node "frame_pointer"
 
 type cll_instr =
   | Nop
@@ -123,28 +123,20 @@ let rec translate_instruction tag_set maker i acc =
   | Continue n -> 
     append acc (Continue n)
   | Print e -> 
-    check_expression e tag_set;
     append acc (Print e)
   | BinopAssign (e1,op,e2) -> 
-    check_expression e1 tag_set;
-    check_expression e2 tag_set;
     append acc (simplify_assign_binop e1 op e2)
-  | UnopAssign (e,op) -> 
-    check_expression e tag_set;
-    append acc (simplify_assign_unop e op)
+  | UnopAssign (op, e) -> 
+    append acc (simplify_assign_unop op e)
   | IfElse (e1, i1, i2) -> 
-    check_expression e1 tag_set;
     append acc (IfElse (e1, translate_instructions tag_set maker i1, translate_instructions tag_set maker i2))
   | If (e,i) -> 
-    check_expression e tag_set;
     append acc (If (e,translate_instructions tag_set maker i))
   | While (e,i) -> 
-    check_expression e tag_set;
     append acc (While (e,translate_instructions tag_set maker i))
 
   | For (init, c, it, b) ->
     let imp_init = translate_instructions tag_set maker init in
-    check_expression c tag_set;
     let imp_it = translate_instructions tag_set maker it in
     let imp_b  = translate_instructions tag_set maker b in
     extend acc (for_to_while imp_init c imp_it imp_b)
@@ -157,7 +149,7 @@ let rec translate_instruction tag_set maker i acc =
     append acc (TagDeclaration return) (* return: *)
 
   | Return ->
-    (* Etape 4 du protocle d'appel *)
+    (* Etape 4 du protocole d'appel *)
     let acc = append acc (Assign(Id stack_pointer, Id frame_pointer)) in (* stack_pointer := frame_pointer; *)
     let acc = append acc (Assign(Id frame_pointer, LStar(Binop(Id stack_pointer, Sub, Int 1)))) in (* frame_pointer := *(stack_pointer - 1) *)
     (* Pas besoin de mettre return_address à jour *)
@@ -213,7 +205,9 @@ let translate_procedures tag_set maker procs acc =
   tr_not_main tag_set maker procs acc'
 
 let cll_to_imp cll_prog =
-  (* Les variables frame_pointer, return_address et stack_pointer ont été rajoutés à tag_set dans CLLParser *)
+  let tag_set = union cll_variables cll_prog.tag_set in
+  let maker = make_node_maker tag_set in
+
   let add_variables data =
     let add_variable data var =
       let var' = {line = var.line; column = var.column; contents = (var.contents, 0)} in
@@ -223,18 +217,16 @@ let cll_to_imp cll_prog =
     add_variable data' frame_pointer
   in
 
-  let maker = make_node_maker cll_prog.tag_set in
   let syntax_tree, data = 
     match cll_prog.syntax_tree with
     | ProcedureDefinitionData(procs, data) -> 
       let data = add_variables data in
-      let instr = translate_procedures cll_prog.tag_set maker procs empty_cycle in
+      let instr = translate_procedures tag_set maker procs empty_cycle in
       (instr, data)
     | ProcedureDefinition procs ->
       let data = add_variables empty_cycle in
-      let instr = translate_procedures cll_prog.tag_set maker procs empty_cycle in
+      let instr = translate_procedures tag_set maker procs empty_cycle in
       (instr, data)
   in
 
-  let tag_set = cll_prog.tag_set in
   { tag_set; syntax_tree = TextData(syntax_tree, data) }

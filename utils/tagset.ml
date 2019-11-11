@@ -29,3 +29,5 @@ let make_tag_maker l =
     let t = base ^ (string_of_int !cpt) in
     incr cpt; t
   )
+
+let union_duplicate = T.union
