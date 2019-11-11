@@ -1,0 +1,7 @@
+# Commenter les fonctions
+# Si une seule des 3 est décommentée, ne compilera pas car leur nom est un mot réservé
+# Si les 3 sont commentées, il n'y a pas de main, donc on aura un message adapté
+
+#stack_pointer() {return;}
+#frame_pointer() {return;}
+#return_address() {return;}

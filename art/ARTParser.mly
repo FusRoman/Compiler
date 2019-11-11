@@ -222,21 +222,29 @@ data_declarations:
 
 data_declaration:
 | t=ID TWO_POINT i=INT {
-  let pos = $startpos in
-  let data = {
-    line = pos.pos_lnum;
-    column = (pos.pos_cnum - pos.pos_bol);
-    contents = (t,i)
-  } in
-    {
-      tag_set = Tagset.singleton t; syntax_tree = data
-    }
+    let pos = $startpos in
+    let data = {
+      line = pos.pos_lnum;
+      column = (pos.pos_cnum - pos.pos_bol);
+      contents = (t,i)
+    } in
+    { tag_set = Tagset.singleton t; syntax_tree = data }
   }
+
+| t=ID TWO_POINT b=BOOL {
+    let pos = $startpos in
+    let data = {
+      line = pos.pos_lnum;
+      column = (pos.pos_cnum - pos.pos_bol);
+      contents = (t, Arith.int_of_bool b)
+    } in
+    { tag_set = Tagset.singleton t; syntax_tree = data }
+}
+
 | error {
   let pos = $startpos in
    raise (SyntaxError ("Ill-formed tag declaration", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
-
 ;
 
 %%

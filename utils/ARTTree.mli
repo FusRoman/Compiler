@@ -31,6 +31,12 @@ type 'a node = {
   contents: 'a
 }
 
+(** Crée un noeud avec des valeurs par défaut de line et column (-1 en l'occurence) *)
+val default_node : 'a -> 'a node
+
+(** Utilise Tagset.make_tag_maker pour créer un générateur de noeuds uniques. *)
+val make_node_maker : Tagset.t -> unit -> string node
+
 (**
   Type des arbres "de compilation".
   Il ne s'agit pas vraiment d'arbres de syntaxe puisque ce n'est pas une traduction exacte de la grammaire,

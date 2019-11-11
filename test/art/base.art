@@ -1,5 +1,8 @@
 .text
+print(a + 97); # a
 a := 97;
 print(a);
+print(10);
 exit;
 .data
+  a: false

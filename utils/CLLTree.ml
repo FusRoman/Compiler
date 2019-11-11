@@ -37,12 +37,6 @@ and cll_prog =
   | ProcedureDefinitionData of procedure_definitions * datas
   | ProcedureDefinition of procedure_definitions
 
-let lol = ref 0
-let rec make_tag () = 
-  (* A refaire pour s'assurer que c'est pas déjà pris *)
-  incr lol;
-  {line = -1; column = -1; contents = "return_" ^ (string_of_int (!lol - 1))}
-
 (* 
   Vérifie si :
   - les ids utilisés sont bien tous déclarés
@@ -118,7 +112,7 @@ let check_procedure proc tag_set =
       proc.name.line, proc.name.column
     ))
 
-let rec translate_instruction tag_set i acc =
+let rec translate_instruction tag_set maker i acc =
   match i with
   | Nop -> 
     append acc IMPTree.Nop
@@ -140,24 +134,24 @@ let rec translate_instruction tag_set i acc =
     append acc (simplify_assign_unop e op)
   | IfElse (e1, i1, i2) -> 
     check_expression e1 tag_set;
-    append acc (IfElse (e1, translate_instructions tag_set i1, translate_instructions tag_set i2))
+    append acc (IfElse (e1, translate_instructions tag_set maker i1, translate_instructions tag_set maker i2))
   | If (e,i) -> 
     check_expression e tag_set;
-    append acc (If (e,translate_instructions tag_set i))
+    append acc (If (e,translate_instructions tag_set maker i))
   | While (e,i) -> 
     check_expression e tag_set;
-    append acc (While (e,translate_instructions tag_set i))
+    append acc (While (e,translate_instructions tag_set maker i))
 
   | For (init, c, it, b) ->
-    let imp_init = translate_instructions tag_set init in
+    let imp_init = translate_instructions tag_set maker init in
     check_expression c tag_set;
-    let imp_it = translate_instructions tag_set it in
-    let imp_b  = translate_instructions tag_set b in
+    let imp_it = translate_instructions tag_set maker it in
+    let imp_b  = translate_instructions tag_set maker b in
     extend acc (for_to_while imp_init c imp_it imp_b)
 
   | Call e ->
     (* Etape 1 du protocole d'appel *)
-    let return = make_tag () in
+    let return = maker () in
     let acc = append acc (Assign(Id return_address, Address return)) in (* *stack_pointer := &return; *)
     let acc = append acc (Goto e) in (* goto(e); *)
     append acc (TagDeclaration return) (* return: *)
@@ -169,10 +163,10 @@ let rec translate_instruction tag_set i acc =
     (* Pas besoin de mettre return_address à jour *)
     append acc (Goto(LStar(LStar(Id stack_pointer)))) (* goto( **stack_pointer ) (goto utilise une expression gauche, les deux déréférencements sont donc explicites) *)
 
-and translate_instructions tag_set is =
-  iter is (fun i acc -> translate_instruction tag_set i acc) empty_cycle
+and translate_instructions tag_set maker is =
+  iter is (fun i acc -> translate_instruction tag_set maker i acc) empty_cycle
 
-and translate_procedure tag_set proc_def acc =
+and translate_procedure tag_set maker proc_def acc =
   check_procedure proc_def tag_set;
   (* Ajoute le tag correspondant a la procedure dans le code IMP *)
   let acc = append acc (TagDeclaration proc_def.name) in
@@ -185,15 +179,38 @@ and translate_procedure tag_set proc_def acc =
   let acc = append acc decr_sp in (* stack_pointer--; *)
   let acc = append acc (Assign(Id frame_pointer, Binop(Id stack_pointer, Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
   (* Traduit le bloc d'instruction de la procédure en code IMP *)
-  extend acc (translate_instructions tag_set proc_def.block)
+  extend acc (translate_instructions tag_set maker proc_def.block)
 
-let rec translate_procedures tag_set procs acc =
-  if count_1 procs then
-    let (p, s) = take procs in
-    let acc' = translate_procedure tag_set p acc in
-    translate_procedures tag_set s acc'
-  else
-    acc
+let translate_procedures tag_set maker procs acc =
+  (* Compile toujours le main en premier *)
+  let rec tr_main tag_set maker procs acc =
+    if count_1 procs then
+      let (p, s) = take procs in
+      if p.name.contents = "main" then
+        translate_procedure tag_set maker p acc
+      else
+        tr_main tag_set maker s acc
+    else
+      raise (SyntaxError("No 'main' procedure defined.", 0, 0))
+  in
+
+  (* L'ordre des autres fonctions importe peu *)
+  let rec tr_not_main tag_set maker procs acc =
+    if count_1 procs then
+      let (p, s) = take procs in
+      let acc' =
+        if p.name.contents = "main" then
+          acc
+        else
+          translate_procedure tag_set maker p acc
+      in
+      tr_not_main tag_set maker s acc'
+    else
+      acc
+  in
+
+  let acc' = tr_main tag_set maker procs acc in
+  tr_not_main tag_set maker procs acc'
 
 let cll_to_imp cll_prog =
   (* Les variables frame_pointer, return_address et stack_pointer ont été rajoutés à tag_set dans CLLParser *)
@@ -206,15 +223,16 @@ let cll_to_imp cll_prog =
     add_variable data' frame_pointer
   in
 
+  let maker = make_node_maker cll_prog.tag_set in
   let syntax_tree, data = 
     match cll_prog.syntax_tree with
     | ProcedureDefinitionData(procs, data) -> 
       let data = add_variables data in
-      let instr = translate_procedures cll_prog.tag_set procs empty_cycle in
+      let instr = translate_procedures cll_prog.tag_set maker procs empty_cycle in
       (instr, data)
     | ProcedureDefinition procs ->
       let data = add_variables empty_cycle in
-      let instr = translate_procedures cll_prog.tag_set procs empty_cycle in
+      let instr = translate_procedures cll_prog.tag_set maker procs empty_cycle in
       (instr, data)
   in
 

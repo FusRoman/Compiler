@@ -1,0 +1,22 @@
+hi() {
+  print(98);
+  main();
+  return;
+}
+
+main() {
+  if (a) {
+    a := false;
+    print(97);
+    hi();
+    print(10);
+    exit;
+  }
+  else {
+    print(99);
+    return;
+  }
+}
+
+.data
+  a: true

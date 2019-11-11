@@ -142,17 +142,6 @@ and optimize_instructions l =
   in
   tr_inner Cycle.empty_cycle l false
 
-(* Donne un générateur de tag non déjà déclarés (sauf si on utilise deux tag maker en même temps, évidemment) *)
-let meta_tag_maker imp =
-  let cpt = ref 0 in
-  let max_length = Tagset.fold (fun t acc -> max acc (String.length t)) imp.tag_set 1 in
-  let base = String.make max_length 'a' in
-  (fun () -> 
-    let t = base ^ (string_of_int !cpt) in
-    incr cpt;
-    {line = -1; column = -1; contents = t}
-  )
-
 let get_ends_loop t _break _continue =
   match (_break, _continue) with
   | (Some _end, Some _begin) ->
@@ -251,7 +240,7 @@ let imp_to_art imp =
       (fst (optimize_instructions i), d)
   in
   (* Phase de compilation vers ART *)
-  let tag_maker = meta_tag_maker imp in
+  let tag_maker = make_node_maker imp.tag_set in
   let art_instrs = translate_instructions imp.tag_set opt_instrs tag_maker None None Cycle.empty_cycle in
   {syntax_tree = ProgData(art_instrs, data); tag_set = imp.tag_set}
 

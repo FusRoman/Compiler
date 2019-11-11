@@ -30,6 +30,16 @@ type 'a node = {
   contents: 'a
 }
 
+let default_node contents =
+  {line = -1; column = -1; contents}
+
+let make_node_maker tag_set =
+  let tag_maker = Tagset.make_tag_maker tag_set in
+  (fun () -> 
+    let tag = tag_maker () in
+    default_node tag
+  )
+
 type art_prog =
   | ProgData of art_instrs * datas
   | Prog of art_instrs

@@ -10,3 +10,5 @@ val union : t -> t -> t
 val singleton : elt -> t
 val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
 
+(** Prend un ensemble de tags et renvoie une fonction unit -> string qui renvoie à chaque appel un tag différent, jamais déclaré *)
+val make_tag_maker : t -> unit -> string

@@ -326,5 +326,17 @@ data_declarations:
         raise_duplicate_element $startpos t 
     }
 
+| t=LABEL COLON b=BOOL s=data_declarations 
+    {
+      try
+        let tag_set = add t s.tag_set in
+        let tag = make_node $startpos (t, Arith.int_of_bool b) in
+        let syntax_tree = Cycle.prepend s.syntax_tree tag in
+        {syntax_tree; tag_set}
+      with
+      | DuplicateElement t ->
+        raise_duplicate_element $startpos t 
+    }
+
 |   { {syntax_tree = Cycle.empty_cycle; tag_set = empty} }
 ;

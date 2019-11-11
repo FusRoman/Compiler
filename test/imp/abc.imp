@@ -1,4 +1,7 @@
 .text
+  print(b + 97); # a
+  print(10);
+  print(10);
   while (a < 123) {
     print(a);
     print(10);
@@ -8,3 +11,4 @@
 
 .data
   a: 97
+  b: false
