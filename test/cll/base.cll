@@ -8,5 +8,11 @@ main() {
 
 hi() {
   print(98);
+  hi2();
+  return;
+}
+
+hi2(){
+  print(100);
   return;
 }

@@ -1,7 +1,9 @@
 .text
 
-    x := 15;
+    x := 97;
     x := x + 10;
     print(x);
+    exit;
 
 .data
+    x : 0
