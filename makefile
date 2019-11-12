@@ -88,9 +88,12 @@ clear:
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
-	rm -rf test/*.asm test/*.btc a.out
+	rm -rf test/stk/*.asm test/stk/*.btc a.out
+	rm -rf test/art/*.stk test/art/*.asm test/art/*.btc
+	rm -rf test/imp/*.art test/imp/*.stk test/imp/*.asm test/imp/*.btc
+	rm -rf test/cll/*.imp test/cll/*.art test/cll/*.stk test/cll/*.asm test/cll/*.btc
 	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler
 	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler
 	rm -rf interprete_var/*.cmi interprete_var/*.cmo interprete_var/VARParser.conflicts interprete_var/VARParser.automaton
 	rm -rf interprete_var/VARParser.ml interprete_var/VARParser.mli interprete_var/VARInterpreter interprete_var/VARLexer.ml
-	rm -rf var/cll/*.cmi var/cll/*.cmo var/cll/*.o var/cll/CLLParser.ml var/cll/CLLParser.mli var/cll/CLLParser.automaton var/cll/CLLParser.conflicts var/cll/CLLLexer.ml
+	rm -rf var/cll/*.cmi var/cll/*.cmo var/cll/*.o var/cll/CLLParser.ml var/cll/CLLParser.mli var/cll/CLLParser.automaton var/cll/CLLParser.conflicts var/cll/CLLLexer.ml var/cll/CLLCompiler
