@@ -3,6 +3,16 @@ open Tagset
 open Cycle
 open CLLTree
 
+(* Il reste quoi à faire quand on aura résolu le problème des call ?
+  - calcul des adresses (je sais pas ce que ça représente exactement)
+  - passage par référence (pareil)
+  - appel terminal (devrait être plutôt facile, suffit de réécrire sur la cellule courante, s'inspirer de CLL)
+  - régler la grammaire
+
+  Après ça VAR devrait être facile.
+  Y aura le truc avec les déclarations dans le for qui devrait être chiant cela dit.
+*)
+
 exception UnboundValue of string node
 exception SyntaxError = ARTTree.SyntaxError
 
@@ -151,95 +161,199 @@ let check_function genv fct =
       fct.name.line, fct.name.column
     ))
 
+(* Empile les arguments d'un appel sur la pile *)
+let stack_args args acc =
+  List.fold_right (fun e acc ->
+    let acc' = append acc (AssignBinop(LStar(Id stack_pointer), Standard, e)) in
+    append acc (AssignUnop(Id stack_pointer, Decr))
+  ) args acc
+
 (* 
   Renvoie (b, e, a) avec :
   - b : les instructions à exécuter avant l'évaluation de l'expression
   - e : l'expression traduite
-  - a : les instructions à exécuter après
+  - a : le nombre de variables locales utilisées, autrement dit il faudra faire stack_pointer += a pour les effacer
+
+  Ordre des appels de fonctions :
+  On parcourt l'expression en DFS. Le premier appel rencontré sera le premier exécuté.
+  L'adresse de la fonction sera calculée en premier, ensuite ce seront ses arguments, dans l'ordre et de manière récursive.
+  Le reste de l'expression parent sera calculé en dernier.
+
+  Si immediate vaut vrai, le dernier appel de fonction sera remplacée dans e par function_result.
 *)
-let translate_expression e fct genv =
+let translate_expression e fct genv immediate =
   let nb_params = List.length fct.params in
-  let rec address_id id params i =
+
+  (* Remplace les paramètres par le calcul de leur adresse *)
+  let rec translate_id id params i =
     match params with
     | [] ->
-      if mem id.contents genv then
-        Id (id)
+      if mem id.contents genv then)
+        ARTTree.Id id
       else
         (* Ne devrait jamais arriver puisqu'on vérifie avant *)
         raise (UnboundValue(fct.name, id))
     | x::s ->
       if x = id then
-        Binop(Id frame_pointer), Add, Int(nb_params - i)
+        Binop(LStar(Id frame_pointer), Add, Int(nb_params - i))
       else
-        address_id id s (i+1)
+        translate_id id s (i+1)
   in
-  let rec translate_expr e =
+
+  (* 
+    Gère les appels de fonction.
+    TODO j'en suis là et je galère comme un porc
+  *)
+  and call f args last =
+    let b, e, a, _ =
+      List.fold_right (fun e (bacc, eacc, aacc, last) ->
+        let (b, e, a, l) = translate_expr e last in
+        (extend b bacc, e::eacc, a + aacc, l)
+      ) (f::args) (empty_cycle, true)
+    in
+    (* Ici stacker les résultats *)
+    if last then
+      (* 
+        l'expression à renvoyer est LStar(Id function_result) 
+        Et le nombre de variables locales 0
+      *)
+    else
+      (* 
+        Alors je sais pas. On peut pas utiliser frame_pointer parce qu'on connaît pas la distance de stack_pointer, 
+        stack_pointer peut être modifié, return_address risque pas de nous aider.
+        En tout le nombre de variables locales est 1
+      *)
+      (extend )
+  in
+
+  (* 
+    e : expression à traduire
+    may_be_last : e est susceptible de contenir le dernier appel de fonction
+    Renvoie (b, e, a, l) avec b, e et a comme expliqués avant.
+    l vaut true si le dernier appel n'a pas été rencontré.
+  *)
+  and translate_expr e may_be_last =
     match e with
-    | Int _ | Bool _ -> e
+    | Int i -> 
+      (empty_cycle, ARTTree.Int i, 0, may_be_last)
+    | Bool b -> 
+      (empty_cycle, Bool b, 0, may_be_last)
     | Id id ->
-      LStar (translate_id fct.params 0)
-    | LStar e -> 
-      LStar (translate_expr e)
+      (empty_cycle, translate_id fct.params 0, 0, may_be_last)
+    | Deref e ->
+      let (b, e, a, l) = translate_expr e may_be_last in
+      (b, LStar e, a, l)
     | Unop(op, e) ->
-      Unop(op, translate_expr e)
+      let (b, e, a, l) = translate_expr e may_be_last in
+      (b, Unop(op, e), a, l)
     | Binop(e1, op, e2) ->
-      Binop(translate_expr e1, op, translate_expr e2)
+      let (b2, e2, a2, l2) = translate_expr e2 may_be_last in
+      let (b1, e1, a1, l1) = translate_expr e1 l2 in
+      (extend b1 b2, Binop(e1, op, e2), a1 + a2, l1 && l2)
     | Address id ->
+      failwith "not implemented"
+    | Call(f, args) ->
+      let lol = call f args may_be_last in
+      (, , , false)
   in
-  translate_expr e
 
-let stack_args args acc =
-  List.fold_right (fun e acc ->
-    (AssignBinop(LStar(Id stack_pointer), Standard, e))::
-    (AssignUnop(Id stack_pointer, Decr))::
-    acc
-  ) args acc
+  let (b, e, a, _) = translate_expr e immediate in
+  (b, e, a)
 
+let incr_sp a =
+  AssignBinop(Id stack_pointer, Add, Int a)
+
+(* TODO Vérifier si ça fait pas n'importe quoi avec les optimisations d'IMP *)
 let rec translate_instruction genv fct i acc =
   match i with
   | Nop -> 
-    CLLTree.Nop::acc
+    append acc CLLTree.Nop
   | Exit -> 
-    Exit::acc
+    append acc Exit
   | Break n -> 
-    (Break n)::acc
+    append acc (Break n)
   | Continue n -> 
-    (Continue n)::acc
+    append acc (Continue n)
   | Return e ->
-    let acc' = Return::acc in
-    let e' = translate_expression e genv fct in
-    (AssignBinop(Id function_result, Standard, e'))::acc'
+    let (b, e', a) = translate_expression e genv fct true in
+    let acc = extend acc b in
+    let acc = append acc (AssignBinop(Id function_result, Standard, e')) in
+    append acc Return
+    (* Pas besoin de rajouter incr_sp ; return réinitialisera stack_pointer de toute façon *)
+
   | Print e ->
-    (Print e)::acc
+    let (b, e', a) = translate_expression e genv fct true in
+    let acc = extend acc b in
+    let acc = append acc (Print e') in
+    append acc (incr_sp a) 
+
   | BinopAssign(e1, op, e2) -> 
-    (Binop(e1, op, e2))::acc
-  | UnopAssign(op, e) -> 
-    (UnopAssign(op, e))::acc
-  | IfElse (e1, i1, i2) -> 
-    let cll_i1 = translate_instructions genv fct i1 in
-    let cll_i2 = translate_instructions genv fct i2 in
-    (IfElse(e1, cll_i1, cll_i2))::acc
-  | If (e,i) -> 
-    (If(e, translate_instructions genv fct i))::acc
-  | While (e,i) -> 
-    (While(e, translate_instructions genv fct i))::acc
+    let (b1, e1', a1) = translate_expression e1 genv fct false in
+    let (b2, e2', a2) = translate_expression e2 genv fct true in
+    let acc = extend acc b1 in
+    let acc = extend acc b2 in
+    let acc = append acc (BinopAssign(e1', op, e2')) in
+    append acc (incr_sp (a1 + a2))
+
+  | UnopAssign(e, op) -> 
+    let (b, e', a) = translate_expression e genv fct true in
+    let acc = extend acc b in
+    let acc = append acc (UnopAssign(e', op)) in
+    append acc (incr_sp a)
+
+  | If(e, i) -> 
+    let (b, e', a) = translate_expression e genv fct true in
+    let incr = incr_sp a in
+    let acc  = extend acc b in
+    let i' = translate_instructions genv fct i in
+    let i' = prepend i' incr in
+    (* Pas optimisé je pense *)
+    append acc (IfElse(e', i', from_elt incr))
+
+  | IfElse(e, i1, i2) -> 
+    let (b, e', a) = translate_expression e genv fct true in
+    let incr = incr_sp a in
+    let acc = extend acc b in
+    let i1' = translate_instructions genv fct i1 in
+    let i1' = prepend i1' incr in
+    let i2' = translate_instructions genv fct i2 in
+    let i2' = prepend i2' incr in
+    append acc (IfElse(e', i1', i2'))
+
+  | While(e, i) -> 
+    let (b, e', a) = translate_expression e genv fct true in
+    let incr = incr_sp a in
+    let acc = extend acc b in
+    let i' = translate_instructions genv fct i in
+    let i' = extend i' b in
+    let i' = prepend i' incr in
+    let acc = append acc (While(e', i')) in
+    append acc incr
+
   | For (init, c, it, b) ->
+    let (b, cll_c, a) = translate_expression e genv fct in
+    let incr = incr_sp a in
     let cll_init = translate_instructions genv fct init in
-    let cll_it = translate_instructions genv fct it ini
-    let cll_b  = translate_instructions genv fct b in
-    (For(cll_init, c, cll_it, cll_b))::acc
-  | Call(d, op, e, args) ->
+    let cll_init = extend cll_init b
+    let cll_it = translate_instructions genv fct it in
+    let cll_b = translate_instructions genv fct b in
+    let cll_b = prepend cll_b incr in
+    let acc = append acc (For(cll_init, cll_c, cll_it, cll_b)) in
+    append acc incr
+
+  (*| Call(d, op, e, args) ->
     let d' = translate_expression d genv fct in
     let acc = AssignBinop(d', op, Id function_result)::acc in
     let acc = (Call e)::acc in
-    stack_args args acc
+    stack_args args acc*)
     
 and translate_instructions genv fct is =
-  List.fold_right (fun i acc ->
+  List.fold_left (fun acc i ->
     translate_instruction genv fct i acc
-  ) is []
+  ) empty_cycle is
 
-and translate_procedure genv fct acc =
+(* Pas fait
+let translate_procedure genv fct acc =
   check_function genv fct;
   (* TODO en fait CLL utilise encore les cycles, donc faut traduire avec les cycles. Relou *)
 
@@ -300,3 +414,4 @@ let cll_to_imp cll_prog =
   in
 
   { tag_set; syntax_tree = TextData(syntax_tree, data) }
+*)

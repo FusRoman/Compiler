@@ -7,6 +7,6 @@ STK :
     - Les gros nombres (et petits probablement) sont soit mal interprétés par la VM, soit mal stockés par l'assembleur. Dans tous les cas, dans cte.stk, la valeur de h est lue comme -98. Pris en hexadécimal, ce nombre correspond à sa valeur attendue mais avec le bit de second plus grand poids à 1.
 
 IMP :
-    - Lié au truc d'ART : dans imp_to_art, rajouter un déréférencement pour les expressions droites
-    quand nécessaire. Quand ce sera fait, on pourra avoir un compilateur à la chaîne bien plus performant.
+    - Ouille, va falloir virer toutes les optimisations sur les conditions et les boucles.
+    Sinon ça va mal se passer avec la gestion de stack_pointer. Ah en fait pas forcément... C'est juste qu'on s'amuse à faire des trucs avec stack_pointer et des procédures qu'on pourrait éviter.
 

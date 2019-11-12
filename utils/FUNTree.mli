@@ -63,4 +63,4 @@ and fun_prog = (function_definition list) * datas
 *)
 val check_fun_expression : fun_expr -> function_definition -> Tagset.t -> Tagset.t -> unit
 
-val fun_to_cll : fun_prog compiler_type -> cll_prog compiler_type
+(*val fun_to_cll : fun_prog compiler_type -> cll_prog compiler_type*)
