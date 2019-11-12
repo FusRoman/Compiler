@@ -1,6 +1,7 @@
-open ARTTree
-open Tagset
 open Cycle
+open Tagset
+open ARTTree
+open IMPTree
 open CLLTree
 
 (* Il reste quoi à faire quand on aura résolu le problème des call ?
@@ -13,8 +14,7 @@ open CLLTree
   Y aura le truc avec les déclarations dans le for qui devrait être chiant cela dit.
 *)
 
-exception UnboundValue of string node
-exception SyntaxError = ARTTree.SyntaxError
+exception UnboundValue of (string node) * (string node)
 
 let fun_variables = add "function_result" cll_variables
 
@@ -22,7 +22,7 @@ let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
 let function_result = default_node "function_result"
 
-type fun_expr =
+(*type fun_expr =
   | Int of int
   | Bool of bool
   | Id of string node
@@ -30,7 +30,7 @@ type fun_expr =
   | Deref of fun_expr
   | Unop of unop * fun_expr
   | Binop of fun_expr * binop * fun_expr
-  | Call of fun_expr * (fun_expr list)
+  | Call of fun_expr * (fun_expr list)*)
 
 type fun_instr =
   | Nop
@@ -44,16 +44,18 @@ type fun_instr =
   | IfElse of expression * fun_instrs * fun_instrs
   | If of expression * fun_instrs
   | While of expression * fun_instrs
-  | For of cll_instrs * expression * fun_instrs * fun_instrs
+  | For of fun_instrs * expression * fun_instrs * fun_instrs
+  | SetCall of expression * assign_binop * expression * (expression list)
+  | Call of expression * (expression list)
 
 and fun_instrs = fun_instr list
 
 type parameter = {
-  name: string;
+  name: string node;
   reference: bool;
 }
 
-type fun_definition = {
+type function_definition = {
   name: string node; 
   params: parameter list;
   block: fun_instrs
@@ -61,7 +63,7 @@ type fun_definition = {
 
 and fun_prog = (function_definition list) * datas
 
-let check_fun_expression e fct lenv genv =
+(*let check_fun_expression e fct lenv genv =
   let check_id id =
     if not (mem id.contents lenv || mem id.contents genv) then
       raise (UnboundValue(fct.name, id))
@@ -80,7 +82,7 @@ let check_fun_expression e fct lenv genv =
       check_expr f;
       List.fold_left (fun () e -> check_expr e) () args
   in
-  check_expr e
+  check_expr e*)
 
 (* 
   A l'instar de CLLTree.check_procedure, vérifie si :
@@ -88,14 +90,26 @@ let check_fun_expression e fct lenv genv =
     - les break et continue sont à l'intérieur de boucles
     - les expressions n'utilisent que des variables accessibles à ce moment
 *)
-let check_function genv fct =
-  let rec compute_lenv env params =
+let check_function fct genv =
+  let rec compute_env env (params:parameter list) =
     match params with
     | [] -> env
     | x::s ->
-      compute_env (add x.name env) s
+      compute_env (add x.name.contents env) s
   in
-  let lenv = compute_env Tagset.empty fct.params in
+  let env = compute_env genv fct.params in
+  let rec check_expression e =
+    match e with
+    | Int _ | Bool _ -> ()
+    | Id id ->
+      if not (mem id.contents env) then
+        raise (UnboundValue(fct.name, id))  
+    | Unop(_, e) | LStar e ->
+      check_expression e
+    | Binop(e1, _, e2) ->
+      check_expression e1;
+      check_expression e2
+  in
   let rec check_rec loop is =
     match is with
     | [] -> false
@@ -106,7 +120,7 @@ let check_function genv fct =
         true
 
       | Return e ->
-        check_fun_expression e fct lenv genv;
+        check_expression e;
         ignore (check_rec loop is');
         true
 
@@ -114,37 +128,42 @@ let check_function genv fct =
         check_rec loop is'
 
       | Print e | UnopAssign(e, _) ->
-        check_fun_expression e fct lenv genv;
+        check_expression e;
         check_rec loop is'
 
-      (*| Call(d, op, f, es) ->
-        check_fun_expression d fct lenv genv;
-        check_fun_expression f fct lenv genv;
-        List.iter (fun e -> check_fun_expression e fct lenv genv) es;
-        check_rec loop is'*)
+      | SetCall(d, op, f, es) ->
+        check_expression d;
+        check_expression f;
+        List.iter check_expression es;
+        check_rec loop is'
+
+      | Call(f, es) ->
+        check_expression f;
+        List.iter check_expression es;
+        check_rec loop is'
 
       | BinopAssign(e1, _, e2) ->
-        check_fun_expression e1 fct lenv genv;
-        check_fun_expression e2 fct lenv genv;
+        check_expression e1;
+        check_expression e2;
         check_rec loop is'
 
       | If(c, b) ->
-        check_fun_expression c fct lenv genv;
+        check_expression c;
         ignore (check_rec loop b);
         check_rec loop is'
 
       | IfElse(c, t, e) ->
-        check_fun_expression c fct lenv genv;
+        check_expression c;
         (check_rec loop t && check_rec loop e) || check_rec loop is'
 
       | While(c, b) ->
-        check_fun_expression c fct lenv genv;
+        check_expression c;
         ignore (check_rec true b);
         check_rec loop is'
 
       | For(init, c, it, b) ->
-        check_fun_expression c fct lenv genv;
-        ignore (check_rec loop init); (* placer un break ou un continue est absurde mais autorisé (en pratique la grammaire ne l'autorise pas cela dit), mais elle devrait) *)
+        check_expression c;
+        ignore (check_rec loop init);
         ignore (check_rec true it);
         ignore (check_rec true b);
         check_rec loop is'
@@ -155,18 +174,13 @@ let check_function genv fct =
       | Break n | Continue n ->
         raise (SyntaxError("'break' and 'continue' statements are only allowed within loops.", n.line, n.column))
   in
+  if fct.name.contents = "main" && fct.params != [] then
+    raise (SyntaxError("Function 'main' can not have any parameter.", fct.name.line, fct.name.column));
   if not (check_rec false fct.block) then
     raise (SyntaxError(
-      Printf.sprintf "Procedure '%s' does not end with 'return;' or 'exit;' in at least one branch" fct.name.contents, 
+      Printf.sprintf "Function '%s' does not end with 'return;' or 'exit;' in at least one branch" fct.name.contents, 
       fct.name.line, fct.name.column
     ))
-
-(* Empile les arguments d'un appel sur la pile *)
-let stack_args args acc =
-  List.fold_right (fun e acc ->
-    let acc' = append acc (AssignBinop(LStar(Id stack_pointer), Standard, e)) in
-    append acc (AssignUnop(Id stack_pointer, Decr))
-  ) args acc
 
 (* 
   Renvoie (b, e, a) avec :
@@ -181,7 +195,7 @@ let stack_args args acc =
 
   Si immediate vaut vrai, le dernier appel de fonction sera remplacée dans e par function_result.
 *)
-let translate_expression e fct genv immediate =
+(*let translate_expression e fct genv immediate =
   let nb_params = List.length fct.params in
 
   (* Remplace les paramètres par le calcul de leur adresse *)
@@ -200,30 +214,36 @@ let translate_expression e fct genv immediate =
         translate_id id s (i+1)
   in
 
-  (* 
-    Gère les appels de fonction.
-    TODO j'en suis là et je galère comme un porc
-  *)
+  (* Gère les appels de fonction. *)
   and call f args last =
-    let b, e, a, _ =
-      List.fold_right (fun e (bacc, eacc, aacc, last) ->
-        let (b, e, a, l) = translate_expr e last in
-        (extend b bacc, e::eacc, a + aacc, l)
-      ) (f::args) (empty_cycle, true)
+    let (fb, fe, fa, _) = translate_expr e true in
+    let b, a, _ =
+      List.fold_right (fun e (bacc, aacc) ->
+        let (b, e, a, l) = translate_expr e true in
+        (* stock l'argument dans la pile *)
+        let b = append b (AssignBinop(LStar(Id stack_pointer), Standard, e)) in
+        let b = append b (AssignUnop(Id stack_pointer, Decr)) in 
+        (* Calcul de l'argument puis stockage avant de passer au reste des expressions *)
+        (extend b bacc, a + 1 + aacc)
+      ) (args) (empty_cycle, fa)
     in
-    (* Ici stacker les résultats *)
+    let bc = extend fb b in
+    let bc = append b (Call fe) in
     if last then
-      (* 
-        l'expression à renvoyer est LStar(Id function_result) 
-        Et le nombre de variables locales 0
-      *)
+      (* Dernier appel de fonction dans la liste. La valeur de function_result ne devrait pas être écrasée. *)
+      (bc, LStar(Id function_result), a)
     else
       (* 
-        Alors je sais pas. On peut pas utiliser frame_pointer parce qu'on connaît pas la distance de stack_pointer, 
-        stack_pointer peut être modifié, return_address risque pas de nous aider.
+        Comment connaître l'adresse de cet argument ?
+        On sait pas où est frame_pointer à partir de stack_pointer
+        stack_pointer peut être modifié au plein milieu d'une instruction
+        return_address va pas nous aider
+        function_result peut être modifié par appel de fonction
+        Donc il faut une nouvelle variable je pense, qui pourra d'ailleurs être utilisée par VAR.
+        Ah oui mais si on faisait tout dans VAR, on n'aurait pas besoin de variables du tout.
         En tout le nombre de variables locales est 1
       *)
-      (extend )
+      (bc, ..., a + 1)
   in
 
   (* 
@@ -258,13 +278,53 @@ let translate_expression e fct genv immediate =
   in
 
   let (b, e, a, _) = translate_expr e immediate in
-  (b, e, a)
+  (b, e, a)*)
+
+let translate_expression e fct genv =
+  let nb_params = List.length fct.params in
+
+  (* Remplace les paramètres par le calcul de leur adresse *)
+  let rec translate_id id (params: parameter list) i =
+    match params with
+    | [] ->
+      if mem id.contents genv then
+        Id id
+      else
+        (* Ne devrait jamais arriver puisqu'on vérifie avant *)
+        raise (UnboundValue(fct.name, id))
+    | x::s ->
+      if x.name.contents = id.contents then
+        Binop(LStar(Id frame_pointer), Add, Int(nb_params - i))
+      else
+        translate_id id s (i+1)
+  in
+
+  let rec translate_expr e =
+    match e with
+    | Int _ | Bool _ -> e
+    | Id id -> 
+      translate_id id fct.params 0
+    | LStar e -> 
+      LStar(translate_expr e)
+    | Unop(op, e) ->
+      Unop(op, translate_expr e)
+    | Binop(e1, op, e2) ->
+      Binop(translate_expr e1, op, translate_expr e2)
+  in
+  translate_expr e
+
+(* Empile les arguments d'un appel sur la pile *)
+let stack_args args fct genv acc =
+  List.fold_left (fun acc e ->
+    let e' = translate_expression e fct genv in
+    let acc' = append acc (CLLTree.BinopAssign(LStar(Id stack_pointer), Standard, e')) in
+    append acc' (UnopAssign(Id stack_pointer, Decr))
+  ) acc args
 
 let incr_sp a =
-  AssignBinop(Id stack_pointer, Add, Int a)
+  BinopAssign(Id stack_pointer, AddAssign, Int a)
 
-(* TODO Vérifier si ça fait pas n'importe quoi avec les optimisations d'IMP *)
-let rec translate_instruction genv fct i acc =
+let rec translate_instruction i fct genv acc =
   match i with
   | Nop -> 
     append acc CLLTree.Nop
@@ -275,143 +335,71 @@ let rec translate_instruction genv fct i acc =
   | Continue n -> 
     append acc (Continue n)
   | Return e ->
-    let (b, e', a) = translate_expression e genv fct true in
-    let acc = extend acc b in
-    let acc = append acc (AssignBinop(Id function_result, Standard, e')) in
+    let e'= translate_expression e fct genv in
+    let acc = append acc (BinopAssign(Id function_result, Standard, e')) in
     append acc Return
-    (* Pas besoin de rajouter incr_sp ; return réinitialisera stack_pointer de toute façon *)
 
   | Print e ->
-    let (b, e', a) = translate_expression e genv fct true in
-    let acc = extend acc b in
-    let acc = append acc (Print e') in
-    append acc (incr_sp a) 
+    let e' = translate_expression e fct genv in
+    append acc (Print e')
 
   | BinopAssign(e1, op, e2) -> 
-    let (b1, e1', a1) = translate_expression e1 genv fct false in
-    let (b2, e2', a2) = translate_expression e2 genv fct true in
-    let acc = extend acc b1 in
-    let acc = extend acc b2 in
-    let acc = append acc (BinopAssign(e1', op, e2')) in
-    append acc (incr_sp (a1 + a2))
+    let e1' = translate_expression e1 fct genv in
+    let e2' = translate_expression e2 fct genv in
+    append acc (BinopAssign(e1', op, e2'))
 
   | UnopAssign(e, op) -> 
-    let (b, e', a) = translate_expression e genv fct true in
-    let acc = extend acc b in
-    let acc = append acc (UnopAssign(e', op)) in
-    append acc (incr_sp a)
+    let e' = translate_expression e fct genv in
+    append acc (UnopAssign(e', op))
 
   | If(e, i) -> 
-    let (b, e', a) = translate_expression e genv fct true in
-    let incr = incr_sp a in
-    let acc  = extend acc b in
-    let i' = translate_instructions genv fct i in
-    let i' = prepend i' incr in
-    (* Pas optimisé je pense *)
-    append acc (IfElse(e', i', from_elt incr))
+    let e' = translate_expression e fct genv in
+    let i' = translate_instructions i fct genv in
+    append acc (If(e', i'))
 
   | IfElse(e, i1, i2) -> 
-    let (b, e', a) = translate_expression e genv fct true in
-    let incr = incr_sp a in
-    let acc = extend acc b in
-    let i1' = translate_instructions genv fct i1 in
-    let i1' = prepend i1' incr in
-    let i2' = translate_instructions genv fct i2 in
-    let i2' = prepend i2' incr in
+    let e' = translate_expression e fct genv in
+    let i1' = translate_instructions i1 fct genv in
+    let i2' = translate_instructions i2 fct genv in
     append acc (IfElse(e', i1', i2'))
 
   | While(e, i) -> 
-    let (b, e', a) = translate_expression e genv fct true in
-    let incr = incr_sp a in
-    let acc = extend acc b in
-    let i' = translate_instructions genv fct i in
-    let i' = extend i' b in
-    let i' = prepend i' incr in
-    let acc = append acc (While(e', i')) in
-    append acc incr
+    let e' = translate_expression e fct genv in
+    let i' = translate_instructions i fct genv in
+    append acc (While(e', i'))
 
   | For (init, c, it, b) ->
-    let (b, cll_c, a) = translate_expression e genv fct in
-    let incr = incr_sp a in
-    let cll_init = translate_instructions genv fct init in
-    let cll_init = extend cll_init b
-    let cll_it = translate_instructions genv fct it in
-    let cll_b = translate_instructions genv fct b in
-    let cll_b = prepend cll_b incr in
-    let acc = append acc (For(cll_init, cll_c, cll_it, cll_b)) in
-    append acc incr
+    let init' = translate_instructions init fct genv in
+    let c' = translate_expression c fct genv in
+    let it' = translate_instructions it fct genv in
+    let b' = translate_instructions b fct genv in
+    append acc (For(init', c', it', b'))
 
-  (*| Call(d, op, e, args) ->
-    let d' = translate_expression d genv fct in
-    let acc = AssignBinop(d', op, Id function_result)::acc in
-    let acc = (Call e)::acc in
-    stack_args args acc*)
+  | SetCall(d, op, e, args) ->
+    let d' = translate_expression d fct genv in
+    let e' = translate_expression e fct genv in
+    let acc = stack_args args fct genv acc in
+    let acc = append acc (Call e') in
+    append acc (BinopAssign(d', op, LStar(Id function_result)))
+
+  | Call(e, args) ->
+    let e' = translate_expression e fct genv in
+    let acc = stack_args args fct genv acc in
+    append acc (Call e')
     
-and translate_instructions genv fct is =
+and translate_instructions is fct genv =
   List.fold_left (fun acc i ->
-    translate_instruction genv fct i acc
+    translate_instruction i fct genv acc
   ) empty_cycle is
 
-(* Pas fait
-let translate_procedure genv fct acc =
-  check_function genv fct;
-  (* TODO en fait CLL utilise encore les cycles, donc faut traduire avec les cycles. Relou *)
+let translate_function fct genv acc =
+  check_function fct genv;
+  let block = translate_instructions fct.block fct genv in
+  append acc {name = fct.name; block}
 
-let translate_procedures tag_set maker procs acc =
-  (* Compile toujours le main en premier *)
-  let rec tr_main tag_set maker procs acc =
-    if count_1 procs then
-      let (p, s) = take procs in
-      if p.name.contents = "main" then
-        translate_procedure tag_set maker p acc
-      else
-        tr_main tag_set maker s acc
-    else
-      raise (SyntaxError("No 'main' procedure defined.", 0, 0))
-  in
-
-  (* L'ordre des autres fonctions importe peu *)
-  let rec tr_not_main tag_set maker procs acc =
-    if count_1 procs then
-      let (p, s) = take procs in
-      let acc' =
-        if p.name.contents = "main" then
-          acc
-        else
-          translate_procedure tag_set maker p acc
-      in
-      tr_not_main tag_set maker s acc'
-    else
-      acc
-  in
-
-  let acc' = tr_main tag_set maker procs acc in
-  tr_not_main tag_set maker procs acc'
-
-let cll_to_imp cll_prog =
-  let tag_set = union cll_variables cll_prog.tag_set in
-  let maker = make_node_maker tag_set in
-
-  let add_variables data =
-    let add_variable data var =
-      let var' = {line = var.line; column = var.column; contents = (var.contents, 0)} in
-      append data var'
-    in
-    let data' = add_variable data return_address in
-    add_variable data' frame_pointer
-  in
-
-  let syntax_tree, data = 
-    match cll_prog.syntax_tree with
-    | ProcedureDefinitionData(procs, data) -> 
-      let data = add_variables data in
-      let instr = translate_procedures tag_set maker procs empty_cycle in
-      (instr, data)
-    | ProcedureDefinition procs ->
-      let data = add_variables empty_cycle in
-      let instr = translate_procedures tag_set maker procs empty_cycle in
-      (instr, data)
-  in
-
-  { tag_set; syntax_tree = TextData(syntax_tree, data) }
-*)
+let fun_to_cll fun_prog =
+  let genv = union_duplicate fun_variables fun_prog.tag_set in
+  let functions, data = fun_prog.syntax_tree in
+  let data = append data (default_node ("function_result", 0)) in
+  let procedures = List.fold_left (fun acc fct -> translate_function fct genv acc) empty_cycle functions in
+  {syntax_tree = ProcedureDefinitionData(procedures, data); tag_set = genv}

@@ -33,12 +33,8 @@ type 'a node = {
 let default_node contents =
   {line = -1; column = -1; contents}
 
-let make_node_maker tag_set =
-  let tag_maker = Tagset.make_tag_maker tag_set in
-  (fun () -> 
-    let tag = tag_maker () in
-    default_node tag
-  )
+let make_tag_node maker =
+  default_node (Tagset.make_tag maker)
 
 type art_prog =
   | ProgData of art_instrs * datas
@@ -264,16 +260,15 @@ let rec compile_datas file datas =
       compile_datas file s
     end
 
-let rec compile file tag_set tree =
-  let tag_set = Tagset.add "stack_pointer" tag_set in
-  match tree with
+let rec compile file art =
+  let tag_set = Tagset.add_duplicate "stack_pointer" art.tag_set in
+  match art.syntax_tree with
   | Prog is -> fprintf file ".text\n";
     compile_instrs file tag_set is
   | ProgData (is,ds) -> fprintf file ".text\n";
     compile_instrs file tag_set is;
     fprintf file ".data\n";
     compile_datas file ds
-
 
 let string_of_binop_direct op = 
   match op with
@@ -335,7 +330,7 @@ and write_art_left_expr file e =
 
 let write_art_data = compile_datas
 
-let direct_print_instr file tag_set instr = 
+let direct_print_instr file instr = 
   match instr with
   | Nop -> fprintf file "nop;\n"
   | Exit -> fprintf file "exit;\n"
@@ -361,19 +356,19 @@ let direct_print_instr file tag_set instr =
   | TagDeclaration t ->
     fprintf file "%s:\n" t.contents
 
-let rec direct_print_instrs file tag_set instrs = 
+let rec direct_print_instrs file instrs = 
   if instrs <> Cycle.empty_cycle then
   begin
     let (i, s) = Cycle.take instrs in
-    direct_print_instr file tag_set i;
-    direct_print_instrs file tag_set s
+    direct_print_instr file i;
+    direct_print_instrs file s
   end
 
-let rec write_art file tag_set tree = 
-  match tree with
+let rec write_art file art = 
+  match art with
   | Prog is -> fprintf file ".text\n";
-    direct_print_instrs file tag_set is
+    direct_print_instrs file is
   | ProgData (is,ds) -> fprintf file ".text\n";
-    direct_print_instrs file tag_set is;
+    direct_print_instrs file is;
     fprintf file ".data\n";
     compile_datas file ds

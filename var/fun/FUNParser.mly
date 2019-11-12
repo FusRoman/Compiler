@@ -2,6 +2,7 @@
   open Lexing
   open Tagset
   open ARTTree
+  open IMPTree
   open CLLTree
   open FUNTree
 
@@ -26,13 +27,17 @@
     {line = get_line pos; column = get_column pos; contents}
 
   let make_genv fct data =
-    let f set name =
-      if Tagset.mem name.contents set then
-        raise_duplicate_element name;
-      Tagset.add f.contents set
+    let f set name line column=
+      if Tagset.mem name set then
+        raise_duplicate_element {contents = name; line; column};
+      Tagset.add name set
     in
-    let set = List.fold_left f Tagset.empty fct in
-    List.fold_left f set data
+    let set = List.fold_left (fun acc fct -> 
+      f acc fct.name.contents fct.name.line fct.name.column
+    ) Tagset.empty fct in
+    List.fold_left (fun acc d -> 
+      f acc (fst d.contents) d.line d.column
+    ) set data
 %}
 
 %token DATA
@@ -62,14 +67,13 @@
 %type <FUNTree.parameter> parameter;
 %type <FUNTree.function_definition> function_definition;
 %type <FUNTree.fun_instrs> instructions
-%type <FUNTree.fun_expr> expr
-%type <FUNTree.fun_expr> l_expr
+%type <ARTTree.expression> expr
+%type <ARTTree.expression> l_expr
 %type <FUNTree.fun_instr> instruction
 %type <FUNTree.fun_instr> assign
 %type <FUNTree.fun_instrs> block
-%type <FUNTree.fun_instrs> control
-%type <FUNTree.fun_instrs> assigns
-%type <(string ARTTree.node) * int> data_declaration
+%type <FUNTree.fun_instr> control
+%type <(string * int) ARTTree.node> data_declaration
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -85,13 +89,14 @@ program:
 | globals=list(function_definition) DATA data=list(data_declaration) EOF
     {
       let genv = make_genv globals data in
+      let data = List.fold_left (fun acc d -> Cycle.append acc d) Cycle.empty_cycle data in
       {syntax_tree = (globals, data); tag_set = genv}
     }
 
 | globals=list(function_definition) EOF
     {
-      let genv = make_genv globals [xw] in
-      {syntax_tree = (globals, []); tag_set = genv}
+      let genv = make_genv globals [] in
+      {syntax_tree = (globals, Cycle.empty_cycle); tag_set = genv}
     }
 
 | error
@@ -103,26 +108,26 @@ program:
 parameter:
 | name=LABEL 
     {
-      {name; reference = false}
+      {name = make_node $startpos name; reference = false}
     }
 
 | ADDRESS name=LABEL
     {
-      {name; reference = true}
+      {name = make_node $startpos name; reference = true}
     }
 ;
 
 function_definition:
 | name=LABEL LP params=separated_list(COMMA, parameter) RP LB b=instructions RB
     {
-      {name; params; block = b}
+      {name = make_node $startpos name; params; block = b}
     }
 ;
 
 instructions:
 | i=instruction SEMI s=instructions 
     {
-      s::i
+      i::s
     }
 
 | c=control s=instructions
@@ -146,7 +151,7 @@ expr:
 | b=BOOL 
     { Bool b }
 | l=l_expr
-    { l }
+    { LStar l }
 | LP e=expr RP
     { e }
 | e1=expr ADD e2=expr
@@ -181,16 +186,15 @@ expr:
     { Unop(Cpl, e) }
 | NOT e=expr
     { Unop(Not, e) }
-| ADDRESS e=l_expr 
-    { Address e }
-| f=l_expr LP args=separated_list(COMMA, expr) RP
+| ADDRESS e=LABEL
+    { Id (make_node $startpos e) }
 ;
 
 l_expr:
 | t=LABEL
     { Id (make_node $startpos t) }
 | MULT l=expr
-    { Deref l }
+    { l }
 ;
 
 instruction:
@@ -215,6 +219,12 @@ instruction:
 
 | a=assign
     { a }
+
+| f=l_expr LP args=separated_list(COMMA, expr) RP
+    { Call(f, args) }
+
+| d=l_expr op=assign_binop f=l_expr LP args=separated_list(COMMA, expr) RP
+    { SetCall(d, op, f, args) }
 ;
 
 assign:
@@ -244,9 +254,7 @@ assign_unop:
 
 block:
 | i=instruction SEMI
-    {
-      [i]
-    }
+    { [i] }
 
 | c=control
     { [c] }
@@ -281,10 +289,10 @@ control:
       raise_syntax_error $startpos "No condition found for 'while'"
     }
 
-| FOR LP expr SEMI assigns RP block
-| FOR LP assigns SEMI assigns RP block
-| FOR LP assigns SEMI expr RP block
-| FOR LP assigns RP block
+| FOR LP expr SEMI separated_list(COMMA, assign) RP block
+| FOR LP separated_list(COMMA, assign) SEMI separated_list(COMMA, assign) RP block
+| FOR LP separated_list(COMMA, assign) SEMI expr RP block
+| FOR LP separated_list(COMMA, assign) RP block
     {
       raise_syntax_error $startpos "Ill-formed 'for' loop"
     }
@@ -298,14 +306,14 @@ control:
 data_declaration:
 | t=LABEL COLON v=INT
     {
-      if Tagset.mem t.contents fun_variables then
-        raise_reserved_variable $startpos t.contents;
-      (t, v) 
+      if Tagset.mem t fun_variables then
+        raise_reserved_variable $startpos t;
+      make_node $startpos (t, v)
     }
 | t=LABEL COLON b=BOOL
     {
-      if Tagset.mem t.contents fun_variables then
-        raise_reserved_variable $startpos t.contents; 
-      (t, Arith.int_of_bool b) 
+      if Tagset.mem t fun_variables then
+        raise_reserved_variable $startpos t; 
+      make_node $startpos (t, Arith.int_of_bool b) 
     }
 ;

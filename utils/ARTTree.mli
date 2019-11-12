@@ -34,8 +34,8 @@ type 'a node = {
 (** Crée un noeud avec des valeurs par défaut de line et column (-1 en l'occurence) *)
 val default_node : 'a -> 'a node
 
-(** Utilise Tagset.make_tag_maker pour créer un générateur de noeuds uniques. *)
-val make_node_maker : Tagset.t -> unit -> string node
+(** Enrobe Tagset.make_tag pour retourner un string node. *)
+val make_tag_node : Tagset.tag_maker -> string node
 
 (**
   Type des arbres "de compilation".
@@ -109,7 +109,7 @@ val check_expression : expression -> Tagset.t -> unit
 val optimize_expression : expression -> expression * int option
 
 (** Compile un programme ART vers STK *)
-val compile : out_channel -> Tagset.t -> art_prog -> unit
+val compile : out_channel -> art_prog compiler_type -> unit
 
 (** Print une expression droite (i.e. pas gauche) ART/IMP dans le fichier donné. *)
 val write_art_right_expr : out_channel -> expression -> unit
@@ -121,4 +121,4 @@ val write_art_left_expr : out_channel -> expression -> unit
 val write_art_data : out_channel -> datas -> unit
 
 (** Réécris dans un fichier le programme ART (utile pour IMP) *)
-val write_art : out_channel -> Tagset.t -> art_prog -> unit
+val write_art : out_channel -> art_prog -> unit

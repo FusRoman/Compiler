@@ -1,6 +1,7 @@
-open ARTTree
-open Tagset
+open Printf
 open Cycle
+open Tagset
+open ARTTree
 open IMPTree
 
 let cll_variables =
@@ -143,7 +144,7 @@ let rec translate_instruction tag_set maker i acc =
 
   | Call e ->
     (* Etape 1 du protocole d'appel *)
-    let return = maker () in
+    let return = make_tag_node maker in
     let acc = append acc (Assign(Id return_address, Id return)) in (* *stack_pointer := &return; *)
     let acc = append acc (Goto e) in (* goto(e); *)
     append acc (TagDeclaration return) (* return: *)
@@ -205,8 +206,8 @@ let translate_procedures tag_set maker procs acc =
   tr_not_main tag_set maker procs acc'
 
 let cll_to_imp cll_prog =
-  let tag_set = union cll_variables cll_prog.tag_set in
-  let maker = make_node_maker tag_set in
+  let tag_set = union_duplicate cll_variables cll_prog.tag_set in
+  let maker = Tagset.make_tag_maker tag_set in
 
   let add_variables data =
     let add_variable data var =
@@ -229,4 +230,110 @@ let cll_to_imp cll_prog =
       (instr, data)
   in
 
-  { tag_set; syntax_tree = TextData(syntax_tree, data) }
+  { tag_set = get_updated_set maker; syntax_tree = TextData(syntax_tree, data) }
+
+let write_tabs file depth =
+  for i = 1 to depth do
+    fprintf file "\t"
+  done
+
+let write_assign file i =
+  match i with
+  | UnopAssign(e, op) ->
+    write_art_left_expr file e;
+    fprintf file "%s" (string_of_assign_unop op)
+  | BinopAssign(d, op, e) ->
+    write_art_left_expr file d;
+    fprintf file " %s " (string_of_assign_binop op);
+    write_art_right_expr file e
+  | _ ->
+    failwith "IMPTree.write_assign: not an assignment"
+
+let rec write_assigns file is =
+  if count_k is 2 then
+  begin
+    let (x, is') = take is in
+    write_assign file x;
+    fprintf file ", ";
+    write_assigns file is'
+  end
+  else if count_1 is then
+    let (x, is') = take is in
+    write_assign file x
+
+let rec write_instruction file i depth =
+  write_tabs file depth;
+  match i with
+  | Nop -> 
+    fprintf file "nop;\n"
+  | Exit -> 
+    fprintf file "exit;\n"
+  | Print e ->
+    fprintf file "print(";
+    write_art_right_expr file e;
+    fprintf file ");\n"
+  | Return ->
+    fprintf file "return;\n"
+  | Break _ ->
+    fprintf file "break;\n"
+  | Continue _ ->
+    fprintf file "continue;\n"
+  | UnopAssign _ | BinopAssign _ ->
+    write_assign file i;
+    fprintf file ";\n"
+  | IfElse(c, t, e) ->
+    fprintf file "if (";
+    write_art_right_expr file c;
+    fprintf file ") {\n";
+    write_instructions file t (depth + 1);
+    write_tabs file depth;
+    fprintf file "} else {\n";
+    write_instructions file e (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n"
+  | If(c, t) ->
+    fprintf file "if (";
+    write_art_right_expr file c;
+    fprintf file ") {\n";
+    write_instructions file t (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n"
+  | While(c, b) ->
+    fprintf file "while (";
+    write_art_right_expr file c;
+    fprintf file ") {\n";
+    write_instructions file b (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n"
+  | For(init, c, it, b) ->
+    fprintf file "for (";
+    write_assigns file init;
+    fprintf file "; ";
+    write_art_right_expr file c;
+    fprintf file "; ";
+    write_assigns file it;
+    fprintf file ") {\n";
+    write_instructions file b (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n";
+  | Call e ->
+    write_art_left_expr file e;
+    fprintf file "();\n"
+
+and write_instructions file is depth =
+  Cycle.iter is (fun i () -> write_instruction file i depth) ()
+
+let write_procedure file proc =
+  fprintf file "%s() {\n" proc.name.contents;
+  write_instructions file proc.block 1;
+  fprintf file "}\n\n"
+
+let write_cll file cll =
+  let (proc, data) =
+    match cll.syntax_tree with
+    | ProcedureDefinition proc -> (proc, empty_cycle)
+    | ProcedureDefinitionData(proc, data) -> (proc, data)
+  in
+  Cycle.iter proc (fun p () -> write_procedure file p) ();
+  fprintf file ".data\n";
+  write_art_data file data

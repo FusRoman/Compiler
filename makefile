@@ -83,6 +83,20 @@ run_cll: build_cll
 	@./var/cll/CLLCompiler test/$(file).cll
 	@$(MAKE) -s run_imp file=$(file)
 
+build_fun:
+	@$(MAKE) -s build_cll
+	ocamlc -c -I utils/ utils/FUNTree.mli utils/FUNTree.ml
+	menhir -v var/fun/FUNParser.mly
+	ocamllex var/fun/FUNLexer.mll
+	ocamlc -c -I var/fun/ -I utils/ var/fun/FUNParser.mli var/fun/FUNParser.ml
+	ocamlc -c -I var/fun/ var/fun/FUNLexer.ml
+	ocamlc -I utils/ -I var/fun/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo var/fun/FUNLexer.cmo var/fun/FUNParser.cmo var/fun/FUNCompiler.ml -o var/fun/FUNCompiler
+
+run_fun: build_fun
+	@./var/fun/FUNCompiler test/$(file).fun
+	#@$(MAKE) -s run_cll file=$(file)
+	@$(MAKE) -s run_stk file=$(file)
+
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
@@ -95,3 +109,5 @@ clear:
 	rm -rf interprete_var/VARParser.ml interprete_var/VARParser.mli interprete_var/VARInterpreter interprete_var/VARLexer.ml
 	rm -rf var/cll/*.cmi var/cll/*.cmo var/cll/*.o var/cll/CLLParser.ml var/cll/CLLParser.mli var/cll/CLLParser.automaton var/cll/CLLParser.conflicts var/cll/CLLLexer.ml
 	rm -rf var/cll/CLLCompiler test/cll/*.btc test/cll/*.asm test/cll/*.stk test/cll/*.art test/cll/*.imp
+	rm -rf var/fun/*.cmi var/fun/*.cmo var/fun/*.o var/fun/FUNParser.ml var/fun/FUNParser.mli var/fun/FUNParser.automaton var/fun/FUNParser.conflicts var/fun/FUNLexer.ml
+	rm -rf var/fun/FUNCompiler test/fun/*.btc test/fun/*.asm test/fun/*.stk test/fun/*.art test/fun/*.imp test/fun/*.cll

@@ -57,3 +57,6 @@ and cll_prog =
   le programme crashe. C'est à l'utilisateur de s'assurer que cela n'arrive pas.
 *)
 val cll_to_imp : cll_prog compiler_type -> imp_prog compiler_type
+
+(** Ecris un programme CLL dans le fichier désigné. *)
+val write_cll : out_channel -> cll_prog compiler_type -> unit

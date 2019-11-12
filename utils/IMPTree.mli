@@ -39,6 +39,9 @@ and imp_prog =
   | TextData of imp_instrs * datas
   | Text of imp_instrs
 
+val string_of_assign_binop : assign_binop -> string
+val string_of_assign_unop : assign_unop -> string
+
 (** Traduit une assignation utilisant un opérateur binaire en instruction IMP *)
 val simplify_assign_binop : expression -> assign_binop -> expression -> imp_instr
 

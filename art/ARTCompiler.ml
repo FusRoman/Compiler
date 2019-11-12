@@ -17,12 +17,12 @@ let _ =
     contenant l'arbre de syntaxe abstraite du fichier art analysé et un ensemble de tag 
     permettant de faire les vérifications sur les tags. La fonction compile se charge de parcourir l'arbre de syntaxe 
     abstraite d'art et d'écrire dans le fichier de sortie. *)
-    let result_parser = ARTParser.source ARTLexer.token lexing_buffer in
-    let tag_set,syntax_tree = result_parser.tag_set,result_parser.syntax_tree in
-    compile output tag_set syntax_tree;
+    let source = ARTParser.source ARTLexer.token lexing_buffer in
+    compile output source;
+    close_out output;
     exit 0
   with
   (* Cette exception est levée à la fois dans ArtParser.source et dans compile. *)
   | SyntaxError (s,l,c) ->
-    Printf.printf "Syntax error at %d, %d. Message:\n%s\n" l c s;
+    Printf.printf "[ART ERROR] Syntax error at %d, %d. Message:\n%s\n" l c s;
     exit 1

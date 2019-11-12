@@ -12,6 +12,19 @@
 **/*.asm
 a.out
 
+var/fun/*.cmi
+var/fun/*.cmo
+var/fun/FUNParser.conflicts
+var/fun/FUNParser.automaton
+var/fun/FUNParser.mli
+var/fun/FUNParser.ml
+var/fun/FUNLexer.ml
+var/fun/FUNCompiler
+test/fun/*.cll
+test/fun/*.imp
+test/fun/*.art
+test/fun/*.stk
+
 var/cll/*.cmi
 var/cll/*.cmo
 var/cll/CLLParser.conflicts

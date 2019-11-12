@@ -24,8 +24,20 @@ val singleton : elt -> t
 (** *)
 val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
 
-(** Prend un ensemble de tags et renvoie une fonction unit -> string qui renvoie à chaque appel un tag différent, jamais déclaré *)
-val make_tag_maker : t -> unit -> string
+(** Ajoute un élément à un ensemble, sans lancer DuplicateElement *)
+val add_duplicate : elt -> t -> t
 
 (** Réalise une union mais sans lancer DuplicateElement *)
 val union_duplicate : t -> t -> t
+
+(** Type des tags maker *)
+type tag_maker
+
+(** Prend un ensemble de tags et renvoie un tag_maker qui renvoie à chaque appel de make_tag un tag différent, jamais déclaré *)
+val make_tag_maker : t -> tag_maker
+
+(** Renvoie un nouveau tag jamais déclaré *)
+val make_tag : tag_maker -> string
+
+(** Renvoie l'ensemble des tags avec lequel le tag_maker a été initialisé, uni avec les tags créés après *)
+val get_updated_set : tag_maker -> t

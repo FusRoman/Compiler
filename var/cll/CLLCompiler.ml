@@ -15,14 +15,15 @@ let _ =
     let source = CLLParser.program CLLLexer.token lexing_buffer in
     let target = CLLTree.cll_to_imp source in
     IMPTree.write_imp output target.syntax_tree;
+    close_out output;
     exit 0
   with
   | SyntaxError(msg, l, c) -> 
-    Printf.printf "[ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
+    Printf.printf "[CLL ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
     exit 1
   | Failure msg ->
-    Printf.printf "[ERROR] Syntax error. Message:\n%s\n" msg;
+    Printf.printf "[CLL ERROR] Syntax error. Message:\n%s\n" msg;
     exit 1
   | _ ->
-    Printf.printf "[ERROR] Syntax error\n";
+    Printf.printf "[CLL ERROR] Syntax error\n";
     exit 1

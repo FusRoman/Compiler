@@ -32,6 +32,19 @@ and imp_prog =
   | TextData of imp_instrs * datas
   | Text of imp_instrs
 
+let string_of_assign_binop op =
+  match op with
+  | Standard -> ":="
+  | AddAssign -> "+="
+  | SubAssign -> "-="
+  | MultAssign -> "*="
+  | DivAssign -> "/="
+
+let string_of_assign_unop op =
+  match op with
+  | Incr -> "++"
+  | Decr -> "--"
+
 let for_to_while init cond it block =
   let rec append_assign assigns acc =
     if assigns = Cycle.empty_cycle then
@@ -195,15 +208,15 @@ let rec translate_instruction tag_set i maker _break _continue acc =
   | If(c, bthen) ->
     (* Durant la phase d'optimisation, la condition a été inversée *)
     check_expression c tag_set;
-    let _end = maker () in
+    let _end = make_tag_node maker in
     let acc2 = append (JumpWhen(Id _end, c)) in
     let acc3 = translate_instructions tag_set bthen maker _break _continue acc2 in
     Cycle.append acc3 (ARTTree.TagDeclaration _end)
 
   | IfElse(c, bthen, belse) ->
     check_expression c tag_set;
-    let _else = maker () in
-    let _end = maker () in
+    let _else = make_tag_node maker in
+    let _end = make_tag_node maker in
     let acc2 = append (JumpWhen(Id _else, c)) in
     let acc3 = translate_instructions tag_set bthen maker _break _continue acc2 in
     let acc4 = Cycle.append acc3 (Jump (Id _end)) in
@@ -213,8 +226,8 @@ let rec translate_instruction tag_set i maker _break _continue acc =
 
   | While(c, body) ->
     check_expression c tag_set;
-    let _end = maker () in
-    let _begin = maker () in
+    let _end = make_tag_node maker in
+    let _begin = make_tag_node maker in
     let acc2 = append (TagDeclaration _begin) in
     let acc3 = Cycle.append acc2 (JumpWhen(Id _end, c)) in
     let acc4 = translate_instructions tag_set body maker (Some _end) (Some _begin) acc3 in
@@ -230,7 +243,7 @@ and translate_instructions tag_set is maker _break _continue acc =
     translate_instructions tag_set s maker _break _continue acc'
 
 let imp_to_art imp =
-  let imp = {imp with tag_set = Tagset.add "stack_pointer" imp.tag_set} in
+  let imp = {imp with tag_set = Tagset.add_duplicate "stack_pointer" imp.tag_set} in
   (* Phase d'optimisation *)
   let opt_instrs, data = 
     match imp.syntax_tree with
@@ -240,9 +253,9 @@ let imp_to_art imp =
       (fst (optimize_instructions i), d)
   in
   (* Phase de compilation vers ART *)
-  let tag_maker = make_node_maker imp.tag_set in
+  let tag_maker = Tagset.make_tag_maker imp.tag_set in
   let art_instrs = translate_instructions imp.tag_set opt_instrs tag_maker None None Cycle.empty_cycle in
-  {syntax_tree = ProgData(art_instrs, data); tag_set = imp.tag_set}
+  {syntax_tree = ProgData(art_instrs, data); tag_set = Tagset.get_updated_set tag_maker}
 
 let rec write_instr file i depth =
   let tabs d =

@@ -1,6 +1,6 @@
 {
-  (* Exactement le même Lexer que CLL *)
-  open CLLParser
+  (* Exactement le même lexer que CLL *)
+  open FUNParser
 }
 
 let digit = ['0'-'9']
