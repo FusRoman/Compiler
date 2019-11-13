@@ -94,8 +94,7 @@ build_fun:
 
 run_fun: build_fun
 	@./var/fun/FUNCompiler test/$(file).fun
-	#@$(MAKE) -s run_cll file=$(file)
-	@$(MAKE) -s run_stk file=$(file)
+	@$(MAKE) -s run_cll file=$(file)
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc

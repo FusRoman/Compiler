@@ -310,10 +310,11 @@ let rec write_art_right_expr file e =
   | LStar (Id i) ->
     fprintf file "%s" i.contents
   | Id i ->
-    fprintf file "&%s" i.contents
+    fprintf file "(&%s)" i.contents
   | LStar e -> 
-    fprintf file "*";
-    write_art_right_expr file e
+    fprintf file "(*";
+    write_art_right_expr file e;
+    fprintf file ")"
 
 and write_art_left_expr file e =
   match e with
@@ -365,7 +366,7 @@ let rec direct_print_instrs file instrs =
   end
 
 let rec write_art file art = 
-  match art with
+  match art.syntax_tree with
   | Prog is -> fprintf file ".text\n";
     direct_print_instrs file is
   | ProgData (is,ds) -> fprintf file ".text\n";

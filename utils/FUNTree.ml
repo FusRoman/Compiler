@@ -1,14 +1,13 @@
+open Printf
 open Cycle
 open Tagset
 open ARTTree
 open IMPTree
 open CLLTree
 
-(* Il reste quoi à faire quand on aura résolu le problème des call ?
+(*
   - calcul des adresses (je sais pas ce que ça représente exactement)
   - passage par référence (pareil)
-  - appel terminal (devrait être plutôt facile, suffit de réécrire sur la cellule courante, s'inspirer de CLL)
-  - régler la grammaire
 
   Après ça VAR devrait être facile.
   Y aura le truc avec les déclarations dans le for qui devrait être chiant cela dit.
@@ -294,7 +293,9 @@ let translate_expression e fct genv =
         raise (UnboundValue(fct.name, id))
     | x::s ->
       if x.name.contents = id.contents then
-        Binop(LStar(Id frame_pointer), Add, Int(nb_params - i))
+        (* TODO pas sûr que ça marche ici ! *)
+        let base = Binop(LStar(Id frame_pointer), Add, Int(nb_params - i)) in
+        if x.reference = true then LStar base else base
       else
         translate_id id s (i+1)
   in
@@ -403,3 +404,139 @@ let fun_to_cll fun_prog =
   let data = append data (default_node ("function_result", 0)) in
   let procedures = List.fold_left (fun acc fct -> translate_function fct genv acc) empty_cycle functions in
   {syntax_tree = ProcedureDefinitionData(procedures, data); tag_set = genv}
+
+let write_tabs file depth =
+  for i = 1 to depth do
+    fprintf file "\t"
+  done
+
+let write_assign file i =
+  match i with
+  | UnopAssign(e, op) ->
+    write_art_left_expr file e;
+    fprintf file "%s" (string_of_assign_unop op)
+  | BinopAssign(d, op, e) ->
+    write_art_left_expr file d;
+    fprintf file " %s " (string_of_assign_binop op);
+    write_art_right_expr file e
+  | _ ->
+    failwith "FUNTree.write_assign: not an assignment"
+
+let rec write_assigns file is =
+  match is with
+  | x::y::s ->
+    write_assign file x;
+    fprintf file ", ";
+    write_assigns file (y::s)
+  | x::[] ->
+    write_assign file x
+  | [] -> ()
+
+let rec write_args file args =
+  match args with
+  | x::y::s ->
+    write_art_right_expr file x;
+    fprintf file ", ";
+    write_args file (y::s)
+  | x::[] ->
+    write_art_right_expr file x
+  | [] -> ()
+
+let rec write_params file params =
+  match params with
+  | x::y::s ->
+    if x.reference then
+      fprintf file "&";
+    fprintf file "%s, " x.name.contents;
+    write_params file (y::s)
+  | x::[] ->
+    if x.reference then
+      fprintf file "&";
+    fprintf file "%s" x.name.contents
+  | [] -> ()
+
+let rec write_instruction file i depth =
+  write_tabs file depth;
+  match i with
+  | Nop -> 
+    fprintf file "nop;\n"
+  | Exit -> 
+    fprintf file "exit;\n"
+  | Print e ->
+    fprintf file "print(";
+    write_art_right_expr file e;
+    fprintf file ");\n"
+  | Return e ->
+    fprintf file "return(";
+    write_art_right_expr file e;
+    fprintf file ");\n"
+  | Break _ ->
+    fprintf file "break;\n"
+  | Continue _ ->
+    fprintf file "continue;\n"
+  | UnopAssign _ | BinopAssign _ ->
+    write_assign file i;
+    fprintf file ";\n"
+  | IfElse(c, t, e) ->
+    fprintf file "if (";
+    write_art_right_expr file c;
+    fprintf file ") {\n";
+    write_instructions file t (depth + 1);
+    write_tabs file depth;
+    fprintf file "} else {\n";
+    write_instructions file e (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n"
+  | If(c, t) ->
+    fprintf file "if (";
+    write_art_right_expr file c;
+    fprintf file ") {\n";
+    write_instructions file t (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n"
+  | While(c, b) ->
+    fprintf file "while (";
+    write_art_right_expr file c;
+    fprintf file ") {\n";
+    write_instructions file b (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n"
+  | For(init, c, it, b) ->
+    fprintf file "for (";
+    write_assigns file init;
+    fprintf file "; ";
+    write_art_right_expr file c;
+    fprintf file "; ";
+    write_assigns file it;
+    fprintf file ") {\n";
+    write_instructions file b (depth + 1);
+    write_tabs file depth;
+    fprintf file "}\n";
+  | Call(f, args) ->
+    write_art_left_expr file f;
+    fprintf file "(";
+    write_args file args;
+    fprintf file ");\n"
+  | SetCall(d, op, f, args) ->
+    write_art_left_expr file d;
+    fprintf file " %s " (string_of_assign_binop op);
+    write_art_left_expr file f;
+    fprintf file "(";
+    write_args file args;
+    fprintf file ");\n"
+
+and write_instructions file is depth =
+  List.iter (fun i -> write_instruction file i depth) is
+
+let write_function file fct =
+  fprintf file "%s(" fct.name.contents;
+  write_params file fct.params;
+  fprintf file ") {\n";
+  write_instructions file fct.block 1;
+  fprintf file "}\n\n"
+
+let write_fun file prog =
+  let (fct, data) = prog.syntax_tree in
+  List.iter (fun f -> write_function file f) fct;
+  fprintf file ".data\n";
+  write_art_data file data

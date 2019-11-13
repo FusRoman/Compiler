@@ -8,13 +8,6 @@ let _ =
 let input = open_in input_file
 let lexing_buffer = Lexing.from_channel input
 
-let file_name = Filename.chop_suffix input_file ".fun"
-let write f ext source =
-  let output_file = file_name ^ "." ^ ext in
-  let output = open_out output_file in
-  f output source;
-  close_out output
-
 let output_file = (Filename.chop_suffix input_file ".fun") ^ ".cll"
 let output = open_out output_file
 
@@ -23,13 +16,6 @@ let _ =
     let source = FUNParser.program FUNLexer.token lexing_buffer in
     let target = fun_to_cll source in
     CLLTree.write_cll output target;
-    let target_imp = CLLTree.cll_to_imp target in
-    write IMPTree.write_imp "imp" target_imp.syntax_tree;
-    let target_art = IMPTree.imp_to_art target_imp in
-    write ARTTree.write_art "art" target_art.syntax_tree;
-
-    write ARTTree.compile "stk" target_art;
-
     close_out output;
     exit 0
   with

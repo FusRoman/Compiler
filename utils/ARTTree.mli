@@ -121,4 +121,4 @@ val write_art_left_expr : out_channel -> expression -> unit
 val write_art_data : out_channel -> datas -> unit
 
 (** Réécris dans un fichier le programme ART (utile pour IMP) *)
-val write_art : out_channel -> art_prog -> unit
+val write_art : out_channel -> art_prog compiler_type -> unit

@@ -66,4 +66,4 @@ val imp_to_art : imp_prog compiler_type -> art_prog compiler_type
 (**
   'write_imp imp output' écrit le programme imp dans le fichier output.
 *)
-val write_imp : out_channel -> imp_prog -> unit
+val write_imp : out_channel -> imp_prog compiler_type -> unit

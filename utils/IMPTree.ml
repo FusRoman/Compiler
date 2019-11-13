@@ -343,7 +343,7 @@ let rec write_data file ds =
 
 let write_imp file imp =
   Printf.fprintf file ".text\n";
-  match imp with
+  match imp.syntax_tree with
   | TextData(i, d) ->
     write_instrs file i 0;
     Printf.fprintf file ".data\n";

@@ -14,7 +14,7 @@ let _ =
   try
     let source = CLLParser.program CLLLexer.token lexing_buffer in
     let target = CLLTree.cll_to_imp source in
-    IMPTree.write_imp output target.syntax_tree;
+    IMPTree.write_imp output target;
     close_out output;
     exit 0
   with

@@ -14,7 +14,7 @@ let _ =
   try
     let source = IMPParser.program IMPLexer.token lexing_buffer in
     let target = IMPTree.imp_to_art source in
-    write_art output target.syntax_tree;
+    write_art output target;
     close_out output;
     exit 0
   with

@@ -101,7 +101,7 @@ program:
 
 | error
     { 
-      raise_syntax_error $startpos "CLL program structure: list procedure declaration .data <declarations>" 
+      raise_syntax_error $startpos "FUN program structure: list of function declarations .data <declarations>" 
     }
 ;
 
@@ -186,8 +186,8 @@ expr:
     { Unop(Cpl, e) }
 | NOT e=expr
     { Unop(Not, e) }
-| ADDRESS e=LABEL
-    { Id (make_node $startpos e) }
+| ADDRESS e=l_expr
+    { e }
 ;
 
 l_expr:
