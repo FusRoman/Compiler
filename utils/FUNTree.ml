@@ -21,16 +21,6 @@ let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
 let function_result = default_node "function_result"
 
-(*type fun_expr =
-  | Int of int
-  | Bool of bool
-  | Id of string node
-  | Address of fun_expr
-  | Deref of fun_expr
-  | Unop of unop * fun_expr
-  | Binop of fun_expr * binop * fun_expr
-  | Call of fun_expr * (fun_expr list)*)
-
 type fun_instr =
   | Nop
   | Exit
@@ -54,34 +44,15 @@ type parameter = {
   reference: bool;
 }
 
-type function_definition = {
+type 'a function_definition = {
   name: string node; 
   params: parameter list;
-  block: fun_instrs
+  block: 'a
 }
 
-and fun_prog = (function_definition list) * datas
+type fun_function = fun_instrs function_definition
 
-(*let check_fun_expression e fct lenv genv =
-  let check_id id =
-    if not (mem id.contents lenv || mem id.contents genv) then
-      raise (UnboundValue(fct.name, id))
-  in
-  let rec check_expr e =
-    match e with
-    | Int _ | Bool _ -> ()
-    | Id id ->
-      check_id id
-    | Address e | Deref e | Unop(_, e) ->
-      check_expr e
-    | Binop(e1, _, e2) ->
-      check_expr e1;
-      check_expr e2
-    | Call(f, args) ->
-      check_expr f;
-      List.fold_left (fun () e -> check_expr e) () args
-  in
-  check_expr e*)
+type fun_prog = (fun_function list) * ((string node * int) list)
 
 (* 
   A l'instar de CLLTree.check_procedure, vérifie si :
@@ -153,6 +124,8 @@ let check_function fct genv =
 
       | IfElse(c, t, e) ->
         check_expression c;
+        (* Semble marcher même quand les deux branches exécutent return ou exit...
+          Voir test/fun/weird.fun *)
         (check_rec loop t && check_rec loop e) || check_rec loop is'
 
       | While(c, b) ->
@@ -180,104 +153,6 @@ let check_function fct genv =
       Printf.sprintf "Function '%s' does not end with 'return;' or 'exit;' in at least one branch" fct.name.contents, 
       fct.name.line, fct.name.column
     ))
-
-(* 
-  Renvoie (b, e, a) avec :
-  - b : les instructions à exécuter avant l'évaluation de l'expression
-  - e : l'expression traduite
-  - a : le nombre de variables locales utilisées, autrement dit il faudra faire stack_pointer += a pour les effacer
-
-  Ordre des appels de fonctions :
-  On parcourt l'expression en DFS. Le premier appel rencontré sera le premier exécuté.
-  L'adresse de la fonction sera calculée en premier, ensuite ce seront ses arguments, dans l'ordre et de manière récursive.
-  Le reste de l'expression parent sera calculé en dernier.
-
-  Si immediate vaut vrai, le dernier appel de fonction sera remplacée dans e par function_result.
-*)
-(*let translate_expression e fct genv immediate =
-  let nb_params = List.length fct.params in
-
-  (* Remplace les paramètres par le calcul de leur adresse *)
-  let rec translate_id id params i =
-    match params with
-    | [] ->
-      if mem id.contents genv then)
-        ARTTree.Id id
-      else
-        (* Ne devrait jamais arriver puisqu'on vérifie avant *)
-        raise (UnboundValue(fct.name, id))
-    | x::s ->
-      if x = id then
-        Binop(LStar(Id frame_pointer), Add, Int(nb_params - i))
-      else
-        translate_id id s (i+1)
-  in
-
-  (* Gère les appels de fonction. *)
-  and call f args last =
-    let (fb, fe, fa, _) = translate_expr e true in
-    let b, a, _ =
-      List.fold_right (fun e (bacc, aacc) ->
-        let (b, e, a, l) = translate_expr e true in
-        (* stock l'argument dans la pile *)
-        let b = append b (AssignBinop(LStar(Id stack_pointer), Standard, e)) in
-        let b = append b (AssignUnop(Id stack_pointer, Decr)) in 
-        (* Calcul de l'argument puis stockage avant de passer au reste des expressions *)
-        (extend b bacc, a + 1 + aacc)
-      ) (args) (empty_cycle, fa)
-    in
-    let bc = extend fb b in
-    let bc = append b (Call fe) in
-    if last then
-      (* Dernier appel de fonction dans la liste. La valeur de function_result ne devrait pas être écrasée. *)
-      (bc, LStar(Id function_result), a)
-    else
-      (* 
-        Comment connaître l'adresse de cet argument ?
-        On sait pas où est frame_pointer à partir de stack_pointer
-        stack_pointer peut être modifié au plein milieu d'une instruction
-        return_address va pas nous aider
-        function_result peut être modifié par appel de fonction
-        Donc il faut une nouvelle variable je pense, qui pourra d'ailleurs être utilisée par VAR.
-        Ah oui mais si on faisait tout dans VAR, on n'aurait pas besoin de variables du tout.
-        En tout le nombre de variables locales est 1
-      *)
-      (bc, ..., a + 1)
-  in
-
-  (* 
-    e : expression à traduire
-    may_be_last : e est susceptible de contenir le dernier appel de fonction
-    Renvoie (b, e, a, l) avec b, e et a comme expliqués avant.
-    l vaut true si le dernier appel n'a pas été rencontré.
-  *)
-  and translate_expr e may_be_last =
-    match e with
-    | Int i -> 
-      (empty_cycle, ARTTree.Int i, 0, may_be_last)
-    | Bool b -> 
-      (empty_cycle, Bool b, 0, may_be_last)
-    | Id id ->
-      (empty_cycle, translate_id fct.params 0, 0, may_be_last)
-    | Deref e ->
-      let (b, e, a, l) = translate_expr e may_be_last in
-      (b, LStar e, a, l)
-    | Unop(op, e) ->
-      let (b, e, a, l) = translate_expr e may_be_last in
-      (b, Unop(op, e), a, l)
-    | Binop(e1, op, e2) ->
-      let (b2, e2, a2, l2) = translate_expr e2 may_be_last in
-      let (b1, e1, a1, l1) = translate_expr e1 l2 in
-      (extend b1 b2, Binop(e1, op, e2), a1 + a2, l1 && l2)
-    | Address id ->
-      failwith "not implemented"
-    | Call(f, args) ->
-      let lol = call f args may_be_last in
-      (, , , false)
-  in
-
-  let (b, e, a, _) = translate_expr e immediate in
-  (b, e, a)*)
 
 let translate_expression e fct genv =
   let nb_params = List.length fct.params in
@@ -393,17 +268,25 @@ and translate_instructions is fct genv =
     translate_instruction i fct genv acc
   ) empty_cycle is
 
-let translate_function fct genv acc =
+let translate_function fct genv main acc =
   check_function fct genv;
+  if fct.name.contents = "main" then main := true;
   let block = translate_instructions fct.block fct genv in
   append acc {name = fct.name; block}
 
 let fun_to_cll fun_prog =
   let genv = union_duplicate fun_variables fun_prog.tag_set in
   let functions, data = fun_prog.syntax_tree in
-  let data = append data (default_node ("function_result", 0)) in
-  let procedures = List.fold_left (fun acc fct -> translate_function fct genv acc) empty_cycle functions in
-  {syntax_tree = ProcedureDefinitionData(procedures, data); tag_set = genv}
+  let main = ref false in
+  let procedures = List.fold_left (fun acc fct -> translate_function fct genv main acc) empty_cycle functions in
+  let data_cycle = List.fold_left (fun acc (t, v) -> 
+    append acc {contents = (t.contents, v); line = t.line; column = t.column}
+  ) empty_cycle data in
+  let data_cycle = append data_cycle (default_node ("function_result", 0)) in
+  if !main then
+    {syntax_tree = ProcedureDefinitionData(procedures, data_cycle); tag_set = genv}
+  else
+    raise (SyntaxError("No 'main' function defined.", 0, 0))
 
 let write_tabs file depth =
   for i = 1 to depth do
@@ -539,4 +422,4 @@ let write_fun file prog =
   let (fct, data) = prog.syntax_tree in
   List.iter (fun f -> write_function file f) fct;
   fprintf file ".data\n";
-  write_art_data file data
+  List.iter (fun (t, v) -> fprintf file "\t%s: %d\n" t.contents v) data

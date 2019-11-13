@@ -48,13 +48,15 @@ type parameter = {
 }
 
 (* Le type des déclarations de fonctions en FUN *)
-type function_definition = {
+type 'a function_definition = {
   name: string node; 
   params: parameter list;
-  block: fun_instrs
+  block: 'a
 }
 
-and fun_prog = (function_definition list) * datas
+type fun_function = fun_instrs function_definition
+
+type fun_prog = (fun_function list) * ((string node * int) list)
 
 (** 
   Analogue à ARTTree.check_expression.

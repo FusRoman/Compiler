@@ -12,6 +12,20 @@
 **/*.asm
 a.out
 
+var/var/*.cmi
+var/var/*.cmo
+var/var/VARParser.conflicts
+var/var/VARParser.automaton
+var/var/VARParser.mli
+var/var/VARParser.ml
+var/var/VARLexer.ml
+var/var/VARCompiler
+test/var/*.fun
+test/var/*.cll
+test/var/*.imp
+test/var/*.art
+test/var/*.stk
+
 var/fun/*.cmi
 var/fun/*.cmo
 var/fun/FUNParser.conflicts

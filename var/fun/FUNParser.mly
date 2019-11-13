@@ -27,16 +27,16 @@
     {line = get_line pos; column = get_column pos; contents}
 
   let make_genv fct data =
-    let f set name line column=
-      if Tagset.mem name set then
-        raise_duplicate_element {contents = name; line; column};
-      Tagset.add name set
+    let f set name =
+      if Tagset.mem name.contents set then
+        raise_duplicate_element name;
+      Tagset.add name.contents set
     in
     let set = List.fold_left (fun acc fct -> 
-      f acc fct.name.contents fct.name.line fct.name.column
+      f acc fct.name
     ) Tagset.empty fct in
-    List.fold_left (fun acc d -> 
-      f acc (fst d.contents) d.line d.column
+    List.fold_left (fun acc (t, _) -> 
+      f acc t
     ) set data
 %}
 
@@ -65,7 +65,7 @@
 %start program
 %type <FUNTree.fun_prog ARTTree.compiler_type> program
 %type <FUNTree.parameter> parameter;
-%type <FUNTree.function_definition> function_definition;
+%type <FUNTree.fun_function> function_definition;
 %type <FUNTree.fun_instrs> instructions
 %type <ARTTree.expression> expr
 %type <ARTTree.expression> l_expr
@@ -73,7 +73,7 @@
 %type <FUNTree.fun_instr> assign
 %type <FUNTree.fun_instrs> block
 %type <FUNTree.fun_instr> control
-%type <(string * int) ARTTree.node> data_declaration
+%type <string ARTTree.node * int> data_declaration
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -89,14 +89,13 @@ program:
 | globals=list(function_definition) DATA data=list(data_declaration) EOF
     {
       let genv = make_genv globals data in
-      let data = List.fold_left (fun acc d -> Cycle.append acc d) Cycle.empty_cycle data in
       {syntax_tree = (globals, data); tag_set = genv}
     }
 
 | globals=list(function_definition) EOF
     {
       let genv = make_genv globals [] in
-      {syntax_tree = (globals, Cycle.empty_cycle); tag_set = genv}
+      {syntax_tree = (globals, []); tag_set = genv}
     }
 
 | error
@@ -214,7 +213,7 @@ instruction:
       Continue (make_node $startpos ())
     }
 
-| RETURN LP e=expr RP
+| RETURN e=expr
     { Return e }
 
 | a=assign
@@ -308,12 +307,12 @@ data_declaration:
     {
       if Tagset.mem t fun_variables then
         raise_reserved_variable $startpos t;
-      make_node $startpos (t, v)
+      (make_node $startpos t, v)
     }
 | t=LABEL COLON b=BOOL
     {
       if Tagset.mem t fun_variables then
         raise_reserved_variable $startpos t; 
-      make_node $startpos (t, Arith.int_of_bool b) 
+      (make_node $startpos t, Arith.int_of_bool b) 
     }
 ;

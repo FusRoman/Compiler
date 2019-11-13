@@ -1,62 +1,55 @@
 {
-
-  open Lexing
   open VARParser
-
-  let keyword_or_label =
-    let h = Hashtbl.create 17 in
-    List.iter (fun (s, k) -> Hashtbl.add h s k)
-      [ "nop",    NOP;
-        "print",  PRINT;
-        "exit",   EXIT;
-        "if",     IF;
-        "else",   ELSE;
-        "while",  WHILE;
-        "var",    VAR;
-        "return", RETURN;
-        "true",   BOOL true;
-        "false",  BOOL false;
-      ] ;
-    fun s ->
-      try  Hashtbl.find h s
-      with Not_found -> LABEL(s)
-        
 }
 
 let digit = ['0'-'9']
 let number = digit+
-let alpha = ['a'-'z' 'A'-'Z']
-let label = ['a'-'z' '_'] (alpha | '_' | digit)*
+let label = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let comment = '#' [^ '\n']* ('\n' | eof)
   
 rule token = parse
-  | ['\n']
-      { new_line lexbuf; token lexbuf }
-  | [' ' '\t' '\r']+
-      { token lexbuf }
-  | "#" [^ '\n']* "\n"
-      { new_line lexbuf; token lexbuf }
-      
-  | number as n
-      { INT (int_of_string n) }
-  | label as lab
-      { keyword_or_label lab }
-      
-  | ";"
-      { SEMI }
-  | ","
-      { COMMA }
+  | "var"
+      { VAR }
+  | "true"
+      { BOOL true }
+  | "false"
+      { BOOL false }
+  | "nop"
+      { NOP }
+  | "print"
+      { PRINT }
+  | "exit"
+      { EXIT }
+  | "return"
+      { RETURN }
+  | "if"
+      { IF }
+  | "else"
+      { ELSE }
+  | "while"
+      { WHILE }
+  | "for"
+      { FOR }
+  | "continue"
+      { CONTINUE }
+  | "break"
+      { BREAK }
+
   | ":="
-      { SET }
-  | "+"
-      { PLUS }
-  | "-"
-      { MINUS }
-  | "*"
-      { STAR }
-  | "/"
-      { SLASH }
-  | "%"
-      { PRCT }
+      { ASSIGN }
+  | "++"
+      { INCR }
+  | "--"
+      { DECR }
+  | "+="
+      { ADDASSIGN }
+  | "-="
+      { SUBASSIGN }
+  | "*="
+      { MULTASSIGN }
+  | "/="
+      { DIVASSIGN }
+
   | "=="
       { EQ }
   | "!="
@@ -69,21 +62,56 @@ rule token = parse
       { GT }
   | ">="
       { GE }
-  | "!"
-      { NOT }
+
+  | "+"
+      { ADD }
+  | "-"
+      { SUB }
+  | "*"
+      { MULT }
+  | "/"
+      { DIV }
+  | "%"
+      { REM }
   | "&&"
       { AND }
   | "||"
       { OR }
+
+  | "!"
+      { NOT }
+  | "~"
+      { CPL }
+  | "&"
+      { ADDRESS }
+
+  | ";"
+      { SEMI }
+  | ":"
+      { COLON }
+  | ","
+      { COMMA }
   | "("
       { LP }
   | ")"
       { RP }
   | "{"
-      { BEGIN }
+      { LB }
   | "}"
-      { END }
-  | _
-      { failwith ("Unknown character : " ^ (lexeme lexbuf)) }
+      { RB }
+
+  | label as lab
+      { LABEL(lab) }
+  | number as n
+      { INT(int_of_string n) }
+
+  | ['\n']
+      { Lexing.new_line lexbuf; token lexbuf }
+  | comment
+      { Lexing.new_line lexbuf; token lexbuf }
+  | [' ' '\t' '\r']+
+      { token lexbuf }
   | eof
       { EOF }
+  | _
+      { failwith ("Unknown character : " ^ (Lexing.lexeme lexbuf)) }

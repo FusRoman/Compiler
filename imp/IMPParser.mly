@@ -181,8 +181,8 @@ expr:
     { Unop(Cpl, e) }
 | NOT e=expr
     { Unop(Not, e) }
-| ADDRESS t=LABEL 
-    { Id (make_node $startpos t) }
+| ADDRESS e=l_expr 
+    { e }
 ;
 
 l_expr:

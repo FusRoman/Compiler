@@ -96,6 +96,19 @@ run_fun: build_fun
 	@./var/fun/FUNCompiler test/$(file).fun
 	@$(MAKE) -s run_cll file=$(file)
 
+build_var : build_fun
+	@$(MAKE) -s build_cll
+	ocamlc -c -I utils/ utils/VARTree.mli utils/VARTree.ml
+	menhir -v var/var/VARParser.mly
+	ocamllex var/var/VARLexer.mll
+	ocamlc -c -I var/var/ -I utils/ var/var/VARParser.mli var/var/VARParser.ml
+	ocamlc -c -I var/var/ var/var/VARLexer.ml
+	ocamlc -I utils/ -I var/var/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo var/var/VARLexer.cmo var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
+
+run_var: build_var
+	@./var/var/VARCompiler test/$(file).var
+	@$(MAKE) -s run_fun file=$(file)
+
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
@@ -113,3 +126,5 @@ clear:
 	rm -rf var/cll/CLLCompiler test/cll/*.btc test/cll/*.asm test/cll/*.stk test/cll/*.art test/cll/*.imp
 	rm -rf var/fun/*.cmi var/fun/*.cmo var/fun/*.o var/fun/FUNParser.ml var/fun/FUNParser.mli var/fun/FUNParser.automaton var/fun/FUNParser.conflicts var/fun/FUNLexer.ml
 	rm -rf var/fun/FUNCompiler test/fun/*.btc test/fun/*.asm test/fun/*.stk test/fun/*.art test/fun/*.imp test/fun/*.cll
+	rm -rf var/var/*.cmi var/var/*.cmo var/var/*.o var/var/VARParser.ml var/var/VARParser.mli var/var/VARParser.automaton var/var/VARParser.conflicts var/var/VARLexer.ml
+	rm -rf var/var/VARCompiler test/var/*.btc test/var/*.asm test/var/*.stk test/var/*.art test/var/*.imp test/var/*.cll test/var/*.fun

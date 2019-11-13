@@ -1,0 +1,20 @@
+main() {
+  for (var i := 97, var j := i + 1; i < 121; i += 3, j := i + 1) {
+    var k := i + 2;
+    print(i);
+    print(j);
+    print(k);
+    print(10);
+  }
+
+  var i := 97;
+  while (i < 122) {
+    var j := i + 1;
+    print(i);
+    print(j);
+    print(10);
+    i += 2;
+  }
+
+  exit;
+}

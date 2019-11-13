@@ -1,121 +1,321 @@
 %{
-
   open Lexing
-  open VAR
-  open FUNInstr
-  open IMPExpr
-  open Op
+  open Tagset
+  open ARTTree
+  open IMPTree
+  open CLLTree
+  open FUNTree
+  open VARTree
+
+  let get_line pos =
+    pos.pos_lnum
+
+  let get_column pos =
+    pos.pos_cnum - pos.pos_bol
+
+  let raise_syntax_error pos msg =
+    raise (SyntaxError(msg, get_line pos, get_column pos))
+
+  let raise_duplicate_element t =
+    raise (SyntaxError(Printf.sprintf "Tag '%s' is declared at least twice" t.contents, 
+      t.line, t.column
+    ))
+
+  let raise_reserved_variable pos var =
+    raise_syntax_error pos (Printf.sprintf "'%s' is a reserved variable." var)
+
+  let make_node pos contents =
+    {line = get_line pos; column = get_column pos; contents}
+
+  let make_genv globals =
+    List.fold_left (fun acc d ->
+      let name =
+        match d with
+        | Fun f -> f.name
+        | Var (v, _) -> v
+      in
+      try
+        add name.contents acc
+      with DuplicateElement _ ->
+        raise_duplicate_element name
+    ) empty globals
 
 %}
 
-(* Base *)
+%token VAR
 %token NOP PRINT EXIT
-%token SEMI COMMA
-%token SET
-%token <int>INT
+%token IF ELSE NO_ELSE
+%token WHILE FOR 
+%token CONTINUE BREAK RETURN
+%token ASSIGN INCR DECR
+%token ADDASSIGN SUBASSIGN
+%token MULTASSIGN DIVASSIGN
+%token EQ NEQ
+%token LT LE GT GE
+%token ADD SUB
+%token MULT DIV REM
+%token AND OR
+%token NOT CPL
+%token ADDRESS
+%token SEMI COLON COMMA
+%token LP RP LB RB
 %token <bool>BOOL
+%token <int>INT
 %token <string>LABEL
 %token EOF
-(* Arithmétique *)
-%token PLUS MINUS STAR SLASH PRCT
-%token EQ NEQ LT LE GT GE
-%token AND OR NOT
-%token LP RP
-(* Blocs / fonctions *)
-%token BEGIN END
-%token IF ELSE
-%token WHILE
-%token RETURN
-(* Variables *)
-%token VAR
-
-%left AND OR
-%left LT LE GT GE EQ NEQ
-%left PLUS MINUS
-%left STAR SLASH PRCT
-%nonassoc NOT
 
 %start program
-%type <VAR.program> program
+%type <VARTree.var_prog ARTTree.compiler_type> program
+%type <string ARTTree.node * ARTTree.expression> variable_declaration
+%type <FUNTree.parameter> parameter;
+%type <VARTree.var_function> function_definition;
+%type <VARTree.var_instrs> instructions
+%type <ARTTree.expression> expr
+%type <ARTTree.expression> l_expr
+%type <VARTree.var_instr> instruction
+%type <VARTree.var_instr> assign
+%type <VARTree.var_instrs> block
+%type <VARTree.var_instr> control
+
+%nonassoc NO_ELSE
+%nonassoc ELSE
+%left AND OR
+%left EQ NEQ LT LE GT GE
+%left ADD SUB
+%left MULT DIV REM
+%left NOT CPL
 
 %%
 
 program:
-| globals=list(data_declaration) text=list(function_definition) EOF
-    { { text; globals } }
-| error { let pos = $startpos in
-          let message =
-            Printf.sprintf "Syntax error at %d, %d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol)
-          in
-          failwith message }
+| globals=list(global_declaration) EOF
+    {
+      {syntax_tree = globals; tag_set = make_genv globals}
+    }
+
+| error
+    { 
+      raise_syntax_error $startpos "FUN program structure: list of function declarations .data <declarations>" 
+    }
 ;
 
-data_declaration:
-| VAR lab=LABEL SEMI { lab, 0 }
-| VAR lab=LABEL SET i=immediate SEMI { lab, i }
+variable_declaration:
+| VAR name=LABEL ASSIGN e=expr
+    {
+      (make_node $startpos name, e)
+    }
+;
+
+parameter:
+| name=LABEL 
+    {
+      {name = make_node $startpos name; reference = false}
+    }
+
+| ADDRESS name=LABEL
+    {
+      {name = make_node $startpos name; reference = true}
+    }
 ;
 
 function_definition:
-| name=LABEL LP parameters=separated_list(COMMA, LABEL) RP
-    BEGIN locals=list(data_declaration) code=list(terminated_instruction) END
-    { { name; code; parameters; locals } }
+| name=LABEL LP params=separated_list(COMMA, parameter) RP LB b=instructions RB
+    {
+      {name = make_node $startpos name; params; block = b}
+    }
 ;
 
-block:
-| BEGIN seq=list(terminated_instruction) END { seq }
+global_declaration:
+| f=function_definition
+    { Fun f }
+
+| v=variable_declaration SEMI
+    { Var v }
 ;
 
-terminated_instruction:
-| i=instruction SEMI { i }
-| IF LP e=expression RP s1=block ELSE s2=block { If(e, s1, s2) }
-| WHILE LP e=expression RP s=block { While(e, s) }
+instructions:
+| i=instruction SEMI s=instructions 
+    {
+      i::s
+    }
+
+| c=control s=instructions
+| c=control SEMI s=instructions
+    {
+      c::s
+    }
+
+| control COLON instructions
+| instruction COLON instructions
+    {
+      raise_syntax_error $startpos "Expected ';', found ':'."
+    }
+
+|   { [] }
+;
+
+expr:
+| i=INT 
+    { Int i }
+| b=BOOL 
+    { Bool b }
+| l=l_expr
+    { LStar l }
+| LP e=expr RP
+    { e }
+| e1=expr ADD e2=expr
+    { Binop(e1, Add, e2) }
+| e1=expr SUB e2=expr
+    { Binop(e1, Sub, e2) }
+| e1=expr MULT e2=expr
+    { Binop(e1, Mult, e2) }
+| e1=expr DIV e2=expr
+    { Binop(e1, Div, e2) }
+| e1=expr REM e2=expr
+    { Binop(e1, Rem, e2) }
+| e1=expr AND e2=expr
+    { Binop(e1, And, e2) }
+| e1=expr OR e2=expr
+    { Binop(e1, Or, e2) }
+| e1=expr LT e2=expr
+    { Binop(e1, Lt, e2) }
+| e1=expr LE e2=expr
+    { Binop(e1, Le, e2) }
+| e1=expr GT e2=expr
+    { Binop(e1, Gt, e2) }
+| e1=expr GE e2=expr
+    { Binop(e1, Ge, e2) }
+| e1=expr EQ e2=expr
+    { Binop(e1, Eq, e2) }
+| e1=expr NEQ e2=expr
+    { Binop(e1, Neq, e2) }
+| SUB e=expr
+    { Unop(Minus, e) }
+| CPL e=expr
+    { Unop(Cpl, e) }
+| NOT e=expr
+    { Unop(Not, e) }
+| ADDRESS e=l_expr
+    { e }
+;
+
+l_expr:
+| t=LABEL
+    { Id (make_node $startpos t) }
+| MULT l=expr
+    { l }
 ;
 
 instruction:
-| NOP { Nop }
-| PRINT LP e=expression RP { Print(e) }
-| EXIT { Exit }
-| le=left_expression SET e=expression { Write(le, e) }
-| le=left_expression SET f=left_expression LP args=separated_list(COMMA, expression) RP
-    { Call(le, f, args) }
-| RETURN LP e=expression RP { Return(e) }
+| NOP
+    { Nop }
+| EXIT
+    { Exit }
+| PRINT LP e=expr RP  
+    { Print e }
+| BREAK
+    { 
+      Break (make_node $startpos ())
+    }
+
+| CONTINUE
+    { 
+      Continue (make_node $startpos ())
+    }
+
+| RETURN e=expr
+    { Return e }
+
+| a=assign
+    { a }
+
+| f=l_expr LP args=separated_list(COMMA, expr) RP
+    { Call(f, args) }
+
+| d=l_expr op=assign_binop f=l_expr LP args=separated_list(COMMA, expr) RP
+    { SetCall(d, op, f, args) }
+
+| v=variable_declaration
+    { Declaration v }
 ;
 
-expression:
-| i=immediate { Immediate(i) }
-| le=left_expression { Deref(le) }
-| LP e=expression RP { e }
-| uop=unop e=expression { Unop(uop, e) }
-| e1=expression bop=binop e2=expression { Binop(bop, e1, e2) }
+assign:
+| l=l_expr op=assign_binop e=expr
+    {
+      BinopAssign(l, op, e)
+    }
+
+| l=l_expr op=assign_unop
+    {
+      UnopAssign(l, op)
+    }
 ;
 
-left_expression:
-| l=LABEL { Name(l) }
-| STAR e=expression { e }
+assign_binop:
+| ASSIGN      { Standard }
+| ADDASSIGN   { AddAssign }
+| SUBASSIGN   { SubAssign }
+| MULTASSIGN  { MultAssign }
+| DIVASSIGN   { DivAssign }
 ;
 
-immediate:
-| i=INT  { i }
-| b=BOOL { if b then 1 else 0 }
+assign_unop:
+| INCR        { Incr }
+| DECR        { Decr }
 ;
 
-%inline unop:
-| MINUS { Minus }
-| NOT   { Not   }
+block:
+| i=instruction SEMI
+    { [i] }
+
+| c=control
+    { [c] }
+
+| LB i=instructions RB
+    { i }
 ;
 
-%inline binop:
-| PLUS  { Add  }
-| MINUS { Sub  }
-| STAR  { Mult }
-| SLASH { Div  }
-| PRCT  { Rem  }
-| EQ    { Eq   }
-| NEQ   { Neq  }
-| LT    { Lt   }
-| LE    { Le   }
-| GT    { Gt   }
-| GE    { Ge   }
-| AND   { And  }
-| OR    { Or   }
+init_for:
+| a=assign { a }
+| v=variable_declaration { Declaration v }
+;
+
+control:
+| IF LP e=expr RP b=block %prec NO_ELSE
+    {
+      VARTree.If(e, b)
+    } 
+
+| IF LP c=expr RP t=block ELSE e=block
+    { 
+      IfElse(c, t, e)
+    }
+
+| WHILE LP e=expr RP b=block
+    {
+      While(e, b)
+    }
+
+| FOR LP init=separated_list(COMMA, init_for) SEMI cond=expr SEMI it=separated_list(COMMA, assign) RP b=block
+    {
+      For(init, cond, it, b)
+    }
+
+| WHILE block
+    {
+      raise_syntax_error $startpos "No condition found for 'while'"
+    }
+
+| FOR LP expr SEMI separated_list(COMMA, assign) RP block
+| FOR LP separated_list(COMMA, init_for) SEMI separated_list(COMMA, assign) RP block
+| FOR LP separated_list(COMMA, init_for) SEMI expr RP block
+| FOR LP separated_list(COMMA, init_for) RP block
+    {
+      raise_syntax_error $startpos "Ill-formed 'for' loop"
+    }
+
+| FOR LP expr RP block
+    {
+      raise_syntax_error $startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
+    }
 ;

@@ -152,28 +152,12 @@ expression:
 | SUB e=expression { Unop (Minus,e) }
 | NOT e=expression { Unop (Not,e) }
 | CPL e=expression { Unop (Cpl,e) }
-| ADRESS i=ID {
-  let pos = $startpos in
-  let tag = {
-      line = pos.pos_lnum;
-      column = (pos.pos_cnum - pos.pos_bol);
-      contents = i;
-    } in
-  Id tag
-  }
+| ADRESS e=l_express { e }
 | LP e=expression RP { e }
-| e1=expression ADD e2=expression { 
-  Binop (e1,Add,e2) 
-  }
-| e1=expression SUB e2=expression { 
-  Binop (e1,Sub,e2)
-   }
-| e1=expression DIV e2=expression { 
-  Binop (e1,Div,e2)
-}
-| e1=expression MUL e2=expression { 
-  Binop (e1,Mult,e2)
-   }
+| e1=expression ADD e2=expression { Binop (e1,Add,e2) }
+| e1=expression SUB e2=expression { Binop (e1,Sub,e2) }
+| e1=expression DIV e2=expression { Binop (e1,Div,e2) }
+| e1=expression MUL e2=expression { Binop (e1,Mult,e2) }
 | e1=expression INF e2=expression { 
   Binop (e1,Lt,e2)
    }

@@ -1,16 +1,17 @@
 .text
 
 fill:
+  print(97);
   nop;
   # a l READ ADD l READ 97 ADD WRITE
+  # Alexis: (l READ 97 ADD) (a l READ ADD) WRITE
   *(&a+l) := l + 97;
   nop;
   l := l - 1;
-  print(97);
   jump fill when (l >= 0);
 
-  print(10);
-  l := 0;
+print(10);
+l := 0;
 display:
   nop;
   # a l READ ADD READ PRINT
@@ -19,10 +20,10 @@ display:
   l := l + 1;
   jump display when l <= 25;
 
-  print(10);
-  print(97);
-  print(10);
-  exit;
+print(10);
+print(97);
+print(10);
+exit;
   
 .data
   l: 25

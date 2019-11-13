@@ -13,30 +13,26 @@ main() {
 
 fact(n, fun) {
     if (n <= 1) {
-        return(1);
+        return 1;
     } else {
         i := fact(n - 1, fun);
         i := *fun(i, n);
-        return(i);
+        return i;
     }
 }
 
 fact2(n, &fun) {
     if (n <= 1) {
-        return(1);
+        return 1;
     } else {
         i := fact2(n - 1, &fun);
         i := fun(i, n);
-        return(i);
+        return i;
     }
 }
 
 mult(x, y) {
-    return(x * y);
-}
-
-add(x, y) {
-    return(x + y);
+    return x * y;
 }
 
 .data

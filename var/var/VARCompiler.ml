@@ -1,3 +1,7 @@
+open ARTTree
+open FUNTree
+open VARTree
+
 let input_file = Sys.argv.(1)
 let _ =
   if not (Filename.check_suffix input_file ".var") then
@@ -5,22 +9,26 @@ let _ =
 let input = open_in input_file
 let lexing_buffer = Lexing.from_channel input
 
-let source = VARParser.program VARLexer.token lexing_buffer
-  
-let target_fun = VARtoFUN.translate_program source
-let output_file_fun = (Filename.chop_suffix input_file ".var") ^ ".fun"
-let output_fun = open_out output_file_fun
-let _ = 
-  Printf.fprintf output_fun "%s" (FUN.prog_to_string target_fun)
+let output_file = (Filename.chop_suffix input_file ".var") ^ ".fun"
+let output = open_out output_file
 
-let target_cll = FUNtoCLL.translate_program target_fun
-let output_file_cll = (Filename.chop_suffix input_file ".var") ^ ".cll"
-let output_cll = open_out output_file_cll
-let _ = 
-  Printf.fprintf output_cll "%s" (CLL.prog_to_string target_cll)
-
-let target_imp = CLLtoIMP.translate_program target_cll
-let output_file_imp = (Filename.chop_suffix input_file ".var") ^ ".imp"
-let output_imp = open_out output_file_imp
-let _ = 
-  Printf.fprintf output_imp "%s" (IMP.to_string target_imp)
+let _ =
+  try
+    let source = VARParser.program VARLexer.token lexing_buffer in
+    let target = var_to_fun source in
+    write_fun output target;
+    close_out output;
+    exit 0
+  with
+  | SyntaxError(msg, l, c) -> 
+    Printf.printf "[VAR ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
+    exit 1
+  | UnboundValue(fct, var) ->
+    Printf.printf "[VAR ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
+    exit 1
+  | Failure msg ->
+    Printf.printf "[VAR ERROR] Syntax error. Message:\n%s\n" msg;
+    exit 1
+  | _ ->
+    Printf.printf "[VAR ERROR] Unknown error\n";
+    exit 1
