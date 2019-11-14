@@ -4,10 +4,13 @@ build_asm:
 	ocamlc -I utils/ utils/arith.cmo vm/VM.ml -o vm/VM
 	ocamlc assembler/Assembler.ml -o assembler/Assembler
 
-run_asm: build_asm
+run_asm_inter:
 	@./assembler/Assembler test/$(file).asm
 	@echo "\n\n\nExecuting $(file).btc:"
 	@./vm/VM test/$(file).btc
+
+run_asm: build_asm
+	@$(MAKE) run_asm_inter file=$(file)
 
 build_stk_acc: 
 	@$(MAKE) -s build_asm
@@ -25,9 +28,12 @@ run_stk_acc: build_stk_acc
 	@./stk/STKCompiler test/$(file).stk
 	@$(MAKE) -s run_asm file=$(file)
 
-run_stk: build_stk
+run_stk_inter:
 	@./stk/STKCompilerAlloc test/$(file).stk
 	@$(MAKE) -s run_asm file=$(file)
+
+run_stk: build_stk
+	@$(MAKE) run_stk_inter file=$(file)
 
 build_art: 
 	@$(MAKE) -s build_stk
@@ -109,12 +115,24 @@ run_var: build_var
 	@./var/var/VARCompiler test/$(file).var
 	@$(MAKE) -s run_fun file=$(file)
 
+build_chain_compiler:
+	@$(MAKE) -s build_var
+	ocamlc -o MainCompiler/ChainCompiler -I utils/ -I var/fun -I var/var/ -I var/cll/ \
+	utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
+	utils/ARTTree.cmo var/cll/CLLLexer.cmo var/var/VARLexer.cmo utils/IMPTree.cmo \
+	utils/CLLTree.cmo var/cll/CLLParser.cmo utils/FUNTree.cmo var/fun/FUNParser.cmo \
+	utils/VARTree.cmo var/var/VARParser.cmo \
+	MainCompiler/ChainCompiler.ml
+
+
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
+	rm -rf test/*.btc test/*.asm test/*.stk test/*.cll test/*.fun test/*.imp
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
 	rm -rf test/stk/*.asm test/stk/*.btc a.out
+	rm -rf MainCompiler/*.cmi MainCompiler/*.cmo MainCompiler/ChainCompiler MainCompiler/*.art
 	rm -rf test/art/*.stk test/art/*.asm test/art/*.btc
 	rm -rf test/imp/*.art test/imp/*.stk test/imp/*.asm test/imp/*.btc
 	rm -rf test/cll/*.imp test/cll/*.art test/cll/*.stk test/cll/*.asm test/cll/*.btc
