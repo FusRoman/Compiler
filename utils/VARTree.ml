@@ -307,7 +307,7 @@ let declare_variable acc compiler v e =
   (b, e, a)*)
 
 (* 
-  Extrait les déclarations d'un bloc d'instructions, sans considérer les sous-blocs. 
+  Extrait les déclarations d'un bloc d'instructions, sans considérer les sous-blocs (il reste possible de le faire, assez facilement).
   Renvoie (decl, block) avec block la suite des instructions déjà inversées,
   decl la liste des déclarations trouvées inversées elles aussi.
   Permet d'éviter aux boucles d'éviter de réserver de l'espace pour des variables locales puis de les supprimer
@@ -336,7 +336,7 @@ let rec translate_instruction acc i compiler =
   match i with
   | Nop -> 
     (append acc FUNTree.Nop, compiler)
-    
+
   | Exit -> 
     (append acc Exit, compiler)
 
@@ -398,7 +398,7 @@ let rec translate_instruction acc i compiler =
     let c' = translate_expression c compiler' in
     let (b', compiler') = translate_instructions b_extracted compiler' in
     (* pas de déclaration dans le bloc principal de b_extracted, donc on peut faire dans cet ordre *)
-    let (it', compiler') = translate_instructions it compiler in
+    let (it', compiler') = translate_instructions it compiler' in
     let acc = append acc (For(List.rev init', c', List.rev it', List.rev b')) in
     (quit_block acc compiler', compiler)
 
