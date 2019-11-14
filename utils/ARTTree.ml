@@ -68,28 +68,6 @@ type 'a compiler_type = {
   syntax_tree: 'a
 }
 
-let string_of_binop op = 
-  match op with
-  | Add -> "ADD"
-  | Sub -> "SUB"
-  | Mult -> "MULT"
-  | Div -> "DIV"
-  | Rem -> "REM"
-  | Eq -> "EQ"
-  | Neq -> "NEQ"
-  | Lt -> "LT"
-  | Le -> "LE"
-  | Gt -> "GT"
-  | Ge -> "GE"
-  | And -> "AND"
-  | Or -> "OR"
-
-let string_of_unop op =
-  match op with
-  | Minus -> "MINUS"
-  | Not -> "NOT"
-  | Cpl -> "CPL"
-
 let binop_fun op =
   match op with
   | Add -> Arith.add
@@ -111,6 +89,28 @@ let unop_fun op =
   | Minus -> Arith.minus
   | Not -> Arith.anot
   | Cpl -> Arith.cpl
+
+let string_of_binop op = 
+  match op with
+  | Add -> "+"
+  | Sub -> "-"
+  | Mult -> "*"
+  | Div -> "/"
+  | Rem -> "%"
+  | Eq -> "=="
+  | Neq -> "!="
+  | Lt -> "<"
+  | Le -> "<="
+  | Gt -> ">"
+  | Ge -> ">="
+  | And -> "&&"
+  | Or -> "||"
+
+let string_of_unop op =
+  match op with
+  | Minus -> "-"
+  | Not -> "!"
+  | Cpl -> "~"
 
 let rec check_expression e tag_set =
   match e with
@@ -197,15 +197,37 @@ let check_stack_pointer t line column =
   if t = "stack_pointer" then
     raise (SyntaxError ("'stack_pointer' is a reserved tag and can not be declared.", line, column))
 
+let string_of_binop_direct op = 
+  match op with
+  | Add -> "ADD"
+  | Sub -> "SUB"
+  | Mult -> "MULT"
+  | Div -> "DIV"
+  | Rem -> "REM"
+  | Eq -> "EQ"
+  | Neq -> "NEQ"
+  | Lt -> "LT"
+  | Le -> "LE"
+  | Gt -> "GT"
+  | Ge -> "GE"
+  | And -> "AND"
+  | Or -> "OR"
+
+let string_of_unop_direct op =
+  match op with
+  | Minus -> "MINUS"
+  | Not -> "NOT"
+  | Cpl -> "CPL"
+
 let rec compile_exprs file tag_set e =
   match e with
   | Int i -> fprintf file "%s\n" (string_of_int i)
   | Bool b -> fprintf file "%s\n" (string_of_int (int_of_bool b))
   | Binop (e1,op,e2) -> compile_exprs file tag_set e1;
     compile_exprs file tag_set e2;
-    fprintf file "%s\n" (string_of_binop op)
+    fprintf file "%s\n" (string_of_binop_direct op)
   | Unop (op,e) -> compile_exprs file tag_set e;
-    fprintf file "%s\n" (string_of_unop op)
+    fprintf file "%s\n" (string_of_unop_direct op)
 
   | Id {contents = i; line = line; column = column} -> 
     if Tagset.mem i tag_set then
@@ -270,28 +292,6 @@ let rec compile file art =
     fprintf file ".data\n";
     compile_datas file ds
 
-let string_of_binop_direct op = 
-  match op with
-  | Add -> "+"
-  | Sub -> "-"
-  | Mult -> "*"
-  | Div -> "/"
-  | Rem -> "%"
-  | Eq -> "=="
-  | Neq -> "!="
-  | Lt -> "<"
-  | Le -> "<="
-  | Gt -> ">"
-  | Ge -> ">="
-  | And -> "&&"
-  | Or -> "||"
-
-let string_of_unop_direct op =
-  match op with
-  | Minus -> "-"
-  | Not -> "!"
-  | Cpl -> "~"
-
 let rec write_art_right_expr file e =
   match e with
   | Int i -> fprintf file "%d" i
@@ -299,12 +299,12 @@ let rec write_art_right_expr file e =
   | Binop (e1,op,e2) -> 
     fprintf file "(";
     write_art_right_expr file e1;
-    fprintf file " %s " (string_of_binop_direct op);
+    fprintf file " %s " (string_of_binop op);
     write_art_right_expr file e2;
     fprintf file ")"
   | Unop (op,e) -> 
     fprintf file "(";
-    fprintf file "%s" (string_of_unop_direct op); 
+    fprintf file "%s" (string_of_unop op); 
     write_art_right_expr file e;
     fprintf file ")"
   | LStar (Id i) ->

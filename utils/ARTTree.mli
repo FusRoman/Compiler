@@ -80,6 +80,10 @@ val binop_fun : binop -> int -> int -> int
 (** Renvoie la fonction correspondant à l'opérateur unaire donné *)
 val unop_fun : unop -> int -> int
 
+val string_of_binop : binop -> string
+
+val string_of_unop : unop -> string
+
 (** Vérifie qu'une expression n'utilise que des tags définis. *)
 val check_expression : expression -> Tagset.t -> unit
 

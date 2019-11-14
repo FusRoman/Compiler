@@ -3,7 +3,7 @@ main(){
     var t := 0;
     print(97);
     print(10);
-    t := *fact_addr(5);
+    t := *(fact_addr)(5);
     print(t);
     print(10);
     exit;

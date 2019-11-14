@@ -66,12 +66,12 @@
 
 %start program
 %type <VARTree.var_prog ARTTree.compiler_type> program
-%type <string ARTTree.node * ARTTree.expression> variable_declaration
+%type <string ARTTree.node * VARTree.var_expression> variable_declaration
 %type <FUNTree.parameter> parameter;
 %type <VARTree.var_function> function_definition;
 %type <VARTree.var_instrs> instructions
-%type <ARTTree.expression> expr
-%type <ARTTree.expression> l_expr
+%type <VARTree.var_expression> expr
+%type <VARTree.var_expression> l_expr
 %type <VARTree.var_instr> instruction
 %type <VARTree.var_instr> assign
 %type <VARTree.var_instrs> block
@@ -160,7 +160,7 @@ expr:
 | b=BOOL 
     { Bool b }
 | l=l_expr
-    { LStar l }
+    { Deref l }
 | LP e=expr RP
     { e }
 | e1=expr ADD e2=expr
@@ -197,12 +197,14 @@ expr:
     { Unop(Not, e) }
 | ADDRESS e=l_expr
     { e }
+| f=l_expr LP args=separated_list(COMMA, expr) RP
+    { Call(f, args) }
 ;
 
 l_expr:
 | t=LABEL
     { Id (make_node $startpos t) }
-| MULT l=expr
+| MULT LP l=expr RP (* La grammaire a changé par rapport à FUN pour éviter les ambiguïtés ! *)
     { l }
 ;
 
@@ -230,10 +232,9 @@ instruction:
     { a }
 
 | f=l_expr LP args=separated_list(COMMA, expr) RP
-    { Call(f, args) }
-
-| d=l_expr op=assign_binop f=l_expr LP args=separated_list(COMMA, expr) RP
-    { SetCall(d, op, f, args) }
+    {
+      Call(f, args) 
+    }
 
 | v=variable_declaration
     { Declaration v }

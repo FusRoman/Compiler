@@ -6,7 +6,6 @@ open CLLTree
 open FUNTree
 
 (* A faire :
-  - optimisation des blocs pour les boucles
   - appels dans les expressions
 *)
 
@@ -16,33 +15,31 @@ let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
 let function_result = default_node "function_result"
 
-(*type fun_expr =
+type var_expression =
   | Int of int
   | Bool of bool
   | Id of string node
-  | Address of fun_expr
-  | Deref of fun_expr
-  | Unop of unop * fun_expr
-  | Binop of fun_expr * binop * fun_expr
-  | Call of fun_expr * (fun_expr list)*)
+  | Deref of var_expression
+  | Unop of unop * var_expression
+  | Binop of var_expression * binop * var_expression
+  | Call of var_expression * (var_expression list)
 
-type variable = string node * expression
+type variable = string node * var_expression
 
 type var_instr =
   | Nop
   | Exit
-  | Return of expression
+  | Return of var_expression
   | Break of unit node
   | Continue of unit node
-  | Print of expression
-  | UnopAssign of expression * assign_unop
-  | BinopAssign of expression * assign_binop * expression
-  | IfElse of expression * var_instrs * var_instrs
-  | If of expression * var_instrs
-  | While of expression * var_instrs
-  | For of var_instrs * expression * var_instrs * var_instrs
-  | SetCall of expression * assign_binop * expression * (expression list)
-  | Call of expression * (expression list)
+  | Print of var_expression
+  | UnopAssign of var_expression * assign_unop
+  | BinopAssign of var_expression * assign_binop * var_expression
+  | IfElse of var_expression * var_instrs * var_instrs
+  | If of var_expression * var_instrs
+  | While of var_expression * var_instrs
+  | For of var_instrs * var_expression * var_instrs * var_instrs
+  | Call of var_expression * (var_expression list)
   | Declaration of variable
 
 and var_instrs = var_instr list
@@ -77,8 +74,7 @@ let check_function fct genv =
 
       | Nop | Print _ 
       | UnopAssign _ | BinopAssign _
-      | SetCall _ | Call _
-      | Declaration _ ->
+      | Call _ | Declaration _ ->
         check_rec loop is'
 
       (* La grammaire interdit les exit et les return dans l'en-tête du for *)
@@ -173,46 +169,14 @@ let quit_block acc compiler =
   else
     append acc (FUNTree.BinopAssign(Id stack_pointer, AddAssign, Int compiler.local))
 
-let rec translate_expression e compiler =
-  match e with
-  | Int _ | Bool _ -> e
-  | Id id -> 
-    if Env.mem id.contents compiler.lenv then
-      let index = Env.find id.contents compiler.lenv in
-      Binop(LStar(Id frame_pointer), Sub, Int(index + 2))
-    else if mem id.contents compiler.genv then
-      e
-    else
-    begin
-      printf "Local environment:\n";
-      Env.iter (fun k v -> printf "%s: %d\n" k v) compiler.lenv;
-      raise (UnboundValue(compiler.fct.name, id))
-    end
-  | LStar e -> 
-    LStar(translate_expression e compiler)
-  | Unop(op, e) ->
-    Unop(op, translate_expression e compiler)
-  | Binop(e1, op, e2) ->
-    Binop(translate_expression e1 compiler, op, translate_expression e2 compiler)
-
-let declare_variable acc compiler v e =
-  let e' = translate_expression e compiler in
-  let acc = extend acc FUNTree.[
-    BinopAssign(LStar(Id stack_pointer), Standard, e');
-    UnopAssign(Id stack_pointer, Decr)
-  ] in
-  let compiler = {compiler with
-    local = compiler.local + 1;
-    variables = compiler.variables + 1;
-    lenv = Env.add v.contents compiler.variables compiler.lenv
-  } in
-  (acc, compiler)
-
-(* 
-  Renvoie (b, e, a) avec :
-  - b : les instructions à exécuter avant l'évaluation de l'expression
+(*
+  Renvoie (init, e, compiler) avec :
+  - init : les instructions à exécuter avant l'évaluation de l'expression, dans l'ordre
   - e : l'expression traduite
-  - a : le nombre de variables locales utilisées, autrement dit il faudra faire stack_pointer += a pour les effacer
+  - compiler : l'état du compilateur après l'évaluation de l'expression. 
+    Des variables locales anonymes ont pu être crées lors de l'évaluation de l'expression.
+    On peut vouloir appeler enter_block avant l'évaluation de l'expression pour pouvoir ensuite
+    supprimer ces variables sans affecter le reste du bloc.
 
   Ordre des appels de fonctions :
   On parcourt l'expression en DFS. Le premier appel rencontré sera le premier exécuté.
@@ -221,90 +185,95 @@ let declare_variable acc compiler v e =
 
   Si immediate vaut vrai, le dernier appel de fonction sera remplacée dans e par function_result.
 *)
-(*let translate_expression e fct genv immediate =
-  let nb_params = List.length fct.params in
-
-  (* Remplace les paramètres par le calcul de leur adresse *)
-  let rec translate_id id params i =
-    match params with
-    | [] ->
-      if mem id.contents genv then)
-        ARTTree.Id id
-      else
-        (* Ne devrait jamais arriver puisqu'on vérifie avant *)
-        raise (UnboundValue(fct.name, id))
-    | x::s ->
-      if x = id then
-        Binop(LStar(Id frame_pointer), Add, Int(nb_params - i))
-      else
-        translate_id id s (i+1)
-  in
-
-  (* Gère les appels de fonction. *)
-  and call f args last =
-    let (fb, fe, fa, _) = translate_expr e true in
-    let b, a, _ =
-      List.fold_right (fun e (bacc, aacc) ->
-        let (b, e, a, l) = translate_expr e true in
-        (* stock l'argument dans la pile *)
-        let b = append b (AssignBinop(LStar(Id stack_pointer), Standard, e)) in
-        let b = append b (AssignUnop(Id stack_pointer, Decr)) in 
-        (* Calcul de l'argument puis stockage avant de passer au reste des expressions *)
-        (extend b bacc, a + 1 + aacc)
-      ) (args) (empty_cycle, fa)
-    in
-    let bc = extend fb b in
-    let bc = append b (Call fe) in
-    if last then
-      (* Dernier appel de fonction dans la liste. La valeur de function_result ne devrait pas être écrasée. *)
-      (bc, LStar(Id function_result), a)
+let translate_expression e compiler immediate =
+  let translate_id id compiler =
+    if Env.mem id.contents compiler.lenv then
+      let index = Env.find id.contents compiler.lenv in
+      ARTTree.Binop(LStar(Id frame_pointer), Sub, Int(index + 2))
+    else if mem id.contents compiler.genv then
+      Id id
     else
-      (* 
-        Comment connaître l'adresse de cet argument ?
-        On sait pas où est frame_pointer à partir de stack_pointer
-        stack_pointer peut être modifié au plein milieu d'une instruction
-        return_address va pas nous aider
-        function_result peut être modifié par appel de fonction
-        Donc il faut une nouvelle variable je pense, qui pourra d'ailleurs être utilisée par VAR.
-        Ah oui mais si on faisait tout dans VAR, on n'aurait pas besoin de variables du tout.
-        En tout le nombre de variables locales est 1
-      *)
-      (bc, ..., a + 1)
+      raise (UnboundValue(compiler.fct.name, id))
   in
+
+  (* Gère les appels de fonctions dans les expressions *)
+  let rec call f args compiler last =
+    let (finit, fe, fcompiler, _) = translate_expr f compiler false in
+    let init, args', compiler, _ =
+      List.fold_right (fun e (init_acc, args_acc, compiler, last) ->
+        (* 
+          compiler passe d'abord par le dernier argument. Ce n'est pas grave puisque
+          le seul changement potentiel est la déclaration de variables locales anonymes,
+          qui n'est pas sensible à l'ordre.
+        *)
+        let (b, e, c, l) = translate_expr e compiler last in
+        (* 
+          Le code de b est à l'envers, et bacc aussi 
+          La traduction de e a pu générer des déclarations de variables anonymes
+        *)
+        (init_acc @ b, e::args_acc, c, l)
+      ) args ([], [], fcompiler, true)
+    in
+    (* finit est inversé et init aussi *)
+    let call_init = init @ finit in
+    if last then
+      (* Dernier appel de fonction avant utilisation du résultat ; on peut utiliser function_result directement *)
+      (append call_init (FUNTree.Call(fe, List.rev args')) , LStar(Id function_result), compiler)
+    else
+      (* Sinon on doit déclarer une variables anonyme pour stocker le résultat *)
+      (* Déclaration à l'envers. C'est vraiment le bordel... Je ferais mieux d'utiliser des cycles en interne *)
+      let call_init = FUNTree.[
+        UnopAssign(Id stack_pointer, Decr); 
+        SetCall(LStar(Id stack_pointer), Standard, fe, List.rev args')
+      ] @ call_init in
+      let compiler = {compiler with local = compiler.local + 1; variables = compiler.variables + 1} in
+      (call_init, LStar(Binop(LStar(Id frame_pointer), Sub, Int(compiler.variables + 2))), compiler)
 
   (* 
     e : expression à traduire
     may_be_last : e est susceptible de contenir le dernier appel de fonction
-    Renvoie (b, e, a, l) avec b, e et a comme expliqués avant.
+    Renvoie (b, e, c, l) avec b, e et c comme expliqués avant.
     l vaut true si le dernier appel n'a pas été rencontré.
   *)
-  and translate_expr e may_be_last =
+  and translate_expr e compiler may_be_last =
     match e with
     | Int i -> 
-      (empty_cycle, ARTTree.Int i, 0, may_be_last)
+      ([], ARTTree.Int i, compiler, may_be_last)
     | Bool b -> 
-      (empty_cycle, Bool b, 0, may_be_last)
+      ([], Bool b, compiler, may_be_last)
     | Id id ->
-      (empty_cycle, translate_id fct.params 0, 0, may_be_last)
+      ([], translate_id id compiler, compiler, may_be_last)
     | Deref e ->
-      let (b, e, a, l) = translate_expr e may_be_last in
-      (b, LStar e, a, l)
+      let (b, e, c, l) = translate_expr e compiler may_be_last in
+      (b, LStar e, c, l)
     | Unop(op, e) ->
-      let (b, e, a, l) = translate_expr e may_be_last in
-      (b, Unop(op, e), a, l)
+      let (b, e, c, l) = translate_expr e compiler may_be_last in
+      (b, Unop(op, e), c, l)
     | Binop(e1, op, e2) ->
-      let (b2, e2, a2, l2) = translate_expr e2 may_be_last in
-      let (b1, e1, a1, l1) = translate_expr e1 l2 in
-      (extend b1 b2, Binop(e1, op, e2), a1 + a2, l1 && l2)
-    | Address id ->
-      failwith "not implemented"
+      let (b2, e2, c, l2) = translate_expr e2 compiler may_be_last in
+      let (b1, e1, c, l1) = translate_expr e1 c l2 in
+      (b2 @ b1, Binop(e1, op, e2), c, l1 && l2)
     | Call(f, args) ->
-      let lol = call f args may_be_last in
-      (, , , false)
+      let (init, e, c) = call f args compiler may_be_last in
+      (init, e, c, false)
   in
 
-  let (b, e, a, _) = translate_expr e immediate in
-  (b, e, a)*)
+  let (b, e, c, _) = translate_expr e compiler immediate in
+  (List.rev b, e, c)
+
+let declare_variable acc compiler v e =
+  let (init, e', c) = translate_expression e compiler true in
+  let acc = extend acc init in
+  let acc = extend acc FUNTree.[
+    BinopAssign(LStar(Id stack_pointer), Standard, e');
+    UnopAssign(Id stack_pointer, Decr)
+  ] in
+  let c = {c with
+    local = compiler.local + 1;
+    variables = compiler.variables + 1;
+    lenv = Env.add v.contents compiler.variables compiler.lenv
+  } in
+  (acc, c)
 
 (* 
   Extrait les déclarations d'un bloc d'instructions, sans considérer les sous-blocs (il reste possible de le faire, assez facilement).
@@ -349,45 +318,54 @@ let rec translate_instruction acc i compiler =
     (append acc (Continue n), compiler)
 
   | Return e ->
-    let e' = translate_expression e compiler in
-    let acc = quit_block acc compiler in
+    let (init, e', c) = translate_expression e compiler true in
+    let acc = extend acc init in
+    let acc = quit_block acc c in
     (append acc (Return e'), compiler)
 
   | Print e ->
-    let e' = translate_expression e compiler in
-    (append acc (Print e'), compiler)
+    let (init, e', c) = translate_expression e compiler true in
+    let acc = extend acc init in
+    (append acc (Print e'), c)
 
   | BinopAssign(e1, op, e2) -> 
-    let e1' = translate_expression e1 compiler in
-    let e2' = translate_expression e2 compiler in
-    (append acc (BinopAssign(e1', op, e2')), compiler)
+    let (init1, e1', c)  = translate_expression e1 compiler false in
+    let (init2, e2', c) = translate_expression e2 c true in
+    let acc = extend acc (init1 @ init2) in
+    (append acc (BinopAssign(e1', op, e2')), c)
 
   | UnopAssign(e, op) -> 
-    let e' = translate_expression e compiler in
-    (append acc (UnopAssign(e', op)), compiler)
+    let (init, e', c) = translate_expression e compiler true in
+    let acc = extend acc init in
+    (append acc (UnopAssign(e', op)), c)
 
   | If(e, i) -> 
-    let e' = translate_expression e compiler in
-    let (i', compiler') = translate_instructions i compiler in
-    let i' = List.rev (quit_block i' compiler') in
-    (append acc (If(e', i')), compiler)
+    let (init, e', c) = translate_expression e compiler true in
+    let ci = enter_block c in
+    let (i', ci) = translate_instructions i ci in
+    let i' = List.rev (quit_block i' ci) in
+    let acc = extend acc init in
+    (append acc (If(e', i')), c)
 
   | IfElse(e, i1, i2) -> 
-    let e' = translate_expression e compiler in
-    let (i1', compiler1) = translate_instructions i1 compiler in
-    let i1' = List.rev (quit_block i1' compiler1) in
-    let (i2', compiler2) = translate_instructions i2 compiler in
-    let i2' = List.rev (quit_block i2' compiler2) in
-    (append acc (IfElse(e', i1', i2')), compiler)
+    let (init, e', c) = translate_expression e compiler true in
+    let ci = enter_block c in
+    let (i1', ci1) = translate_instructions i1 ci in
+    let i1' = List.rev (quit_block i1' ci1) in
+    let (i2', ci2) = translate_instructions i2 ci in
+    let i2' = List.rev (quit_block i2' ci2) in
+    let acc = extend acc init in
+    (append acc (IfElse(e', i1', i2')), c)
 
   | While(e, b) -> 
-    let e' = translate_expression e compiler in
+    let (init, e', c) = translate_expression e compiler true in
     let (decl, b_extracted) = extract_declarations b in
-    let (decl', compiler') = translate_instructions decl compiler in
-    let (b_fun, compiler') = translate_instructions b_extracted compiler' in
-    let acc = decl' @ acc in
+    let (decl, c) = translate_instructions decl c in
+    let (b_fun, c) = translate_instructions b_extracted c in
+    let acc = extend acc init in
+    let acc = decl @ acc in
     let acc = append acc (While(e', List.rev b_fun)) in
-    (quit_block acc compiler', compiler)
+    (quit_block acc c, compiler)
 
   | For (init, c, it, b) ->
     (* init est déjà placé en-dehors de la boucle par IMP ; il n'y a aucun problème à le traduire directement
@@ -395,30 +373,19 @@ let rec translate_instruction acc i compiler =
     let (decl, b_extracted) = extract_declarations b in
     let init = init @ decl in
     let (init', compiler') = translate_instructions init compiler in
-    let c' = translate_expression c compiler' in
+    let (initc, c', compiler') = translate_expression c compiler' false in
     let (b', compiler') = translate_instructions b_extracted compiler' in
     (* pas de déclaration dans le bloc principal de b_extracted, donc on peut faire dans cet ordre *)
     let (it', compiler') = translate_instructions it compiler' in
-    let acc = append acc (For(List.rev init', c', List.rev it', List.rev b')) in
+    (* Ca risque pas de bien compiler comme ça. Il faut garder que les affectations, pas les allocations dans initc et rajouter ça à b *)
+    let acc = append acc (For(List.rev (initc @ init'), c', List.rev it', List.rev b')) in
     (quit_block acc compiler', compiler)
 
-  | SetCall(d, op, e, args) ->
-    let d' = translate_expression d compiler in
-    let e' = translate_expression e compiler in
-    let args' = List.fold_right (fun e acc -> 
-      (translate_expression e compiler)::acc
-    ) args [] in
-    (append acc (SetCall(d', op, e', args')), compiler)
-
   | Call(e, args) ->
-    let e' = translate_expression e compiler in
-    let args' = List.fold_right (fun e acc -> 
-      (translate_expression e compiler)::acc
-    ) args [] in
-    (append acc (Call(e', args')), compiler)
+    let (init, _, c) = translate_expression (Call(e, args)) compiler true in
+    (extend acc init, c)
 
   | Declaration(id, e) ->
-    printf "Adding variable %s\n" id.contents;
     declare_variable acc compiler id e
     
 and translate_instructions is compiler =
@@ -451,8 +418,7 @@ let translate_global_declaration fct_acc data_acc init_acc decl main genv =
     | Bool b -> 
       (fct_acc, (v, Arith.int_of_bool b)::data_acc, init_acc)
     | _ ->
-      let e' = translate_expression e (global_compiler genv) in
-      let init_acc = append init_acc (BinopAssign(Id v, Standard, e')) in
+      let init_acc = append init_acc (BinopAssign(Id v, Standard, e)) in
       (fct_acc, (v, 0)::data_acc, init_acc)
 
 let var_to_fun var =
@@ -481,20 +447,75 @@ let write_tabs file depth =
     fprintf file "\t"
   done
 
+let rec write_args file args =
+  match args with
+  | [] -> ()
+  | x::[] ->
+    write_var_right_expr file x
+  | x::y::s ->
+    write_var_right_expr file x;
+    write_args file (y::s)
+
+and write_var_right_expr file e =
+  match e with
+  | Int i -> 
+    fprintf file "%d" i
+  | Bool b -> 
+    fprintf file "%b" b
+  | Binop(e1, op, e2) -> 
+    fprintf file "(";
+    write_var_right_expr file e1;
+    fprintf file " %s " (string_of_binop op);
+    write_var_right_expr file e2;
+    fprintf file ")"
+  | Unop(op, e) -> 
+    fprintf file "(";
+    fprintf file "%s" (string_of_unop op); 
+    write_var_right_expr file e;
+    fprintf file ")"
+  | Deref(Id i) ->
+    fprintf file "%s" i.contents
+  | Id i ->
+    fprintf file "(&%s)" i.contents
+  | Deref e -> 
+    fprintf file "*(";
+    write_var_right_expr file e;
+    fprintf file ")"
+  | Call(f, args) ->
+    write_var_right_expr file f;
+    fprintf file "(";
+    write_args file args;
+    fprintf file ")"
+
+let write_var_left_expr file e =
+  match e with
+  | Id i ->
+    fprintf file "%s" i.contents
+  | Deref(Id i) ->
+    fprintf file "*(%s)" i.contents
+  | Deref e ->
+    fprintf file "*(*(";
+    write_var_right_expr file e;
+    fprintf file "))"
+  | _ ->
+    fprintf file "*(";
+    write_var_right_expr file e;
+    fprintf file ")"
+
 let write_assign file i =
   match i with
   | UnopAssign(e, op) ->
-    write_art_left_expr file e;
+    write_var_left_expr file e;
     fprintf file "%s" (string_of_assign_unop op)
   | BinopAssign(d, op, e) ->
-    write_art_left_expr file d;
+    write_var_left_expr file d;
     fprintf file " %s " (string_of_assign_binop op);
-    write_art_right_expr file e
+    write_var_right_expr file e
   | Declaration(v, e) ->
     fprintf file "var %s := " v.contents;
-    write_art_right_expr file e
+    write_var_right_expr file e
   | _ ->
-    failwith "FUNTree.write_assign: not an assignment"
+    failwith "VARTree.write_assign: not an assignment"
 
 let rec write_assigns file is =
   match is with
@@ -509,11 +530,11 @@ let rec write_assigns file is =
 let rec write_args file args =
   match args with
   | x::y::s ->
-    write_art_right_expr file x;
+    write_var_right_expr file x;
     fprintf file ", ";
     write_args file (y::s)
   | x::[] ->
-    write_art_right_expr file x
+    write_var_right_expr file x
   | [] -> ()
 
 let rec write_params file params =
@@ -538,11 +559,11 @@ let rec write_instruction file i depth =
     fprintf file "exit;\n"
   | Print e ->
     fprintf file "print(";
-    write_art_right_expr file e;
+    write_var_right_expr file e;
     fprintf file ");\n"
   | Return e ->
     fprintf file "return(";
-    write_art_right_expr file e;
+    write_var_right_expr file e;
     fprintf file ");\n"
   | Break _ ->
     fprintf file "break;\n"
@@ -553,7 +574,7 @@ let rec write_instruction file i depth =
     fprintf file ";\n"
   | IfElse(c, t, e) ->
     fprintf file "if (";
-    write_art_right_expr file c;
+    write_var_right_expr file c;
     fprintf file ") {\n";
     write_instructions file t (depth + 1);
     write_tabs file depth;
@@ -563,14 +584,14 @@ let rec write_instruction file i depth =
     fprintf file "}\n"
   | If(c, t) ->
     fprintf file "if (";
-    write_art_right_expr file c;
+    write_var_right_expr file c;
     fprintf file ") {\n";
     write_instructions file t (depth + 1);
     write_tabs file depth;
     fprintf file "}\n"
   | While(c, b) ->
     fprintf file "while (";
-    write_art_right_expr file c;
+    write_var_right_expr file c;
     fprintf file ") {\n";
     write_instructions file b (depth + 1);
     write_tabs file depth;
@@ -579,7 +600,7 @@ let rec write_instruction file i depth =
     fprintf file "for (";
     write_assigns file init;
     fprintf file "; ";
-    write_art_right_expr file c;
+    write_var_right_expr file c;
     fprintf file "; ";
     write_assigns file it;
     fprintf file ") {\n";
@@ -587,20 +608,13 @@ let rec write_instruction file i depth =
     write_tabs file depth;
     fprintf file "}\n";
   | Call(f, args) ->
-    write_art_left_expr file f;
-    fprintf file "(";
-    write_args file args;
-    fprintf file ");\n"
-  | SetCall(d, op, f, args) ->
-    write_art_left_expr file d;
-    fprintf file " %s " (string_of_assign_binop op);
-    write_art_left_expr file f;
+    write_var_left_expr file f;
     fprintf file "(";
     write_args file args;
     fprintf file ");\n"
   | Declaration(v, e) ->
     fprintf file "var %s := " v.contents;
-    write_art_right_expr file e;
+    write_var_right_expr file e;
     fprintf file ";\n"
 
 and write_instructions file is depth =
@@ -617,6 +631,6 @@ let write_var file var =
       fprintf file "}\n\n"
     | Var(v, e) ->
       fprintf file "var %s := " v.contents;
-      write_art_right_expr file e;
+      write_var_right_expr file e;
       fprintf file ";\n"
   ) var.syntax_tree

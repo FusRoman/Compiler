@@ -5,7 +5,7 @@ main(){
     var add_addr := &add;
     print(97);
     print(10);
-    t := *fact_addr(5, mult_addr);
+    t := *(fact_addr)(5, mult_addr);
     print(t);
     print(10);
     t := fact2(5, &mult);
@@ -34,7 +34,7 @@ fact2(n, fun) {
     } else {
         var i := 0;
         i := fact(n - 1, fun);
-        i := *fun(i, n);
+        i := *(fun)(i, n);
         return i;
     }
 }

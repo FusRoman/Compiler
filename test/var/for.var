@@ -1,4 +1,6 @@
 main() {
+  var n := 97;
+
   for (var i := 97, var j := i + 1; i < 121; i += 3, j := i + 1) {
     var k := i + 2;
     print(i);
@@ -15,6 +17,9 @@ main() {
     print(10);
     i += 2;
   }
+
+  print(n);
+  print(10);
 
   exit;
 }

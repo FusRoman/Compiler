@@ -6,34 +6,32 @@ open FUNTree
 (** VAR ne définit aucune nouvelle variable par rapport à FUN *)
 val var_variables : Tagset.t
 
-(*type fun_expr =
+type var_expression =
   | Int of int
   | Bool of bool
   | Id of string node
-  | Address of fun_expr
-  | Deref of fun_expr
-  | Unop of unop * fun_expr
-  | Binop of fun_expr * binop * fun_expr
-  | Call of fun_expr * (fun_expr list)*)
+  | Deref of var_expression
+  | Unop of unop * var_expression
+  | Binop of var_expression * binop * var_expression
+  | Call of var_expression * (var_expression list)
 
-type variable = string node * expression
+type variable = string node * var_expression
 
 (** Instructions en VAR *)
 type var_instr =
   | Nop
   | Exit
-  | Return of expression
+  | Return of var_expression
   | Break of unit node
   | Continue of unit node
-  | Print of expression
-  | UnopAssign of expression * assign_unop
-  | BinopAssign of expression * assign_binop * expression
-  | IfElse of expression * var_instrs * var_instrs
-  | If of expression * var_instrs
-  | While of expression * var_instrs
-  | For of var_instrs * expression * var_instrs * var_instrs
-  | SetCall of expression * assign_binop * expression * (expression list)
-  | Call of expression * (expression list)
+  | Print of var_expression
+  | UnopAssign of var_expression * assign_unop
+  | BinopAssign of var_expression * assign_binop * var_expression
+  | IfElse of var_expression * var_instrs * var_instrs
+  | If of var_expression * var_instrs
+  | While of var_expression * var_instrs
+  | For of var_instrs * var_expression * var_instrs * var_instrs
+  | Call of var_expression * (var_expression list)
   | Declaration of variable
 
 and var_instrs = var_instr list
@@ -54,5 +52,9 @@ type var_prog = global_declaration list
 (*val check_fun_expression : fun_expr -> function_definition -> Tagset.t -> Tagset.t -> unit*)
 
 val var_to_fun : var_prog compiler_type -> fun_prog compiler_type
+
+val write_var_right_expr : out_channel -> var_expression -> unit
+
+val write_var_left_expr : out_channel -> var_expression -> unit
 
 val write_var : out_channel -> var_prog compiler_type -> unit
