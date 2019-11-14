@@ -129,7 +129,7 @@ clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
 	rm -rf utils/*.cmi utils/*.cmo utils/*.cmx utils/*.o
 	rm -rf vm/*.byte vm/*.cmo vm/*.cmi vm/VM
-	rm -rf test/*.btc test/*.asm test/*.stk
+	rm -rf test/*.btc test/*.asm test/*.stk test/*.cll test/*.fun test/*.imp
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
 	rm -rf test/stk/*.asm test/stk/*.btc a.out
 	rm -rf MainCompiler/*.cmi MainCompiler/*.cmo MainCompiler/ChainCompiler MainCompiler/*.art
