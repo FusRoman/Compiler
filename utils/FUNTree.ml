@@ -189,8 +189,11 @@ let stack_args args fct genv acc =
     append acc' (UnopAssign(Id stack_pointer, Decr))
   ) acc args
 
-let incr_sp a =
-  BinopAssign(Id stack_pointer, AddAssign, Int a)
+let incr_sp acc a =
+  if a <> 0 then
+    append acc (CLLTree.BinopAssign(Id stack_pointer, AddAssign, Int a))
+  else
+    acc
 
 let rec translate_instruction i fct genv acc =
   match i with
@@ -248,12 +251,14 @@ let rec translate_instruction i fct genv acc =
     let e' = translate_expression e fct genv in
     let acc = stack_args args fct genv acc in
     let acc = append acc (Call e') in
-    append acc (BinopAssign(d', op, LStar(Id function_result)))
+    let acc = append acc (BinopAssign(d', op, LStar(Id function_result))) in
+    incr_sp acc (List.length args)
 
   | Call(e, args) ->
     let e' = translate_expression e fct genv in
     let acc = stack_args args fct genv acc in
-    append acc (Call e')
+    let acc = append acc (Call e') in
+    incr_sp acc (List.length args)
     
 and translate_instructions is fct genv =
   List.fold_left (fun acc i ->
