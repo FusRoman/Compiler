@@ -125,6 +125,13 @@ let rec iter q f acc =
   else
     acc
 
+let rec to_list q =
+  if count_1 q then
+    let (x, q') = take q in
+    x::(to_list q')
+  else
+    []
+
 let map q f =
   let rec map_rec q f acc =
     if count_1 q then

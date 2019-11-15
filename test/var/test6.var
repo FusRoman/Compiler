@@ -5,15 +5,22 @@ main(){
     var add_addr := &add;
     print(97);
     print(10);
+
+    # x
     t := *(fact_addr)(5, mult_addr);
     print(t);
     print(10);
+
+    # x
     t := fact2(5, &mult);
     print(t);
     print(10);
+
+    # k
     t := fact(4, add_addr);
     print(t+97);
     print(10);
+    
     exit;
 }
 

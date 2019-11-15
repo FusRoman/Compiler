@@ -53,8 +53,11 @@ val take_last : 'a cycle -> 'a * ('a cycle)
 (** Renvoie le dernier élément et le place au début *)
 val turn_last : 'a cycle -> 'a * ('a cycle)
 
-(* Itère sur un cycle, dans l'ordre *)
+(** Itère sur un cycle, dans l'ordre *)
 val iter : 'a cycle -> ('a -> 'b -> 'b) -> 'b -> 'b
 
-(* 'map c f' applique f sur tous les éléments de f successivement et renvoie le cycle formé des résultats *)
+(* Renvoie un cycle en tant que liste *)
+val to_list : 'a cycle -> 'a list
+
+(** 'map c f' applique f sur tous les éléments de f successivement et renvoie le cycle formé des résultats *)
 val map : 'a cycle -> ('a -> 'b) -> 'b cycle

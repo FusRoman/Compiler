@@ -1,0 +1,9 @@
+main() {
+  for (i := 97; i < 123; i++)
+    print(i);
+  print(10);
+  exit;
+}
+
+.data
+  i: 0

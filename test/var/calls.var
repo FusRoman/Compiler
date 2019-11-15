@@ -1,0 +1,21 @@
+var i := init();
+
+init() {
+  return 97;
+}
+
+succ(n) {
+  return n + 1;
+}
+
+main() {
+  print(succ(i));
+  if (true)
+    print(succ(9));
+
+  for (i := 97; i < 123; i := succ(i))
+    print(i);
+  print(10);
+
+  exit;
+}

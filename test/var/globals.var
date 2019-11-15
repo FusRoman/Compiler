@@ -1,0 +1,15 @@
+var i := true;
+var j := 45;
+var k := j + 52;
+
+main() {
+  if (i)
+    print(k);
+  print(l);
+  print(m);
+  print(10);
+  exit;
+}
+
+var l := 98;
+var m := l + 1;

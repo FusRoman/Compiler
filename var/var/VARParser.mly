@@ -67,13 +67,12 @@
 %start program
 %type <VARTree.var_prog ARTTree.compiler_type> program
 %type <string ARTTree.node * VARTree.var_expression> variable_declaration
-%type <FUNTree.parameter> parameter;
-%type <VARTree.var_function> function_definition;
+%type <FUNTree.parameter> parameter
+%type <VARTree.var_function> function_definition
 %type <VARTree.var_instrs> instructions
 %type <VARTree.var_expression> expr
 %type <VARTree.var_expression> l_expr
 %type <VARTree.var_instr> instruction
-%type <VARTree.var_instr> assign
 %type <VARTree.var_instrs> block
 %type <VARTree.var_instr> control
 
@@ -95,7 +94,7 @@ program:
 
 | error
     { 
-      raise_syntax_error $startpos "FUN program structure: list of function declarations .data <declarations>" 
+      raise_syntax_error $startpos "Syntax error" 
     }
 ;
 
@@ -228,19 +227,6 @@ instruction:
 | RETURN e=expr
     { Return e }
 
-| a=assign
-    { a }
-
-| f=l_expr LP args=separated_list(COMMA, expr) RP
-    {
-      Call(f, args) 
-    }
-
-| v=variable_declaration
-    { Declaration v }
-;
-
-assign:
 | l=l_expr op=assign_binop e=expr
     {
       BinopAssign(l, op, e)
@@ -250,6 +236,14 @@ assign:
     {
       UnopAssign(l, op)
     }
+
+| f=l_expr LP args=separated_list(COMMA, expr) RP
+    {
+      Call(f, args) 
+    }
+
+| v=variable_declaration
+    { Declaration v }
 ;
 
 assign_binop:
@@ -276,11 +270,6 @@ block:
     { i }
 ;
 
-init_for:
-| a=assign { a }
-| v=variable_declaration { Declaration v }
-;
-
 control:
 | IF LP e=expr RP b=block %prec NO_ELSE
     {
@@ -297,26 +286,8 @@ control:
       While(e, b)
     }
 
-| FOR LP init=separated_list(COMMA, init_for) SEMI cond=expr SEMI it=separated_list(COMMA, assign) RP b=block
+| FOR LP init=separated_list(COMMA, instruction) SEMI cond=expr SEMI it=separated_list(COMMA, instruction) RP b=block
     {
       For(init, cond, it, b)
-    }
-
-| WHILE block
-    {
-      raise_syntax_error $startpos "No condition found for 'while'"
-    }
-
-| FOR LP expr SEMI separated_list(COMMA, assign) RP block
-| FOR LP separated_list(COMMA, init_for) SEMI separated_list(COMMA, assign) RP block
-| FOR LP separated_list(COMMA, init_for) SEMI expr RP block
-| FOR LP separated_list(COMMA, init_for) RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop"
-    }
-
-| FOR LP expr RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
     }
 ;

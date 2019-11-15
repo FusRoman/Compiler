@@ -5,14 +5,6 @@ open ARTTree
 open IMPTree
 open CLLTree
 
-(*
-  - calcul des adresses (je sais pas ce que ça représente exactement)
-  - passage par référence (pareil)
-
-  Après ça VAR devrait être facile.
-  Y aura le truc avec les déclarations dans le for qui devrait être chiant cela dit.
-*)
-
 exception UnboundValue of (string node) * (string node)
 
 let fun_variables = add "function_result" cll_variables
@@ -293,8 +285,23 @@ let write_tabs file depth =
     fprintf file "\t"
   done
 
-let write_assign file i =
+(* On accepte aussi les appels de fonction pour simplifier VAR *)
+let rec write_assign file i =
   match i with
+  | Nop -> 
+    fprintf file "nop"
+  | Exit -> 
+    fprintf file "exit"
+  | Print e ->
+    fprintf file "print(";
+    write_art_right_expr file e;
+    fprintf file ")"
+  | Return e ->
+    fprintf file "return(";
+    write_art_right_expr file e;
+    fprintf file ")"
+  | Break _ ->
+    fprintf file "break"
   | UnopAssign(e, op) ->
     write_art_left_expr file e;
     fprintf file "%s" (string_of_assign_unop op)
@@ -302,10 +309,22 @@ let write_assign file i =
     write_art_left_expr file d;
     fprintf file " %s " (string_of_assign_binop op);
     write_art_right_expr file e
+  | Call(f, args) ->
+    write_art_left_expr file f;
+    fprintf file "(";
+    write_args file args;
+    fprintf file ")"
+  | SetCall(d, op, f, args) ->
+    write_art_left_expr file d;
+    fprintf file " %s " (string_of_assign_binop op);
+    write_art_left_expr file f;
+    fprintf file "(";
+    write_args file args;
+    fprintf file ")"
   | _ ->
-    failwith "FUNTree.write_assign: not an assignment"
+    failwith "FUNTree.write_assign: while writing the header of a for loop, found a control block"
 
-let rec write_assigns file is =
+and write_assigns file is =
   match is with
   | x::y::s ->
     write_assign file x;
@@ -315,7 +334,7 @@ let rec write_assigns file is =
     write_assign file x
   | [] -> ()
 
-let rec write_args file args =
+and write_args file args =
   match args with
   | x::y::s ->
     write_art_right_expr file x;
@@ -325,7 +344,7 @@ let rec write_args file args =
     write_art_right_expr file x
   | [] -> ()
 
-let rec write_params file params =
+and write_params file params =
   match params with
   | x::y::s ->
     if x.reference then
@@ -338,7 +357,7 @@ let rec write_params file params =
     fprintf file "%s" x.name.contents
   | [] -> ()
 
-let rec write_instruction file i depth =
+and write_instruction file i depth =
   write_tabs file depth;
   match i with
   | Nop -> 

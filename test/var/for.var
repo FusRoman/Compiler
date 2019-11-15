@@ -1,6 +1,7 @@
 main() {
   var n := 97;
 
+  # Alphabet de a à x, 3 par 3
   for (var i := 97, var j := i + 1; i < 121; i += 3, j := i + 1) {
     var k := i + 2;
     print(i);
@@ -9,6 +10,7 @@ main() {
     print(10);
   }
 
+  # Alphabet, 2 par 2
   var i := 97;
   while (i < 122) {
     var j := i + 1;
@@ -17,9 +19,35 @@ main() {
     print(10);
     i += 2;
   }
+  print(10);
 
+  # a
+  var i := 98;
+  if (true) {
+    var j := 97;
+    print(j);    
+  } else {
+    var j := 98;
+    print(j);
+  }
+
+  # c\n
+  var i := 99;
+  print(i);
+  print(10);
+
+  # d
+  test(&i);
+  print(i);
+
+  # a\n
   print(n);
   print(10);
 
   exit;
+}
+
+test(&i) {
+  i := 100;
+  return 0;
 }

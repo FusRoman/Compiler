@@ -46,20 +46,8 @@ let string_of_assign_unop op =
   | Decr -> "--"
 
 let for_to_while init cond it block =
-  let rec append_assign assigns acc =
-    if assigns = Cycle.empty_cycle then
-      acc
-    else
-      let (a, s) = Cycle.take assigns in
-      match a with
-      | Assign(l, e) ->
-        append_assign s (Cycle.append acc a) 
-      | _ ->
-        failwith "for_to_while: only assignments are allowed in init and it"
-  in
-  let result = append_assign init Cycle.empty_cycle in
-  let block' = append_assign it block in
-  Cycle.append result (While(cond, block'))
+  let block' = Cycle.extend block it in
+  Cycle.append init (While(cond, block'))
 
 let to_cycle i =
   Cycle.from_elt i

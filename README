@@ -1,12 +1,59 @@
-Ca s'appelle README mais c'est absolument inintéressant.
+Organisation des fichiers :
+  Chaque langage dispose d'un dossier propre (CLL, FUN et VAR sont tous dans un dossier différent de var/).
+  Ces dossiers contiennent le lexer, le parser et le compilateur.
+  Cependant, la part la plus importante du code se trouve dans le dossier utils/ qui contient non seulement
+  des modules comme Tagset et Cycle souvent utilisés, mais aussi les arbres de syntaxe des langages et des 
+  fonctions pour les traduire en un autre langage, les écrire dans un fichier, etc.
+  Le dossier test contient divers programmes pour chacun des langages.
 
-Bugs et trucs à faire
 
-STK : 
-    - l'algorithme bizarre
-    - Les gros nombres (et petits probablement) sont soit mal interprétés par la VM, soit mal stockés par l'assembleur. Dans tous les cas, dans cte.stk, la valeur de h est lue comme -98. Pris en hexadécimal, ce nombre correspond à sa valeur attendue mais avec le bit de second plus grand poids à 1.
+Comment utiliser le makefile :
+  Pour chaque langage :
+    - build_<langage>
+      Compile tous les programmes OCaml nécessaires à la compilation d'un programme du langage désiré.
+    - run_<langage> file=<fichier de test>
+      Appelle la commande build correspondante, réalise la compilation du <fichier de test> vers le 
+      bytecode, et l'exécute avec la VM. Le programme doit se trouver dans test/ et l'extension ne doit 
+      pas être précisée.
 
-IMP :
-    - Ouille, va falloir virer toutes les optimisations sur les conditions et les boucles.
-    Sinon ça va mal se passer avec la gestion de stack_pointer. Ah en fait pas forcément... C'est juste qu'on s'amuse à faire des trucs avec stack_pointer et des procédures qu'on pourrait éviter.
+  Commandes spéciales :
+    - clear
+      Supprime tous les fichiers de compilation de façon à ne garder que le code source, aussi bien
+      pour le code OCaml que pour les fichiers test.
+    - build_chain_compiler
+      Un compilateur plus efficace (voir paragraphe suivant). Malheureusement il semble que mon binôme
+      ait mal pushé son travail sur GitHub, j'ai donc les modifications du makefile mais pas le programme
+      lui⁻même...
 
+  Pour l'instant, un fichier est parsé, traduit en un arbre de syntaxe lui-même traduit dans le langage
+  précédent. Le résultat est écrit dans un fichier et on répète le procédé jusqu'à arriver au bytecode.
+  Le compilateur chaîné peut passer d'arbre en arbre sans passer par des fichiers, fichiers qu'il peut 
+  écrire lui-même avec la bonne option.
+
+
+Extensions réalisées pour le module CLL / FUN / VAR :
+  - arguments du main pour l'interpréteur VAR
+    Le nombre d'arguments est fixe et pas de la forme argc/argv.
+
+  - références et passage par référence
+    Les références sont implémentées depuis ART. Les passages par référence ont été implémentés en FUN.
+
+  - déclaration des variables au fil de l'eau
+    Notre variante de VAR considère les déclarations de variables locales comme des instructions.
+    Les variables sont automatiquement détruites à la fin d'un bloc.
+    Il est aussi possible de déclarer une variable dans l'en-tête d'une boucle for.
+
+  - appels de fonctions dans les expressions
+    Implémentée en VAR. Pour atteindre ce résultat, VAR réserve de l'espace pour des variables locales
+    anonymes qui stockeront le résultat des appels.
+  
+  - récursion terminale
+    Nous n'avons pas encore implémentée cette optimisation mais c'est la suite logique des appels de 
+    fonctions dans des expressions, puisqu'il est très facile de détecter une instruction de la forme
+    return appel_terminal().
+
+  Pour le rendu du module précédent, nous n'avions pas fait STKCompilerAlloc. Afin de garder notre version
+  des langages, nous l'avons donc réalisé pour ce module puisque c'était nécessaire pour CLL.
+
+  Le programme test/var/calls_in_for.var ne compile pas comme il le devrait. Résoudre ce bug est notre 
+  priorité pour le moment.

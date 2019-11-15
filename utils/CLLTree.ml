@@ -239,6 +239,20 @@ let write_tabs file depth =
 
 let write_assign file i =
   match i with
+  | Nop -> 
+    fprintf file "nop"
+  | Exit -> 
+    fprintf file "exit"
+  | Print e ->
+    fprintf file "print(";
+    write_art_right_expr file e;
+    fprintf file ")"
+  | Return ->
+    fprintf file "return"
+  | Break _ ->
+    fprintf file "break"
+  | Continue _ ->
+    fprintf file "continue"
   | UnopAssign(e, op) ->
     write_art_left_expr file e;
     fprintf file "%s" (string_of_assign_unop op)
@@ -246,9 +260,12 @@ let write_assign file i =
     write_art_left_expr file d;
     fprintf file " %s " (string_of_assign_binop op);
     write_art_right_expr file e
+  | Call f ->
+    write_art_left_expr file f;
+    fprintf file "()"
   | _ ->
-    failwith "IMPTree.write_assign: not an assignment"
-
+    failwith "CLLTree.write_assign: while writing the header of a for loop, found a control block"
+    
 let rec write_assigns file is =
   if count_k is 2 then
   begin

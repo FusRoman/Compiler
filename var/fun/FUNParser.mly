@@ -70,7 +70,6 @@
 %type <ARTTree.expression> expr
 %type <ARTTree.expression> l_expr
 %type <FUNTree.fun_instr> instruction
-%type <FUNTree.fun_instr> assign
 %type <FUNTree.fun_instrs> block
 %type <FUNTree.fun_instr> control
 %type <string ARTTree.node * int> data_declaration
@@ -216,17 +215,6 @@ instruction:
 | RETURN e=expr
     { Return e }
 
-| a=assign
-    { a }
-
-| f=l_expr LP args=separated_list(COMMA, expr) RP
-    { Call(f, args) }
-
-| d=l_expr op=assign_binop f=l_expr LP args=separated_list(COMMA, expr) RP
-    { SetCall(d, op, f, args) }
-;
-
-assign:
 | l=l_expr op=assign_binop e=expr
     {
       BinopAssign(l, op, e)
@@ -236,6 +224,12 @@ assign:
     {
       UnopAssign(l, op)
     }
+
+| f=l_expr LP args=separated_list(COMMA, expr) RP
+    { Call(f, args) }
+
+| d=l_expr op=assign_binop f=l_expr LP args=separated_list(COMMA, expr) RP
+    { SetCall(d, op, f, args) }
 ;
 
 assign_binop:
@@ -278,27 +272,9 @@ control:
       While(e, b)
     }
 
-| FOR LP init=separated_list(COMMA, assign) SEMI cond=expr SEMI it=separated_list(COMMA, assign) RP b=block
+| FOR LP init=separated_list(COMMA, instruction) SEMI cond=expr SEMI it=separated_list(COMMA, instruction) RP b=block
     {
       For(init, cond, it, b)
-    }
-
-| WHILE block
-    {
-      raise_syntax_error $startpos "No condition found for 'while'"
-    }
-
-| FOR LP expr SEMI separated_list(COMMA, assign) RP block
-| FOR LP separated_list(COMMA, assign) SEMI separated_list(COMMA, assign) RP block
-| FOR LP separated_list(COMMA, assign) SEMI expr RP block
-| FOR LP separated_list(COMMA, assign) RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop"
-    }
-
-| FOR LP expr RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
     }
 ;
 

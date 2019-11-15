@@ -52,7 +52,6 @@
 %type <ARTTree.expression> expr
 %type <ARTTree.expression> l_expr
 %type <CLLTree.cll_instr> instruction
-%type <CLLTree.cll_instr> assign
 %type <CLLTree.cll_instrs> block
 %type <CLLTree.cll_instrs> control
 %type <CLLTree.cll_instrs> assigns
@@ -218,11 +217,6 @@ instruction:
       Call l_e
     }
 
-| a=assign
-    { a }
-;
-
-assign:
 | l=l_expr op=assign_binop e=expr
     {
       BinopAssign(l, op, e)
@@ -285,24 +279,16 @@ control:
     {
       raise_syntax_error $startpos "No condition found for 'while'"
     }
-
-| FOR LP expr SEMI assigns RP block
-| FOR LP assigns SEMI assigns RP block
-| FOR LP assigns SEMI expr RP block
-| FOR LP assigns RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop"
-    }
-
-| FOR LP expr RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
-    }
 ;
 
 assigns:
-| a=assign  { Cycle.from_elt a }
-| a=assign COMMA s=assigns { Cycle.prepend s a }
+|   { Cycle.empty_cycle }
+| s=assigns_list { s }
+;
+
+assigns_list:
+| i=instruction { Cycle.from_elt i }
+| i=instruction COMMA s=assigns { Cycle.prepend s i }
 ;
 
 data_declarations:

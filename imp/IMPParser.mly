@@ -51,7 +51,6 @@
 %type <ARTTree.expression> expr
 %type <ARTTree.expression> l_expr
 %type <IMPTree.imp_instr> instruction
-%type <IMPTree.imp_instr> assign
 %type <IMPTree.imp_instrs ARTTree.compiler_type> block
 %type <IMPTree.imp_instrs ARTTree.compiler_type> control
 %type <IMPTree.imp_instrs> assigns
@@ -211,16 +210,6 @@ instruction:
       Continue (make_node $startpos ())
     }
 
-| a=assign
-    { a }
-
-| t=LABEL LP e=l_expr RP
-    {
-      raise_syntax_error $startpos (Printf.sprintf "Unknown instruction '%s'." t)
-    }
-;
-
-assign:
 | l=l_expr op=assign_binop e=expr
     {
       simplify_assign_binop l op e
@@ -229,6 +218,11 @@ assign:
 | l=l_expr op=assign_unop
     {
       simplify_assign_unop l op
+    }
+
+| t=LABEL LP e=l_expr RP
+    {
+      raise_syntax_error $startpos (Printf.sprintf "Unknown instruction '%s'." t)
     }
 ;
 
@@ -309,8 +303,13 @@ control:
 ;
 
 assigns:
-| a=assign  { Cycle.from_elt a }
-| a=assign COMMA s=assigns { Cycle.prepend s a }
+|   { Cycle.empty_cycle }
+| s=assigns_list { s }
+;
+
+assigns_list:
+| i=instruction { Cycle.from_elt i }
+| i=instruction COMMA s=assigns { Cycle.prepend s i }
 ;
 
 data_declarations:

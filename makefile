@@ -12,25 +12,15 @@ run_asm_inter:
 run_asm: build_asm
 	@$(MAKE) run_asm_inter file=$(file)
 
-build_stk_acc: 
-	@$(MAKE) -s build_asm
-	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
-	ocamllex stk/STKCompiler.mll
-	ocamlc -I utils/ utils/cycle.cmo stk/STKCompiler.ml -o stk/STKCompiler
-
 build_stk: 
 	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
 	ocamllex stk/STKCompilerAlloc.mll
 	ocamlc -I utils/ utils/cycle.cmo utils/tagset.cmo stk/STKCompilerAlloc.ml -o stk/STKCompilerAlloc
 
-run_stk_acc: build_stk_acc
-	@./stk/STKCompiler test/$(file).stk
-	@$(MAKE) -s run_asm file=$(file)
-
 run_stk_inter:
 	@./stk/STKCompilerAlloc test/$(file).stk
-	@$(MAKE) -s run_asm file=$(file)
+	@$(MAKE) -s run_asm_inter file=$(file)
 
 run_stk: build_stk
 	@$(MAKE) run_stk_inter file=$(file)
@@ -44,9 +34,12 @@ build_art:
 	ocamlc -c -I art/ art/ARTLexer.ml
 	ocamlc -I utils/ -I art/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml -o art/ARTCompiler
 
-run_art: build_art
+run_art_inter:
 	@./art/ARTCompiler test/$(file).art test/$(file).stk
-	@$(MAKE) -s run_stk file=$(file)
+	@$(MAKE) -s run_stk_inter file=$(file)
+
+run_art: build_art
+	@$(MAKE) -s run_art_inter file=$(file)
 
 build_imp: 
 	@$(MAKE) -s build_art
@@ -57,9 +50,12 @@ build_imp:
 	ocamlc -c -I imp/ imp/IMPLexer.ml
 	ocamlc -I utils/ -I imp/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo imp/IMPLexer.cmo imp/IMPParser.cmo imp/IMPCompiler.ml -o imp/IMPCompiler
 
-run_imp: build_imp
+run_imp_inter:
 	@./imp/IMPCompiler test/$(file).imp
-	@$(MAKE) -s run_art file=$(file)
+	@$(MAKE) -s run_art_inter file=$(file)
+
+run_imp: build_imp
+	@$(MAKE) -s run_imp_inter file=$(file) 
 
 build_var_interpreter:
 	menhir -v interprete_var/VARParser.mly
@@ -85,9 +81,12 @@ build_cll:
 	ocamlc -c -I var/cll/ var/cll/CLLLexer.ml
 	ocamlc -I utils/ -I var/cll/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo var/cll/CLLLexer.cmo var/cll/CLLParser.cmo var/cll/CLLCompiler.ml -o var/cll/CLLCompiler
 
-run_cll: build_cll
+run_cll_inter:
 	@./var/cll/CLLCompiler test/$(file).cll
-	@$(MAKE) -s run_imp file=$(file)
+	@$(MAKE) -s run_imp_inter file=$(file)
+
+run_cll: build_cll
+	@$(MAKE) -s run_cll_inter file=$(file)
 
 build_fun:
 	@$(MAKE) -s build_cll
@@ -98,9 +97,12 @@ build_fun:
 	ocamlc -c -I var/fun/ var/fun/FUNLexer.ml
 	ocamlc -I utils/ -I var/fun/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo var/fun/FUNLexer.cmo var/fun/FUNParser.cmo var/fun/FUNCompiler.ml -o var/fun/FUNCompiler
 
-run_fun: build_fun
+run_fun_inter:
 	@./var/fun/FUNCompiler test/$(file).fun
-	@$(MAKE) -s run_cll file=$(file)
+	@$(MAKE) -s run_cll_inter file=$(file)
+
+run_fun: build_fun
+	@$(MAKE) -s run_fun_inter file=$(file)
 
 build_var : build_fun
 	@$(MAKE) -s build_cll
@@ -111,9 +113,12 @@ build_var : build_fun
 	ocamlc -c -I var/var/ var/var/VARLexer.ml
 	ocamlc -I utils/ -I var/var/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo var/var/VARLexer.cmo var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
 
-run_var: build_var
+run_var_inter:
 	@./var/var/VARCompiler test/$(file).var
-	@$(MAKE) -s run_fun file=$(file)
+	@$(MAKE) -s run_fun_inter file=$(file)
+
+run_var: build_var
+	@$(MAKE) -s run_var_inter file=$(file)
 
 build_chain_compiler:
 	@$(MAKE) -s build_var
@@ -123,7 +128,6 @@ build_chain_compiler:
 	utils/CLLTree.cmo var/cll/CLLParser.cmo utils/FUNTree.cmo var/fun/FUNParser.cmo \
 	utils/VARTree.cmo var/var/VARParser.cmo \
 	MainCompiler/ChainCompiler.ml
-
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
