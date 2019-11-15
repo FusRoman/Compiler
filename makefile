@@ -111,7 +111,10 @@ build_var : build_fun
 	ocamllex var/var/VARLexer.mll
 	ocamlc -c -I var/var/ -I utils/ var/var/VARParser.mli var/var/VARParser.ml
 	ocamlc -c -I var/var/ var/var/VARLexer.ml
-	ocamlc -I utils/ -I var/var/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo var/var/VARLexer.cmo var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
+
+	ocamlc -I utils/ -I var/var/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo \
+	utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo var/var/VARLexer.cmo \
+	var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
 
 run_var_inter:
 	@./var/var/VARCompiler test/$(file).var
@@ -119,6 +122,22 @@ run_var_inter:
 
 run_var: build_var
 	@$(MAKE) -s run_var_inter file=$(file)
+
+build_tpl : build_var
+
+	ocamlc -c -I utils/ -I var/var/ var/var/VARParser.cmo utils/ARTTree.cmo utils/TPLTree.mli \
+	utils/TPLTree.ml
+
+	ocamlc -o typ/tpl/TPLCompiler -I utils/ -I var/var/ utils/tagset.cmo utils/arith.cmo utils/cycle.cmo \
+	utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo \
+	var/var/VARLexer.cmo var/var/VARParser.cmo utils/TPLTree.cmo typ/tpl/TPLCompiler.ml 
+
+run_tpl_inter:
+	@./typ/tpl/TPLCompiler test/$(file).tpl
+	@$(MAKE) -s run_var_inter file=$(file)
+
+run_tpl: build_tpl
+	@$(MAKE) -s run_tpl_inter file=$(file)
 
 build_chain_compiler:
 	@$(MAKE) -s build_var
@@ -140,6 +159,10 @@ clear:
 	rm -rf test/art/*.stk test/art/*.asm test/art/*.btc
 	rm -rf test/imp/*.art test/imp/*.stk test/imp/*.asm test/imp/*.btc
 	rm -rf test/cll/*.imp test/cll/*.art test/cll/*.stk test/cll/*.asm test/cll/*.btc
+
+	rm -rf test/tpl/*.var test/tpl/*.fun test/tpl/*.cll test/tpl/*.imp test/tpl/*.art test/tpl/*.stk \
+	test/tpl/*.asm test/tpl/*.btc
+ 	
 	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler
 	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler
 	rm -rf interprete_var/*.cmi interprete_var/*.cmo interprete_var/VARParser.conflicts interprete_var/VARParser.automaton
@@ -150,3 +173,4 @@ clear:
 	rm -rf var/fun/FUNCompiler test/fun/*.btc test/fun/*.asm test/fun/*.stk test/fun/*.art test/fun/*.imp test/fun/*.cll
 	rm -rf var/var/*.cmi var/var/*.cmo var/var/*.o var/var/VARParser.ml var/var/VARParser.mli var/var/VARParser.automaton var/var/VARParser.conflicts var/var/VARLexer.ml
 	rm -rf var/var/VARCompiler test/var/*.btc test/var/*.asm test/var/*.stk test/var/*.art test/var/*.imp test/var/*.cll test/var/*.fun
+	rm -rf typ/tpl/*.cmo typ/tpl/*.cmi typ/tpl/TPLCompiler
