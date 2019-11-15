@@ -43,6 +43,21 @@ Extensions réalisées pour le module CLL / FUN / VAR :
     Les variables sont automatiquement détruites à la fin d'un bloc.
     Il est aussi possible de déclarer une variable dans l'en-tête d'une boucle for.
 
+    Les variables globales fonctionnent un peu différemment.
+    Une variable globale initialisée avec une valeur immédiate (les entiers et les booléens, qu'on 
+    pourrait facilement élargir aux valeurs constantes, comme 5 + 12) sont initialisées au niveau du 
+    bytecode avec cette valeur directement. Les autres variables globales sont initialisées dans 
+    l'ordre de leur apparition, et valent 0 auparavant. Nous avons fait ce choix en tant que compromis entre :
+      - interdire de référencer une variable globale déclarée ultérieurement. Pour des raisons de cohérence,
+      il faudrait alors interdire d'appeler des fonctions déclarées après parce qu'elles pourraient agir
+      sur des variables globales pas encore initialisées. On perd la récursivité mutuelle des fonctions.
+
+      - garder la récursivité mutuelle mais n'itialiser qu'avec des immédiats.
+
+      Si VAR était un langage de haut niveau, nous aurions probablement pris la première option,
+      mais ici nous voulions éviter d'imposer des limitations pour ne pas compliquer la réalisation des langages 
+      suivants. Nous pourrions revenir sur nos choix et prendre la deuxième option plus tard.
+
   - appels de fonctions dans les expressions
     Implémentée en VAR. Pour atteindre ce résultat, VAR réserve de l'espace pour des variables locales
     anonymes qui stockeront le résultat des appels.
