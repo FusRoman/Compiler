@@ -21,9 +21,13 @@ Comment utiliser le makefile :
       Supprime tous les fichiers de compilation de façon à ne garder que le code source, aussi bien
       pour le code OCaml que pour les fichiers test.
     - build_chain_compiler
-      Un compilateur plus efficace (voir paragraphe suivant). Malheureusement il semble que mon binôme
-      ait mal pushé son travail sur GitHub, j'ai donc les modifications du makefile mais pas le programme
-      lui⁻même...
+      Un compilateur plus efficace (voir paragraphe suivant).
+
+  ChainCompiler est l'exécutable fourni à la fin de la commande make build_chain_compiler. Elle 
+  se trouve dans le fichier MainCompiler. Grâce au module Arg de ocaml, cela nous a permis de crée une
+  commande parsant des arguments en ligne de commande. L'option -help vous permettra de connaitre 
+  les effets de chaque options. Pour une utilisation simple de ChainCompiler, la commande est :
+    MainCompiler/ChainCompiler -o sortie test/var/test1.var
 
   Pour l'instant, un fichier est parsé, traduit en un arbre de syntaxe lui-même traduit dans le langage
   précédent. Le résultat est écrit dans un fichier et on répète le procédé jusqu'à arriver au bytecode.

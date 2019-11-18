@@ -20,17 +20,17 @@ let make_compilation file =
   else
     let input = open_in file in
     let lexing_buffer = Lexing.from_channel input in
-    let output = "test/" ^ !output_file in
+    let output = "test/" ^ !output_file ^ ".stk" in
     let output = open_out output in
     let source = VARParser.program VARLexer.token lexing_buffer in
     let target = VARTree.var_to_fun source in
     if !make_medium_file then
-    begin
-      let fun_output = open_out "test/fun_out.fun" in
-      FUNTree.write_fun fun_output target;
-      close_out fun_output
-    end;
-    let target = FUNTree.fun_to_cll target in
+      begin
+        let fun_output = open_out "test/fun_out.fun" in
+        FUNTree.write_fun fun_output target;
+        close_out fun_output
+      end;
+    let target = FUNTree.fun_to_cll target in 
     if !make_medium_file then
       begin
         let cll_output = open_out "test/cll_out.cll" in
@@ -48,8 +48,7 @@ let make_compilation file =
     compile output target;
     flush output;
     close_out output;
-    let output_file = Filename.chop_suffix !output_file ".stk" in
-    let exit_code = command ("make run_stk_inter file=" ^ output_file) in
+    let exit_code = command ("make run_stk_inter file=" ^ !output_file) in
     match exit_code with
     |0 -> ()
     |code -> print_string ("chain_compiler failure with exit code " ^ (string_of_int code))

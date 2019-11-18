@@ -1,0 +1,13 @@
+main(){
+    var tab1 := 0;
+    make_array(&tab1, 26, 97);
+    for(var i := 0; i < 26; i++){
+        print(*(array_get(tab1, i)));
+    }
+    print(10);
+    print(*(array_get(tab1,26)));
+    print(10);
+    print(99);
+    print(10);
+    exit;
+}

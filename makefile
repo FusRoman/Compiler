@@ -139,6 +139,19 @@ run_tpl_inter:
 run_tpl: build_tpl
 	@$(MAKE) -s run_tpl_inter file=$(file)
 
+build_rec: build_tpl
+	ocamlc -c -I utils/ -I var/var/ utils/ARTTree.cmo utils/RECTree.mli utils/RECTree.ml
+	ocamlc -o typ/rec/RECCompiler -I utils/ -I var/var/ utils/tagset.cmo utils/arith.cmo utils/cycle.cmo \
+	utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo \
+	var/var/VARLexer.cmo var/var/VARParser.cmo utils/TPLTree.cmo utils/RECTree.cmo typ/rec/RECCompiler.ml
+
+run_rec_inter:
+	@./typ/rec/RECCompiler test/$(file).rec
+	@$(MAKE) -s run_tpl_inter file=$(file)
+
+run_rec: build_rec
+	@$(MAKE) -s run_rec_inter file=$(file)
+
 build_chain_compiler:
 	@$(MAKE) -s build_var
 	ocamlc -o MainCompiler/ChainCompiler -I utils/ -I var/fun -I var/var/ -I var/cll/ \
@@ -162,6 +175,9 @@ clear:
 
 	rm -rf test/tpl/*.var test/tpl/*.fun test/tpl/*.cll test/tpl/*.imp test/tpl/*.art test/tpl/*.stk \
 	test/tpl/*.asm test/tpl/*.btc
+
+	rm -rf test/rec/*.var test/rec/*.fun test/rec/*.cll test/rec/*.imp test/rec/*.art test/rec/*.stk \
+	test/rec/*.asm test/rec/*.btc test/rec/*.tpl
  	
 	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler
 	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler

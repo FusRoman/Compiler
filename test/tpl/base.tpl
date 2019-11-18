@@ -5,22 +5,15 @@ main(){
         var case := tuple_access(tuple, i);
         *(case) := 97 + i;
     }
-    #print_tuple(tuple);
-    print(10);
-    print(*(tuple_access(tuple, 24)));
-    print(10);
-    #print_tuple2(tuple);
-    print(10);
-    print(*(tuple_access(tuple,0)));
-    print(10);
     var tuple2 := 0;
-    make_tuple(&tuple2, 40);
+    make_tuple(&tuple2,10);
+    for(var i := 0; i < 10; i++){
+        var case := tuple_access(tuple2, i);
+        *(case) := 48 + i;
+    }
+    print_tuple2(tuple);
     print(10);
-    print(10);
-    print(*(tuple_access(tuple,0)));
-    *(tuple_access(tuple,0)) := 98;
-    print(*(tuple_access(tuple,0)));
-    print(*(tuple_access(tuple,1)));
+    print_tuple2(tuple2);
     exit;
 }
 

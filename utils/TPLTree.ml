@@ -5,7 +5,6 @@ open VARLexer
 
 let tpl_variables = var_variables
 
-type var_prog = global_declaration list
 
 let check_declaration tpl =
   List.iter (fun d ->
@@ -19,7 +18,7 @@ let check_declaration tpl =
         Printf.sprintf "'%s' is a reserved variable." name.contents,
         name.line, name.column
       ))
-  ) []
+  ) tpl
 
 let tpl_to_var tpl =
   check_declaration tpl.syntax_tree;
