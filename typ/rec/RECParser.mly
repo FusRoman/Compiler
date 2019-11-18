@@ -3,9 +3,8 @@
   open Tagset
   open ARTTree
   open IMPTree
-  open CLLTree
   open FUNTree
-  open VARTree
+  open RECTree
 
   let get_line pos =
     pos.pos_lnum
@@ -42,7 +41,7 @@
 
 %}
 
-%token VAR
+%token VAR NEW DOT
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -65,16 +64,16 @@
 %token EOF
 
 %start program
-%type <VARTree.var_prog ARTTree.compiler_type> program
-%type <string ARTTree.node * VARTree.var_expression> variable_declaration
+%type <VARTree.rec_prog ARTTree.compiler_type> program
+%type <string ARTTree.node * VARTree.rec_expression> variable_declaration
 %type <FUNTree.parameter> parameter
-%type <VARTree.var_function> function_definition
-%type <VARTree.var_instrs> instructions
-%type <VARTree.var_expression> expr
-%type <VARTree.var_expression> l_expr
-%type <VARTree.var_instr> instruction
-%type <VARTree.var_instrs> block
-%type <VARTree.var_instr> control
+%type <VARTree.rec_function> function_definition
+%type <VARTree.rec_instrs> instructions
+%type <VARTree.rec_expression> expr
+%type <VARTree.rec_expression> l_expr
+%type <VARTree.rec_instr> instruction
+%type <VARTree.rec_instrs> block
+%type <VARTree.rec_instr> control
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -243,7 +242,14 @@ instruction:
     }
 
 | v=variable_declaration
-    { Declaration v }
+    { 
+      Declaration v 
+    }
+
+| l=l_expr ASSIGN NEW l=LABEL
+    {
+
+    }
 ;
 
 assign_binop:

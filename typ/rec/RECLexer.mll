@@ -14,6 +14,10 @@ rule token = parse
       { BOOL true }
   | "false"
       { BOOL false }
+
+  | "new"
+      { NEW }
+
   | "nop"
       { NOP }
   | "print"
@@ -99,6 +103,9 @@ rule token = parse
       { LB }
   | "}"
       { RB }
+
+  | "."
+      { DOT }
 
   | label as lab
       { LABEL(lab) }
