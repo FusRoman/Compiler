@@ -1,39 +1,33 @@
 main() {
-  var i := 97;
+	var i := 97;
+	while (i < 123 + very_useful() - very_useful()) {
+		print(i);
+		i := succ(i);
+	}
+	print(10);
+	print(97);
+	print(10);
 
-  # OK
-  while (i < 123 + very_useful() - very_useful()) {
-    print(i);
-    i := succ(i);
-  }
-  print(10);
-  print(97);
-  print(10);
+	for (var j := 97; j < 123; j := succ(j))
+		print(j);
+	print(10);
+	print(98);
+	print(10);
 
-  # Pas OK ; commence à la valeur de very_useful. Apparemment le *stack_pointer := 97 se fait pas au bon moment.
-  # Le code ART a pourtant l'air bon
-  nop;
-  for (var j := 97; j < 123; j := succ(j))
-    print(j);
-  print(10);
-  print(98);
-  print(10);
-  nop;
-
-  # Pas OK, ne fait rien
-  for (var j := 97; j < (123 + very_useful() - very_useful()); j := succ(j))
-    print(j);
-  print(10);
-  print(99);
-  print(10);
-
-  exit;
+	for (var j := 97; j < 123 + very_useful() - very_useful(); j := succ(j))
+		print(j);
+	print(10);
+	print(99);
+	print(10);
+	
+	exit;
 }
 
 succ(n) {
-  return n+1;
+	return((n + 1));
 }
 
 very_useful() {
-  return 42;
+	return(42);
 }
+

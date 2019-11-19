@@ -104,8 +104,8 @@ run_fun_inter:
 run_fun: build_fun
 	@$(MAKE) -s run_fun_inter file=$(file)
 
-build_var : build_fun
-	@$(MAKE) -s build_cll
+build_var :
+	@$(MAKE) -s build_fun
 	ocamlc -c -I utils/ utils/VARTree.mli utils/VARTree.ml
 	menhir -v var/var/VARParser.mly
 	ocamllex var/var/VARLexer.mll
@@ -120,13 +120,15 @@ run_var_inter:
 run_var: build_var
 	@$(MAKE) -s run_var_inter file=$(file)
 
-build_chain_compiler:
-	@$(MAKE) -s build_var
-	ocamlc -o MainCompiler/ChainCompiler -I utils/ -I var/fun -I var/var/ -I var/cll/ \
+build_chain_compiler: build_var
+	ocamlc -o MainCompiler/ChainCompiler \
+	-I utils/ -I art/ -I imp/ -I var/cll -I var/fun -I var/var/ \
 	utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
-	utils/ARTTree.cmo var/cll/CLLLexer.cmo var/var/VARLexer.cmo utils/IMPTree.cmo \
-	utils/CLLTree.cmo var/cll/CLLParser.cmo utils/FUNTree.cmo var/fun/FUNParser.cmo \
-	utils/VARTree.cmo var/var/VARParser.cmo \
+	utils/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
+	utils/IMPTree.cmo imp/IMPParser.cmo imp/IMPLexer.cmo \
+	utils/CLLTree.cmo var/cll/CLLParser.cmo var/cll/CLLLexer.cmo \
+	utils/FUNTree.cmo var/fun/FUNParser.cmo var/fun/FUNLexer.cmo \
+	utils/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
 	MainCompiler/ChainCompiler.ml
 
 clear:
