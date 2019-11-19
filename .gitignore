@@ -11,6 +11,7 @@
 **/*.btc
 **/*.asm
 a.out
+MainCompiler/ChainCompiler
 
 var/var/*.cmi
 var/var/*.cmo

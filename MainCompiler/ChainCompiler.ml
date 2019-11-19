@@ -116,7 +116,7 @@ let rec run file =
     let rec find_extension acc i =
       if i < 0 then
       begin
-        Printf.printf "Could not infer the source language from the file name and the option -l was not given.";
+        Printf.printf "Could not infer the source language from the file name and the option -l was not given.\n";
         exit 1
       end
       else if file.[i] = '.' then
