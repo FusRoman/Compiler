@@ -138,7 +138,7 @@ run_var: build_var
 
 build_chain_compiler: 
 	@$(MAKE) -s build_var
-	ocamlc -o MainCompiler/ChainCompiler \
+	ocamlc -o compiler/ChainCompiler \
 		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
 		art/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
@@ -146,7 +146,7 @@ build_chain_compiler:
 		var/cll/CLLTree.cmo var/cll/CLLParser.cmo var/cll/CLLLexer.cmo \
 		var/fun/FUNTree.cmo var/fun/FUNParser.cmo var/fun/FUNLexer.cmo \
 		var/var/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
-		MainCompiler/ChainCompiler.ml
+		compiler/ChainCompiler.ml
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc
@@ -155,7 +155,7 @@ clear:
 	rm -rf test/*.btc test/*.asm test/*.stk test/*.cll test/*.fun test/*.imp
 	rm -rf assembler/*.byte assembler/*.cmo assembler/*.cmi assembler/Assembler
 	rm -rf test/stk/*.asm test/stk/*.btc a.out
-	rm -rf MainCompiler/*.cmi MainCompiler/*.cmo MainCompiler/ChainCompiler MainCompiler/*.art
+	rm -rf compiler/*.cmi compiler/*.cmo compiler/ChainCompiler compiler/*.art
 	rm -rf test/art/*.stk test/art/*.asm test/art/*.btc
 	rm -rf test/imp/*.art test/imp/*.stk test/imp/*.asm test/imp/*.btc
 	rm -rf test/cll/*.imp test/cll/*.art test/cll/*.stk test/cll/*.asm test/cll/*.btc
