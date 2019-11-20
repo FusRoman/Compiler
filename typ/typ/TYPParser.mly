@@ -4,7 +4,7 @@
   open ARTTree
   open IMPTree
   open FUNTree
-  open RECTree
+  open TYPTree
 
   let get_line pos =
     pos.pos_lnum
@@ -26,22 +26,23 @@
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 
-  let make_genv globals =
-    List.fold_left (fun acc d ->
-      let name =
-        match d with
-        | Fun f -> f.name
-        | Var (v, _) -> v
-      in
-      try
-        add name.contents acc
-      with DuplicateElement _ ->
-        raise_duplicate_element name
-    ) empty globals
+  let make_env = List.fold_left (
+    fun (genv, type_env, tree) elt ->
+      match elt with
+      |Type (s, t) ->
+        (genv, type_env.add s t,tree)
+      |Var (t, s, e) -> (genv.add s t, type_env, (Var (t,s,e)) :: tree)
+      |Fun f -> 
+        let param_list = List.map (
+          fun param ->
+            param.params_type
+        ) f.params in
+        (genv.add f.name.contents (Fun (param_list, f.return_type)), type_env, (Fun f)::tree)
+  ) (StringMap.empty, StringMap.empty, [])
 
 %}
 
-%token VAR NEW DOT
+%token VAR TINT TSTRING TFUN DOT TYPE ARROW DOTSIZE
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -57,23 +58,24 @@
 %token NOT CPL
 %token ADDRESS
 %token SEMI COLON COMMA
-%token LP RP LB RB
+%token LP RP LB RB LS RS
 %token <bool>BOOL
 %token <int>INT
 %token <string>LABEL
 %token EOF
 
 %start program
-%type <VARTree.rec_prog ARTTree.compiler_type> program
-%type <string ARTTree.node * VARTree.rec_expression> variable_declaration
-%type <FUNTree.parameter> parameter
-%type <VARTree.rec_function> function_definition
-%type <VARTree.rec_instrs> instructions
-%type <VARTree.rec_expression> expr
-%type <VARTree.rec_expression> l_expr
-%type <VARTree.rec_instr> instruction
-%type <VARTree.rec_instrs> block
-%type <VARTree.rec_instr> control
+%type <TYPTree.typ_prog TYPTree.program> program
+%type <TYPTree.variable> variable_declaration
+%type <TYPTree.parameter> parameter
+%type <TYPTree.typ_function> function_definition
+%type <TYPTree.typ_instrs> instructions
+%type <TYPTree.typ_expression> expr
+%type <TYPTree.typ_expression> l_expr
+%type <TYPTree.typ_instr> instruction
+%type <TYPTree.typ_instrs> block
+%type <TYPTree.typ_instr> control
+%type <TYPTree._type> type_expr
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -88,7 +90,8 @@
 program:
 | globals=list(global_declaration) EOF
     {
-      {syntax_tree = globals; tag_set = make_genv globals}
+      let (genv, _type, tree) = make_env globals in
+      {genv, _type, tree}
     }
 
 | error
@@ -97,38 +100,99 @@ program:
     }
 ;
 
+type_declaration:
+| TYPE name_type=LABEL ASSIGN _type=type_expr
+  {
+    (make_node $startpos name_type, _type)
+  }
+;
 variable_declaration:
-| VAR name=LABEL ASSIGN e=expr
+| type_var=type_expr name=LABEL ASSIGN e=expr
     {
-      (make_node $startpos name, e)
+      (type_var,make_node $startpos name, e)
     }
 ;
 
 parameter:
-| name=LABEL 
+| params_type=type_expr name=LABEL
     {
-      {name = make_node $startpos name; reference = false}
+      {name = make_node $startpos name; reference = false; params_type}
     }
 
-| ADDRESS name=LABEL
+| params_type=type_expr ADDRESS name=LABEL
     {
-      {name = make_node $startpos name; reference = true}
+      {name = make_node $startpos name; reference = true; params_type}
     }
 ;
 
 function_definition:
-| name=LABEL LP params=separated_list(COMMA, parameter) RP LB b=instructions RB
+| return_type=type_expr name=LABEL LP params=separated_list(COMMA, parameter) RP LB b=instructions RB
     {
-      {name = make_node $startpos name; params; block = b}
+      {name = make_node $startpos name; params; block = b; return_type}
     }
 ;
 
-global_declaration:
-| f=function_definition
-    { Fun f }
+type_expr:
+|TINT
+  {
+    Int
+  }
+|TSTRING
+  {
+    Array (Int)
+  }
+|TFUN LP ps=separated_list(COMMA, type_expr) ARROW ty=type_expr RP
+  {
+    Fun (ps, ty)
+  }
+|l = LABEL
+  {
+    Unknown (make_node $startpos l)
+  }
+|t = type_expr LS RS
+  {
+    Array (t)
+  }
+| t=type_expr MULT
+  {
+    Pointer t
+  }
+| LB fields=separated_nonempty_list(SEMI, field_declaration) RB
+| LB fields=separated_nonempty_list(SEMI, field_declaration) SEMI RB
+  {
+    let e = List.fold_left (fun (acc, i) (s, t) ->
+      if StringMap.mem s.contents acc then
+         raise (SyntaxError(
+           Printf.sprintf "Field '%s' has been declared twice in the same record type" s.contents,
+           s.line, s.column
+         ))
+      else
+        ((StringMap.add s.contents (t, i) acc), i + 1)
+    ) (StringMap.empty, 0) fields in
+    Record e
+  }
+;
 
-| v=variable_declaration SEMI
-    { Var v }
+field_declaration:
+| f=LABEL COLON t=type_expr
+  {
+    ((make_node $startpos f), t)
+  }
+;
+global_declaration:
+| def_fun=function_definition
+    {
+      Fun f
+    }
+
+| var=variable_declaration SEMI
+    {
+      Var v
+    }
+| t=list(type_declaration) SEMI
+    { 
+      Type t
+    }
 ;
 
 instructions:
@@ -153,7 +217,7 @@ instructions:
 ;
 
 expr:
-| i=INT 
+| i=INT
     { Int i }
 | b=BOOL 
     { Bool b }
@@ -202,6 +266,30 @@ expr:
     {
       RecordAccess(l_expr, l)
     }
+| l_expr=l_expr LS e=expr RS
+    {
+      ArrayAccess (l_expr, e)
+    }
+| l_expr=l_expr DOTSIZE
+    {
+      ArrayAccess (l_expr, Int (-1))
+    }
+| LB fields=separated_nonempty_list(SEMI, field_instanciation) RB
+| LB fields=separated_nonempty_list(SEMI, field_instanciation) SEMI RB
+    {
+      NewRecord fields
+    }
+| LP size=expr RP LS init_elt=expr RS
+    {
+      NewArray (size,init_elt)
+    }
+;
+
+field_instanciation:
+| f=LABEL ASSIGN e=expr
+    {
+      (make_node $startpos f,e)
+    }
 ;
 
 l_expr:
@@ -249,11 +337,6 @@ instruction:
 | v=variable_declaration
     { 
       Declaration v 
-    }
-
-| l_expr=l_expr ASSIGN NEW l=LABEL
-    {
-      NewRecord(l_expr, l)
     }
 ;
 

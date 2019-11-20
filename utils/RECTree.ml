@@ -10,29 +10,31 @@ type rec_expression =
   | Int of int
   | Bool of bool
   | Id of string node
-  | Deref of var_expression
-  | Unop of unop * var_expression
-  | Binop of var_expression * binop * var_expression
-  | Call of var_expression * (var_expression list)
+  | Deref of rec_expression
+  | Unop of unop * rec_expression
+  | Binop of rec_expression * binop * rec_expression
+  | Call of rec_expression * (rec_expression list)
+  | RecordAccess of rec_expression * string
 
-type variable = string node * var_expression
+type variable = string node * rec_expression
 
 (** Instructions en REC *)
 type rec_instr =
   | Nop
   | Exit
-  | Return of var_expression
+  | Return of rec_expression
   | Break of unit node
   | Continue of unit node
-  | Print of var_expression
-  | UnopAssign of var_expression * assign_unop
-  | BinopAssign of var_expression * assign_binop * var_expression
-  | IfElse of var_expression * var_instrs * var_instrs
-  | If of var_expression * var_instrs
-  | While of var_expression * var_instrs
-  | For of var_instrs * var_expression * var_instrs * var_instrs
-  | Call of var_expression * (var_expression list)
+  | Print of rec_expression
+  | UnopAssign of rec_expression * assign_unop
+  | BinopAssign of rec_expression * assign_binop * rec_expression
+  | IfElse of rec_expression * rec_instrs * rec_instrs
+  | If of rec_expression * rec_instrs
+  | While of rec_expression * rec_instrs
+  | For of rec_instrs * rec_expression * rec_instrs * rec_instrs
+  | Call of rec_expression * (rec_expression list)
   | Declaration of variable
+  | NewRecord of rec_expression * string
 
 and rec_instrs = rec_instr list
 
@@ -45,6 +47,19 @@ type global_declaration =
 type rec_prog = global_declaration list
 
 let rec_variables = tpl_variables
+
+let assoc_record = Hashtbl.create 10
+
+let rec translate_expression e =
+  match e with
+  |RecordAccess (e, s) -> e
+  |expre -> expre
+
+let translate_instruction i =
+  match i with
+  |NewRecord (e, s) -> let name_record = translate_left_expression e in
+  Hashtbl.add assoc_record (name_record, s) 
+  |instr -> instr
 
 let rec_to_tpl rec_prog =
   let tag_set = Tagset.union_duplicate rec_variables rec_prog.tag_set in

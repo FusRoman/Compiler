@@ -11,7 +11,7 @@ type rec_expression =
   | Unop of unop * rec_expression
   | Binop of rec_expression * binop * rec_expression
   | Call of rec_expression * (rec_expression list)
-  | RecordAccess of rec_expression * rec_expression
+  | RecordAccess of rec_expression * string
 
 type variable = string node * rec_expression
 
@@ -31,7 +31,7 @@ type rec_instr =
   | For of rec_instrs * rec_expression * rec_instrs * rec_instrs
   | Call of rec_expression * (rec_expression list)
   | Declaration of variable
-  | NewRecord of rec_expression * rec_expression
+  | NewRecord of rec_expression * string
 
 and rec_instrs = rec_instr list
 

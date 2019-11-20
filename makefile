@@ -1,3 +1,5 @@
+# - Langage ASM -----------------------------------------------------
+
 build_asm:
 	ocamlc -c -I utils/ utils/tagset.mli utils/tagset.ml
 	ocamlc -c -I utils/ utils/arith.mli utils/arith.ml
@@ -12,6 +14,8 @@ run_asm_inter:
 run_asm: build_asm
 	@$(MAKE) run_asm_inter file=$(file)
 
+# - Langage STK -----------------------------------------------------
+
 build_stk: 
 	@$(MAKE) -s build_asm
 	ocamlc -c -I utils/ utils/cycle.mli utils/cycle.ml
@@ -24,6 +28,8 @@ run_stk_inter:
 
 run_stk: build_stk
 	@$(MAKE) run_stk_inter file=$(file)
+
+# - Langage ART -----------------------------------------------------
 
 build_art: 
 	@$(MAKE) -s build_stk
@@ -41,6 +47,8 @@ run_art_inter:
 run_art: build_art
 	@$(MAKE) -s run_art_inter file=$(file)
 
+# - Langage IMP -----------------------------------------------------
+
 build_imp: 
 	@$(MAKE) -s build_art
 	ocamlc -c -I utils/ utils/IMPTree.mli utils/IMPTree.ml
@@ -57,6 +65,8 @@ run_imp_inter:
 run_imp: build_imp
 	@$(MAKE) -s run_imp_inter file=$(file) 
 
+# - Interpréteur VAR ------------------------------------------------
+
 build_var_interpreter:
 	menhir -v interprete_var/VARParser.mly
 	ocamllex interprete_var/VARLexer.mll
@@ -71,6 +81,8 @@ build_var_interpreter:
 
 run_var_interpreter: build_interprete_var
 	./interprete_var/VARInterpreter test/$(file).var
+
+# - Langage CLL -----------------------------------------------------
 
 build_cll: 
 	@$(MAKE) -s build_imp
@@ -88,6 +100,8 @@ run_cll_inter:
 run_cll: build_cll
 	@$(MAKE) -s run_cll_inter file=$(file)
 
+# - Langage FUN -----------------------------------------------------
+
 build_fun:
 	@$(MAKE) -s build_cll
 	ocamlc -c -I utils/ utils/FUNTree.mli utils/FUNTree.ml
@@ -103,6 +117,8 @@ run_fun_inter:
 
 run_fun: build_fun
 	@$(MAKE) -s run_fun_inter file=$(file)
+
+# - Langage VAR -----------------------------------------------------
 
 build_var : build_fun
 	@$(MAKE) -s build_cll
@@ -123,6 +139,8 @@ run_var_inter:
 run_var: build_var
 	@$(MAKE) -s run_var_inter file=$(file)
 
+# - Langage TPL -----------------------------------------------------
+
 build_tpl : build_var
 
 	ocamlc -c -I utils/ -I var/var/ var/var/VARParser.cmo utils/ARTTree.cmo utils/TPLTree.mli \
@@ -139,6 +157,18 @@ run_tpl_inter:
 run_tpl: build_tpl
 	@$(MAKE) -s run_tpl_inter file=$(file)
 
+# - Langage TYP -----------------------------------------------------
+
+
+build_typ: build_tpl
+	menhir -v typ/typ/TYPParser.mly
+	ocamllex typ/typ/TYPLexer.mll
+	ocamlc -c -I typ/typ/ -I utils/ typ/typ/TYPParser.mli typ/typ/TYPParser.ml
+	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
+
+
+# - Langage REC -----------------------------------------------------
+
 build_rec: build_tpl
 	ocamlc -c -I utils/ -I var/var/ utils/ARTTree.cmo utils/RECTree.mli utils/RECTree.ml
 	ocamlc -o typ/rec/RECCompiler -I utils/ -I var/var/ utils/tagset.cmo utils/arith.cmo utils/cycle.cmo \
@@ -151,6 +181,8 @@ run_rec_inter:
 
 run_rec: build_rec
 	@$(MAKE) -s run_rec_inter file=$(file)
+
+# - ChainCompiler ---------------------------------------------------
 
 build_chain_compiler:
 	@$(MAKE) -s build_var
