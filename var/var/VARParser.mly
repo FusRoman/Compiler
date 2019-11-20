@@ -21,6 +21,22 @@
       t.line, t.column
     ))
 
+  (* 
+    Au départ je voulais utiliser $loc, mais pour une raison inconnue menhir ne reconnaît pas cette variable 
+    quand bien même elle apparaît dans sa documentation.
+    A la place, il faut donc utiliser $startpos(symbol) et endpos(symbol).
+  *)
+  let get_left start _end  e =
+    match e with
+    | Deref e -> e
+    | _ -> 
+      let line = get_line start in
+      let column = get_column start in
+      raise (SyntaxError(
+        Printf.sprintf "Line %d, character %d to line %d, character %d: this is not a left expression" line column (get_line _end) (get_column _end),
+        line, column
+      ))
+
   let raise_reserved_variable pos var =
     raise_syntax_error pos (Printf.sprintf "'%s' is a reserved variable." var)
 
@@ -71,7 +87,7 @@
 %type <VARTree.var_function> function_definition
 %type <VARTree.var_instrs> instructions
 %type <VARTree.var_expression> expr
-%type <VARTree.var_expression> l_expr
+%type <VARTree.var_expression> simple_expr
 %type <VARTree.var_instr> instruction
 %type <VARTree.var_instrs> block
 %type <VARTree.var_instr> control
@@ -154,29 +170,29 @@ instructions:
 ;
 
 expr:
-| i=INT 
-    { Int i }
-| b=BOOL 
-    { Bool b }
-| l=l_expr
-    { Deref l }
-| LP e=expr RP
-    { e }
 | e1=expr op=binop e2=expr
     { Binop(e1, op, e2) }
 | op=unop e=expr
     { Unop(op, e) }
-| ADDRESS e=l_expr
+| f=simple_expr LP args=separated_list(COMMA, expr) RP
+    { Call(get_left $startpos(f) $endpos(f) f, args) }
+| e=simple_expr
     { e }
-| f=l_expr LP args=separated_list(COMMA, expr) RP
-    { Call(f, args) }
 ;
 
-l_expr:
+simple_expr:
+| i=INT 
+    { Int i }
+| b=BOOL 
+    { Bool b }
 | t=LABEL
-    { Id (make_node $startpos t) }
-| MULT LP l=expr RP (* La grammaire a changé par rapport à FUN pour éviter les ambiguïtés ! *)
-    { l }
+    { Deref(Id(make_node $startpos t)) }
+| LP e=expr RP
+    { e }
+| MULT l=simple_expr
+    { Deref l }
+| ADDRESS l=simple_expr
+    { get_left $startpos(l) $endpos(l) l }
 ;
 
 %inline binop:
@@ -221,19 +237,19 @@ instruction:
 | RETURN e=expr
     { Return e }
 
-| l=l_expr op=assign_binop e=expr
+| l=expr op=assign_binop e=expr
     {
-      BinopAssign(l, op, e)
+      BinopAssign(get_left $startpos(l) $endpos(l) l, op, e)
     }
 
-| l=l_expr op=assign_unop
+| l=expr op=assign_unop
     {
-      UnopAssign(l, op)
+      UnopAssign(get_left $startpos(l) $endpos(l) l, op)
     }
 
-| f=l_expr LP args=separated_list(COMMA, expr) RP
+| f=simple_expr LP args=separated_list(COMMA, expr) RP
     {
-      Call(f, args) 
+      Call(get_left $startpos(f) $endpos(f) f, args) 
     }
 
 | v=variable_declaration
