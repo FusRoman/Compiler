@@ -146,49 +146,39 @@ l_express:
 ;
 
 expression:
-| i=INT  { Int i }
-| l_e=l_express { LStar l_e }
-| b=BOOL { Bool b }
-| SUB e=expression { Unop (Minus,e) }
-| NOT e=expression { Unop (Not,e) }
-| CPL e=expression { Unop (Cpl,e) }
-| ADRESS e=l_express { e }
-| LP e=expression RP { e }
-| e1=expression ADD e2=expression { Binop (e1,Add,e2) }
-| e1=expression SUB e2=expression { Binop (e1,Sub,e2) }
-| e1=expression DIV e2=expression { Binop (e1,Div,e2) }
-| e1=expression MUL e2=expression { Binop (e1,Mult,e2) }
-| e1=expression INF e2=expression { 
-  Binop (e1,Lt,e2)
-   }
-| e1=expression INF_EQUAL e2=expression { 
-  Binop (e1,Le,e2)
-   }
-| e1=expression SUP e2=expression { 
-  Binop (e1,Gt,e2)
-   }
-| e1=expression SUP_EQUAL e2=expression {
-  Binop (e1,Ge,e2)
-   }
-| e1=expression MOD e2=expression { 
-  Binop (e1,Rem,e2)
-   }
-| e1=expression EQUAL e2=expression { 
-  Binop (e1,Eq,e2)
-   }
-| e1=expression NOT_EQUAL e2=expression { 
-  Binop (e1,Neq,e2)
-   }
-| e1=expression AND e2=expression { 
-  Binop (e1,And,e2)
-   }
-| e1=expression OR e2=expression { 
-  Binop (e1,Or,e2)
-   }
+| i=INT                 { Int i }
+| l_e=l_express         { LStar l_e }
+| b=BOOL                { Bool b }
+| op=unop e=expression  { Unop (op, e) }
+| ADRESS e=l_express    { e }
+| LP e=expression RP    { e }
+| e1=expression op=binop e2=expression { Binop(e1, op, e2) }
 | error {
   let pos = $startpos in
   raise (SyntaxError ("Ill-formed expression.", pos.pos_lnum, (pos.pos_cnum - pos.pos_bol)))
 }
+;
+
+%inline binop:
+| ADD         { Add }
+| SUB         { Sub }
+| MUL         { Mult }
+| DIV         { Div }
+| MOD         { Rem }
+| AND         { And }
+| OR          { Or }
+| INF         { Lt }
+| SUP         { Gt }
+| INF_EQUAL   { Le }
+| SUP_EQUAL   { Ge }
+| EQUAL       { Eq }
+| NOT_EQUAL   { Neq }
+;
+
+%inline unop:
+| SUB         { Minus }
+| CPL         { Cpl }
+| NOT         { Not }
 ;
 
 data_declarations:

@@ -152,39 +152,11 @@ expr:
     { LStar l }
 | LP e=expr RP
     { e }
-| e1=expr ADD e2=expr
-    { Binop(e1, Add, e2) }
-| e1=expr SUB e2=expr
-    { Binop(e1, Sub, e2) }
-| e1=expr MULT e2=expr
-    { Binop(e1, Mult, e2) }
-| e1=expr DIV e2=expr
-    { Binop(e1, Div, e2) }
-| e1=expr REM e2=expr
-    { Binop(e1, Rem, e2) }
-| e1=expr AND e2=expr
-    { Binop(e1, And, e2) }
-| e1=expr OR e2=expr
-    { Binop(e1, Or, e2) }
-| e1=expr LT e2=expr
-    { Binop(e1, Lt, e2) }
-| e1=expr LE e2=expr
-    { Binop(e1, Le, e2) }
-| e1=expr GT e2=expr
-    { Binop(e1, Gt, e2) }
-| e1=expr GE e2=expr
-    { Binop(e1, Ge, e2) }
-| e1=expr EQ e2=expr
-    { Binop(e1, Eq, e2) }
-| e1=expr NEQ e2=expr
-    { Binop(e1, Neq, e2) }
-| SUB e=expr
-    { Unop(Minus, e) }
-| CPL e=expr
-    { Unop(Cpl, e) }
-| NOT e=expr
-    { Unop(Not, e) }
-| ADDRESS e=l_expr
+| e1=expr op=binop e2=expr
+    { Binop(e1, op, e2) }
+| op=unop e=expr
+    { Unop(op, e) }
+| ADDRESS e=l_expr 
     { e }
 ;
 
@@ -193,6 +165,28 @@ l_expr:
     { Id (make_node $startpos t) }
 | MULT l=expr
     { l }
+;
+
+%inline binop:
+| ADD         { Add }
+| SUB         { Sub }
+| MULT        { Mult }
+| DIV         { Div }
+| REM         { Rem }
+| AND         { And }
+| OR          { Or }
+| LT          { Lt }
+| GT          { Gt }
+| LE          { Le }
+| GE          { Ge }
+| EQ          { Eq }
+| NEQ         { Neq }
+;
+
+%inline unop:
+| SUB         { Minus }
+| CPL         { Cpl }
+| NOT         { Not }
 ;
 
 instruction:
