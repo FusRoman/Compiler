@@ -34,9 +34,7 @@ type procedure_definition = {name:string node; block:cll_instrs}
 
 and procedure_definitions = procedure_definition Cycle.cycle
 
-and cll_prog =
-  | ProcedureDefinitionData of procedure_definitions * datas
-  | ProcedureDefinition of procedure_definitions
+and cll_prog = procedure_definitions * datas
 
 (* 
   Vérifie si :
@@ -219,15 +217,10 @@ let cll_to_imp cll_prog =
   in
 
   let syntax_tree, data = 
-    match cll_prog.syntax_tree with
-    | ProcedureDefinitionData(procs, data) -> 
-      let data = add_variables data in
-      let instr = translate_procedures tag_set maker procs empty_cycle in
-      (instr, data)
-    | ProcedureDefinition procs ->
-      let data = add_variables empty_cycle in
-      let instr = translate_procedures tag_set maker procs empty_cycle in
-      (instr, data)
+    let procs, data = cll_prog.syntax_tree in 
+    let data = add_variables data in
+    let instr = translate_procedures tag_set maker procs empty_cycle in
+    (instr, data)
   in
 
   { tag_set = get_updated_set maker; syntax_tree = TextData(syntax_tree, data) }
@@ -346,11 +339,7 @@ let write_procedure file proc =
   fprintf file "}\n\n"
 
 let write_cll file cll =
-  let (proc, data) =
-    match cll.syntax_tree with
-    | ProcedureDefinition proc -> (proc, empty_cycle)
-    | ProcedureDefinitionData(proc, data) -> (proc, data)
-  in
+  let (proc, data) = cll.syntax_tree in
   Cycle.iter proc (fun p () -> write_procedure file p) ();
   fprintf file ".data\n";
   write_art_data file data

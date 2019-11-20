@@ -73,7 +73,7 @@ program:
     {
       try
         let tag_set = union globals.tag_set data.tag_set in
-        let syntax_tree = ProcedureDefinitionData(globals.syntax_tree, data.syntax_tree) in
+        let syntax_tree = (globals.syntax_tree, data.syntax_tree) in
         {tag_set; syntax_tree}
       with
       | DuplicateElement t ->
@@ -83,7 +83,7 @@ program:
 | globals=procedure_definitions EOF
     {
       try
-        let syntax_tree = ProcedureDefinition globals.syntax_tree in
+        let syntax_tree = (globals.syntax_tree, Cycle.empty_cycle) in
         {tag_set = globals.tag_set; syntax_tree}
       with
       | DuplicateElement t ->

@@ -281,7 +281,7 @@ let fun_to_cll fun_prog =
   ) empty_cycle data in
   let data_cycle = append data_cycle (default_node ("function_result", 0)) in
   if !main then
-    {syntax_tree = ProcedureDefinitionData(procedures, data_cycle); tag_set = genv}
+    {syntax_tree = (procedures, data_cycle); tag_set = genv}
   else
     raise (SyntaxError("No 'main' function defined.", 0, 0))
 

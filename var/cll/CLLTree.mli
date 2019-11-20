@@ -36,9 +36,7 @@ type procedure_definition = {name:string node; block:cll_instrs}
 
 and procedure_definitions = procedure_definition Cycle.cycle
 
-and cll_prog =
-  | ProcedureDefinitionData of procedure_definitions * datas
-  | ProcedureDefinition of procedure_definitions
+and cll_prog = procedure_definitions * datas
 
 (**
   Transforme un arbre de syntaxe CLL en un arbre de syntaxe IMP.
