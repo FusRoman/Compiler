@@ -28,11 +28,13 @@ run_stk: build_stk
 build_art: 
 	@$(MAKE) -s build_stk
 	menhir -v art/ARTParser.mly
-	ocamlc -c -I utils/ utils/ARTTree.mli utils/ARTTree.ml
+	ocamlc -c -I utils/ -I art/ art/ARTTree.mli art/ARTTree.ml
 	ocamlc -c -I art/ -I utils/ art/ARTParser.mli art/ARTParser.ml
 	ocamllex art/ARTLexer.mll
 	ocamlc -c -I art/ art/ARTLexer.ml
-	ocamlc -I utils/ -I art/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml -o art/ARTCompiler
+	ocamlc -I utils/ -I art/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo art/ARTTree.cmo \
+		art/ARTLexer.cmo art/ARTParser.cmo art/ARTCompiler.ml \
+		-o art/ARTCompiler
 
 run_art_inter:
 	@./art/ARTCompiler test/$(file).art test/$(file).stk
@@ -43,12 +45,14 @@ run_art: build_art
 
 build_imp: 
 	@$(MAKE) -s build_art
-	ocamlc -c -I utils/ utils/IMPTree.mli utils/IMPTree.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ imp/IMPTree.mli imp/IMPTree.ml
 	menhir -v imp/IMPParser.mly
-	ocamlc -c -I imp/ -I utils/ imp/IMPParser.mli imp/IMPParser.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ imp/IMPParser.mli imp/IMPParser.ml
 	ocamllex imp/IMPLexer.mll
 	ocamlc -c -I imp/ imp/IMPLexer.ml
-	ocamlc -I utils/ -I imp/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo imp/IMPLexer.cmo imp/IMPParser.cmo imp/IMPCompiler.ml -o imp/IMPCompiler
+	ocamlc -I utils/ -I art/ -I imp/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo \
+		art/ARTTree.cmo imp/IMPTree.cmo imp/IMPLexer.cmo imp/IMPParser.cmo imp/IMPCompiler.ml \
+		-o imp/IMPCompiler
 
 run_imp_inter:
 	@./imp/IMPCompiler test/$(file).imp
@@ -74,12 +78,14 @@ run_var_interpreter: build_interprete_var
 
 build_cll: 
 	@$(MAKE) -s build_imp
-	ocamlc -c -I utils/ utils/CLLTree.mli utils/CLLTree.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ var/cll/CLLTree.mli var/cll/CLLTree.ml
 	menhir -v var/cll/CLLParser.mly
 	ocamllex var/cll/CLLLexer.mll
-	ocamlc -c -I var/cll/ -I utils/ var/cll/CLLParser.mli var/cll/CLLParser.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ var/cll/CLLParser.mli var/cll/CLLParser.ml
 	ocamlc -c -I var/cll/ var/cll/CLLLexer.ml
-	ocamlc -I utils/ -I var/cll/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo var/cll/CLLLexer.cmo var/cll/CLLParser.cmo var/cll/CLLCompiler.ml -o var/cll/CLLCompiler
+	ocamlc -I utils/ -I art/ -I imp/ -I var/cll/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo \
+		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/cll/CLLLexer.cmo var/cll/CLLParser.cmo var/cll/CLLCompiler.ml \
+		-o var/cll/CLLCompiler
 
 run_cll_inter:
 	@./var/cll/CLLCompiler test/$(file).cll
@@ -90,12 +96,16 @@ run_cll: build_cll
 
 build_fun:
 	@$(MAKE) -s build_cll
-	ocamlc -c -I utils/ utils/FUNTree.mli utils/FUNTree.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ var/fun/FUNTree.mli var/fun/FUNTree.ml
 	menhir -v var/fun/FUNParser.mly
 	ocamllex var/fun/FUNLexer.mll
-	ocamlc -c -I var/fun/ -I utils/ var/fun/FUNParser.mli var/fun/FUNParser.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ var/fun/FUNParser.mli var/fun/FUNParser.ml
 	ocamlc -c -I var/fun/ var/fun/FUNLexer.ml
-	ocamlc -I utils/ -I var/fun/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo var/fun/FUNLexer.cmo var/fun/FUNParser.cmo var/fun/FUNCompiler.ml -o var/fun/FUNCompiler
+	ocamlc -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ \
+		utils/cycle.cmo utils/arith.cmo utils/tagset.cmo \
+		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo \
+		var/fun/FUNLexer.cmo var/fun/FUNParser.cmo var/fun/FUNCompiler.ml \
+		-o var/fun/FUNCompiler
 
 run_fun_inter:
 	@./var/fun/FUNCompiler test/$(file).fun
@@ -106,12 +116,18 @@ run_fun: build_fun
 
 build_var :
 	@$(MAKE) -s build_fun
-	ocamlc -c -I utils/ utils/VARTree.mli utils/VARTree.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		var/var/VARTree.mli var/var/VARTree.ml
 	menhir -v var/var/VARParser.mly
 	ocamllex var/var/VARLexer.mll
-	ocamlc -c -I var/var/ -I utils/ var/var/VARParser.mli var/var/VARParser.ml
+	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		var/var/VARParser.mli var/var/VARParser.ml
 	ocamlc -c -I var/var/ var/var/VARLexer.ml
-	ocamlc -I utils/ -I var/var/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo var/var/VARLexer.cmo var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
+	ocamlc -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		utils/cycle.cmo utils/arith.cmo utils/tagset.cmo \
+		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo var/var/VARTree.cmo \
+		var/var/VARLexer.cmo var/var/VARParser.cmo var/var/VARCompiler.ml \
+		-o var/var/VARCompiler	
 
 run_var_inter:
 	@./var/var/VARCompiler test/$(file).var
@@ -120,16 +136,17 @@ run_var_inter:
 run_var: build_var
 	@$(MAKE) -s run_var_inter file=$(file)
 
-build_chain_compiler: build_var
+build_chain_compiler: 
+	@$(MAKE) -s build_var
 	ocamlc -o MainCompiler/ChainCompiler \
-	-I utils/ -I art/ -I imp/ -I var/cll -I var/fun -I var/var/ \
-	utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
-	utils/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
-	utils/IMPTree.cmo imp/IMPParser.cmo imp/IMPLexer.cmo \
-	utils/CLLTree.cmo var/cll/CLLParser.cmo var/cll/CLLLexer.cmo \
-	utils/FUNTree.cmo var/fun/FUNParser.cmo var/fun/FUNLexer.cmo \
-	utils/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
-	MainCompiler/ChainCompiler.ml
+		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
+		art/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
+		imp/IMPTree.cmo imp/IMPParser.cmo imp/IMPLexer.cmo \
+		var/cll/CLLTree.cmo var/cll/CLLParser.cmo var/cll/CLLLexer.cmo \
+		var/fun/FUNTree.cmo var/fun/FUNParser.cmo var/fun/FUNLexer.cmo \
+		var/var/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
+		MainCompiler/ChainCompiler.ml
 
 clear:
 	rm -rf stk/*.byte stk/*.cmo stk/*.cmi stk/*.ml stk/STKCompiler stk/STKCompilerAlloc

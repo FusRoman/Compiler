@@ -13,13 +13,13 @@ main() {
 	print(10);
 	print(98);
 	print(10);
-
-	for (var j := 97; j < 123 + very_useful() - very_useful(); j := succ(j))
+	
+	for (var j := 97; (j < ((123 + very_useful()) - very_useful())); j := succ(j)) {
 		print(j);
+	}
 	print(10);
 	print(99);
 	print(10);
-	
 	exit;
 }
 
