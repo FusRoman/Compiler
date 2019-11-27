@@ -3,7 +3,10 @@ open IMPTree
 
 (** 
   Ensemble des tags réservés de CLL. Les langages plus haut niveau les utilisent donc aussi indirectement. 
-  Contient stack_pointer, return_address et frame_pointer.
+  Contient stack_pointer, frame_pointer et function_result.
+  function_result devrait être défini dans FUN mais est utilisé par CLL pour stocker temporairement
+  l'adresse de retour pour certains appels terminaux. Les deux rôles ne se chevauchent pas, il n'est donc pas
+  problématique d'utiliser uniquement function_result au lieu d'utiliser return_address très peu de fois.
 *)
 val cll_variables : Tagset.t
 
@@ -12,6 +15,8 @@ val cll_variables : Tagset.t
   - Disparition de goto et des déclarations d'étiquettes
   - Apparition des définitions des procédures sans paramètres possibles
   - Ajout des appels de procédure et de return
+  - Ajout de TerminalCall, un return spécial pour les appels terminaux.
+    Syntaxe : return f().
 *)
 type cll_instr =
   | Nop
@@ -27,6 +32,7 @@ type cll_instr =
   | While of expression * cll_instrs
   | For of cll_instrs * expression * cll_instrs * cll_instrs
   | Call of expression
+  | TerminalCall of expression
 
 (** Analogue à son équivalent IMP *)
 and cll_instrs = cll_instr Cycle.cycle

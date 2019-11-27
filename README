@@ -1,74 +1,46 @@
-Organisation des fichiers :
-  Chaque langage dispose d'un dossier propre (CLL, FUN et VAR sont tous dans un dossier différent de var/).
-  Ces dossiers contiennent le lexer, le parser et le compilateur.
-  Cependant, la part la plus importante du code se trouve dans le dossier utils/ qui contient non seulement
-  des modules comme Tagset et Cycle souvent utilisés, mais aussi les arbres de syntaxe des langages et des 
-  fonctions pour les traduire en un autre langage, les écrire dans un fichier, etc.
-  Le dossier test contient divers programmes pour chacun des langages.
+Trucs à faire (Guilhem) :
+  - modifier VAR pour que tout ça fonctionnise (empilement des args dès que possible)
+  - arguments du main
+  - adapter tous les langages pour l'arrivée des librairies
 
+Adresse des paramètres dans les appels terminaux :
+  Comme certains paramètres sont recopiés, leur adresse change. Exemple :
+  # Terminal
+  f(a) {
+    return g(&a);
+  }
 
-Comment utiliser le makefile :
-  Pour chaque langage :
-    - build_<langage>
-      Compile tous les programmes OCaml nécessaires à la compilation d'un programme du langage désiré.
-    - run_<langage> file=<fichier de test>
-      Appelle la commande build correspondante, réalise la compilation du <fichier de test> vers le 
-      bytecode, et l'exécute avec la VM. Le programme doit se trouver dans test/ et l'extension ne doit 
-      pas être précisée.
+  # Non terminal
+  f(a) {
+    var tmp := g(&a);
+    return tmp;
+  }
 
-  Commandes spéciales :
-    - clear
-      Supprime tous les fichiers de compilation de façon à ne garder que le code source, aussi bien
-      pour le code OCaml que pour les fichiers test.
-    - build_chain_compiler
-      Un compilateur plus efficace (voir paragraphe suivant). Malheureusement il semble que mon binôme
-      ait mal pushé son travail sur GitHub, j'ai donc les modifications du makefile mais pas le programme
-      lui⁻même...
+  Dans le cas terminal, a fait potentiellement référence à une variable locale a dont la valeur est celle du paramètre a, et
+  qui a été déclarée avant d'éviter les conflits des appels terminaux. &a pointe donc dans la zone des variables locales.
+  Dans le deuxième cas, a fait toujours référence au paramètre puisqu'il n'y a pas de déclaration implicite. Donc &a 
+  renverra toujours l'adresse du paramètre.
 
-  Pour l'instant, un fichier est parsé, traduit en un arbre de syntaxe lui-même traduit dans le langage
-  précédent. Le résultat est écrit dans un fichier et on répète le procédé jusqu'à arriver au bytecode.
-  Le compilateur chaîné peut passer d'arbre en arbre sans passer par des fichiers, fichiers qu'il peut 
-  écrire lui-même avec la bonne option.
+  Ces deux fonctions sont très similaires mais ont donc des comportements différents. Dans le cas de la première, ce comportement
+  peut même changer en fonction des optimisations des appels terminaux, ce qui en devrait pas être le cas.
 
+  Si g modifie la valeur pointée par son paramètre :
+  - dans le cas non terminal, peu importe. L'espace du paramètre modifié et de l'argument de la fonction appelée n'est pas le même,
+    et puisque on retourne juste après, la modification ne sera jamais visible. En revanche on pourrait y accéder entre les deux instructions ;
+    mais dans ce cas l'appel n'est de toute façon pas terminale, même en cherchant plus finement.
+  - dans le cas terminal, l'espace est partagé. Donc si on n'y fait pas attention, la modification peut affecter la fonction appelée - 
+    mais pas toujours,en fonction des optimisations.
+  Ce comportement est indésirable. Lors de la recherche des paramètres à réempiler, il faut donc y inclure les paramètres dont on utilise 
+  l'adresse ; de cette façon, il n'y a pas d'effets de bord indésirable.
 
-Extensions réalisées pour le module CLL / FUN / VAR :
-  - arguments du main pour l'interpréteur VAR
-    Le nombre d'arguments est fixe et pas de la forme argc/argv.
-
-  - références et passage par référence
-    Les références sont implémentées depuis ART. Les passages par référence ont été implémentés en FUN.
-
-  - déclaration des variables au fil de l'eau
-    Notre variante de VAR considère les déclarations de variables locales comme des instructions.
-    Les variables sont automatiquement détruites à la fin d'un bloc.
-    Il est aussi possible de déclarer une variable dans l'en-tête d'une boucle for.
-
-    Les variables globales fonctionnent un peu différemment.
-    Une variable globale initialisée avec une valeur immédiate (les entiers et les booléens, qu'on 
-    pourrait facilement élargir aux valeurs constantes, comme 5 + 12) sont initialisées au niveau du 
-    bytecode avec cette valeur directement. Les autres variables globales sont initialisées dans 
-    l'ordre de leur apparition, et valent 0 auparavant. Nous avons fait ce choix en tant que compromis entre :
-      - interdire de référencer une variable globale déclarée ultérieurement. Pour des raisons de cohérence,
-      il faudrait alors interdire d'appeler des fonctions déclarées après parce qu'elles pourraient agir
-      sur des variables globales pas encore initialisées. On perd la récursivité mutuelle des fonctions.
-
-      - garder la récursivité mutuelle mais n'itialiser qu'avec des immédiats.
-
-      Si VAR était un langage de haut niveau, nous aurions probablement pris la première option,
-      mais ici nous voulions éviter d'imposer des limitations pour ne pas compliquer la réalisation des langages 
-      suivants. Nous pourrions revenir sur nos choix et prendre la deuxième option plus tard.
-
-  - appels de fonctions dans les expressions
-    Implémentée en VAR. Pour atteindre ce résultat, VAR réserve de l'espace pour des variables locales
-    anonymes qui stockeront le résultat des appels.
-  
-  - récursion terminale
-    Nous n'avons pas encore implémentée cette optimisation mais c'est la suite logique des appels de 
-    fonctions dans des expressions, puisqu'il est très facile de détecter une instruction de la forme
-    return appel_terminal().
-
-  Pour le rendu du module précédent, nous n'avions pas fait STKCompilerAlloc. Afin de garder notre version
-  des langages, nous l'avons donc réalisé pour ce module puisque c'était nécessaire pour CLL.
-
-  Le programme test/var/calls_in_for.var ne compile pas comme il le devrait. Résoudre ce bug est notre 
-  priorité pour le moment.
+Bug de VAR :
+  Les expressions ne sont pas évaluées dans le bon ordre.
+  Dans terminal.var, l_control renvoie 'g' au lieu de 'f' parce que l_aux est appelé, puis a + b est évalué et empilé, et ensuite function_result.
+  L'ordre désirable est en fait
+    - évaluer et empiler a + b
+    - évaluer et empiler l_aux(&b)
+      -> l_aux(&b);
+         empiler function_result
+    - évaluer f et l'appeler
+  L'ordre visé actuel est le même, sauf pour f qui est évalué en premier. Il faudra changer ça.
+  Les arguments des appels devront donc être empilés par... VAR. FUN devient bien inutile.

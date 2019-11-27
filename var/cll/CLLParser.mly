@@ -206,6 +206,12 @@ instruction:
       Return
     }
 
+| RETURN f=l_expr LP RP
+| RETURN LP f=l_expr LP RP RP
+  {
+    TerminalCall f
+  }
+
 | l_e=l_expr LP RP
     {
       Call l_e

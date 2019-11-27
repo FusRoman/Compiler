@@ -16,7 +16,7 @@ let speclist = [
 ]
 
 let write f extension source file =
-  let output_file = "test/" ^ file ^ extension in
+  let output_file = "test/" ^ file ^ "." ^ extension in
   let output = open_out output_file in
   f output source;
   close_out output
@@ -30,11 +30,44 @@ let copy f extension source file =
     write f extension source (file ^ "_copy")
 
 let read f extension file =
-  let input = open_in ("test/" ^ file ^ extension) in
-  let lexing_buffer = Lexing.from_channel input in
-  let source = f lexing_buffer in
-  close_in input;
-  source
+  let upper_ext = String.uppercase_ascii extension in
+  try
+    let input = open_in ("test/" ^ file ^ "." ^ extension) in
+    let lexing_buffer = Lexing.from_channel input in
+    let source = f lexing_buffer in
+    close_in input;
+    source
+  with
+  | ARTTree.SyntaxError(msg, l, c) -> 
+    Printf.printf "[%s ERROR] Error at line %d, character %d. Message:\n%s\n" upper_ext l c msg;
+    exit 1
+  | FUNTree.UnboundValue(fct, var) ->
+    Printf.printf "[FUN ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
+    exit 1
+  | Failure msg ->
+    Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
+    exit 1
+  | _ ->
+    Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
+    exit 1
+
+let translate t extension source =
+  let upper_ext = String.uppercase_ascii extension in
+  try
+    t source
+  with
+  | ARTTree.SyntaxError(msg, l, c) ->
+    Printf.printf "[%s ERROR] Error at line %d, character %d. Message:\n%s\n" upper_ext l c msg;
+    exit 1
+  | FUNTree.UnboundValue(fct, var) ->
+    Printf.printf "[FUN ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
+    exit 1
+  | Failure msg ->
+    Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
+    exit 1
+  | _ ->
+    Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
+    exit 1
 
 let run_btc file =
   exit (command ("./vm/VM " ^ file ^ ".btc"))
@@ -46,52 +79,52 @@ let run_stk file =
   exit (command ("make run_stk_inter file=" ^ file))
 
 let run_art_inter art file =
-  write ARTTree.compile ".stk" art file;
+  write ARTTree.compile "stk" art file;
   run_stk file
 
 let run_art file =
-  let art = read (ARTParser.source ARTLexer.token) ".art" file in
-  copy ARTTree.write_art ".art" art file;
+  let art = read (ARTParser.source ARTLexer.token) "art" file in
+  copy ARTTree.write_art "art" art file;
   run_art_inter art file
 
 let run_imp_inter imp file =
-  let art = IMPTree.imp_to_art imp in
-  write_opt ARTTree.write_art ".art" art file;
+  let art = translate IMPTree.imp_to_art "imp" imp in
+  write_opt ARTTree.write_art "art" art file;
   run_art_inter art file
 
 let run_imp file =
-  let imp = read (IMPParser.program IMPLexer.token) ".imp" file in
-  copy IMPTree.write_imp ".imp" imp file;
+  let imp = read (IMPParser.program IMPLexer.token) "imp" file in
+  copy IMPTree.write_imp "imp" imp file;
   run_imp_inter imp file
 
 let run_cll_inter cll file =
-  let imp = CLLTree.cll_to_imp cll in
-  write_opt IMPTree.write_imp ".imp" imp file;
+  let imp = translate CLLTree.cll_to_imp "cll" cll in
+  write_opt IMPTree.write_imp "imp" imp file;
   run_imp_inter imp file
 
 let run_cll file =
-  let cll = read (CLLParser.program CLLLexer.token) ".cll" file in
-  copy CLLTree.write_cll ".cll" cll file;
+  let cll = read (CLLParser.program CLLLexer.token) "cll" file in
+  copy CLLTree.write_cll "cll" cll file;
   run_cll_inter cll file
 
 let run_fun_inter _fun file =
-  let cll = FUNTree.fun_to_cll _fun in
-  write_opt CLLTree.write_cll ".cll" cll file;
+  let cll = translate FUNTree.fun_to_cll "fun" _fun in
+  write_opt CLLTree.write_cll "cll" cll file;
   run_cll_inter cll file
 
 let run_fun file =
-  let _fun = read (FUNParser.program FUNLexer.token) ".fun" file in
-  copy FUNTree.write_fun ".fun" _fun file;
+  let _fun = read (FUNParser.program FUNLexer.token) "fun" file in
+  copy FUNTree.write_fun "fun" _fun file;
   run_fun_inter _fun file
 
 let run_var_inter var file =
-  let _fun = VARTree.var_to_fun var in
-  write_opt FUNTree.write_fun ".fun" _fun file;
+  let _fun = translate VARTree.var_to_fun "var" var in
+  write_opt FUNTree.write_fun "fun" _fun file;
   run_fun_inter _fun file
 
 let run_var file =
-  let var = read (VARParser.program VARLexer.token) ".var" file in
-  copy VARTree.write_var ".var" var file;
+  let var = read (VARParser.program VARLexer.token) "var" file in
+  copy VARTree.write_var "var" var file;
   run_var_inter var file
 
 let rec run file =

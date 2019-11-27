@@ -22,7 +22,15 @@ val fun_variables : Tagset.t
   | Call of fun_expr * (fun_expr list)*)
 
 (**
-  Les instructions en FUN, identiques à celles de CLL sauf pour Call qui prend maintenant des arguments
+  Les instructions en FUN, identiques à celles de CLL sauf pour Call et SetCall qui prend maintenant des arguments.
+
+  TerminalCall ne doit paŝ être utilisé quand le langage source est FUN. En effet, l'appel terminal va chercher
+  à reprendre l'espace donné aux arguments de la fonction appelante pour stocker ceux de la fonction appelée.
+  Il faut donc faire attention à ne remplacer l'argument i quand celui-ci est utilisé dans d'autres expressions plus tard,
+  ce qu'il est possible de faire en FUN et requiert l'allocation de "variables locales anonymes" pour stocker les valeurs des arguments.
+  Ce faisant, on risque d'effacer des variables locales utilisées dans les expressions des arguments. Il est plus efficace
+  de gérer ceci dans VAR (quitte à s'y occuper des paramètres aussi).
+  C'est la raison pour laquelle TerminalCall n'accepte pas la liste des arguments, car c'est VAR qui s'en occupe.
 *)
 type fun_instr =
   | Nop
@@ -39,6 +47,7 @@ type fun_instr =
   | For of fun_instrs * expression * fun_instrs * fun_instrs
   | SetCall of expression * assign_binop * expression * (expression list)
   | Call of expression * (expression list)
+  | TerminalCall of expression
 
 and fun_instrs = fun_instr list
 

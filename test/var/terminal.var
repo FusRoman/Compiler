@@ -1,0 +1,91 @@
+main() {
+  # a
+  print(g(56, 41));
+  print(10);
+
+  # b
+  print(h(56, 41));
+  print(10);
+
+  # c
+  print(i(58, 41, 666));
+  print(10);
+
+  # c
+  print(ibis(99, 100, 666));
+  print(10);
+
+  # d
+  print(j(100, 256));
+  print(10);
+
+  # e
+  print(k(256, 101));
+  print(10);
+
+  #  f
+  print(l(102, 0, 0));
+  print(10);
+
+  #  f
+  # Ne marche pas pour l'instant à cause de l'ordre des opérations qui n'est pas celle prévue
+  # Les appels terminaux ne sont pas la source du bug
+  print(l_control(102, 0, 0));
+  print(10);
+
+  exit;
+}
+
+f(a, b) {
+  return a % b;
+}
+
+g(a, b) {
+  return f(a + b, 100);
+}
+
+h(a, b) {
+  var a := 57;
+  var c := 99;
+  var o := 111;
+  var u := 117;
+  for (var i := 0; i < 2; i++) {
+    print(c);
+    print(o);
+    print(u);
+  }
+  print(10);
+  return f(a + b, 100);
+}
+
+i(a, b, c) {
+  return f(a + b, 100);
+}
+
+ibis(a, b, c) {
+  return f(a, b);
+}
+
+j(a, b) {
+  return f(a, b);
+}
+
+k(a, b) {
+  return f(b, a);
+}
+
+l_aux(&b) {
+  print(b);
+  print(32);
+  b++;
+  return 256;
+}
+
+l(a, b, c) {
+  return f(a + b, l_aux(&b));
+}
+
+l_control(a, b, c) {
+  var tmp := f(a + b, l_aux(&b));
+  return tmp;
+}

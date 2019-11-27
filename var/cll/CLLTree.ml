@@ -4,12 +4,11 @@ open Tagset
 open ARTTree
 open IMPTree
 
-let cll_variables =
-  add "frame_pointer" (add "return_address" (singleton "stack_pointer"))
+let cll_variables = add "frame_pointer" (singleton "stack_pointer")
 
 let stack_pointer = default_node "stack_pointer"
-let return_address = default_node "return_address"
 let frame_pointer = default_node "frame_pointer"
+let function_result = default_node "function_result"
 
 type cll_instr =
   | Nop
@@ -25,6 +24,7 @@ type cll_instr =
   | While of expression * cll_instrs
   | For of cll_instrs * expression * cll_instrs * cll_instrs
   | Call of expression
+  | TerminalCall of expression
 
 (** Analogue à son équivalent IMP *)
 and cll_instrs = cll_instr Cycle.cycle
@@ -64,6 +64,11 @@ let check_procedure proc tag_set =
         ignore (check_rec loop is'); 
         true
 
+      | TerminalCall f ->
+        check_expression f tag_set;
+        ignore(check_rec loop is');
+        true
+
       | Nop -> 
         check_rec loop is'
 
@@ -92,7 +97,7 @@ let check_procedure proc tag_set =
 
       | For(init, c, it, b) ->
         check_expression c tag_set;
-        ignore (check_rec loop init); (* placer un break ou un continue est absurde mais autorisé (en pratique la grammaire ne l'autorise pas cela dit), mais elle devrait) *)
+        ignore (check_rec loop init);
         ignore (check_rec true it);
         ignore (check_rec true b);
         check_rec loop is'
@@ -141,9 +146,15 @@ let rec translate_instruction tag_set maker i acc =
     extend acc (for_to_while imp_init c imp_it imp_b)
 
   | Call e ->
-    (* Etape 1 du protocole d'appel *)
+    (* Etapes 1 et 2 du protocole d'appel, réunies pour simplifier l'implémentation des appels terminaux *)
     let return = make_tag_node maker in
-    let acc = append acc (Assign(Id return_address, Id return)) in (* *stack_pointer := &return; *)
+    let deref_sp = LStar(Id stack_pointer) in
+    let decr_sp = simplify_assign_unop (Id stack_pointer) Decr in
+    let acc = append acc (Assign(deref_sp, Id return)) in (* *stack_pointer := &return; *)
+    let acc = append acc decr_sp in (* stack_pointer--; *)
+    let acc = append acc (Assign(deref_sp, LStar(Id frame_pointer))) in (* *stack_pointer := frame_pointer; *)
+    let acc = append acc decr_sp in (* stack_pointer--; *)
+    let acc = append acc (Assign(Id frame_pointer, Binop(LStar(Id stack_pointer), Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
     let acc = append acc (Goto e) in (* goto(e); *)
     append acc (TagDeclaration return) (* return: *)
 
@@ -154,22 +165,17 @@ let rec translate_instruction tag_set maker i acc =
     (* Pas besoin de mettre return_address à jour *)
     append acc (Goto(LStar(LStar(Id stack_pointer)))) (* goto( **stack_pointer ) (goto utilise une expression gauche, les deux déréférencements sont donc explicites) *)
 
+  | TerminalCall e ->
+    (* Appel terminal (variante des étapes 1 et 2) *)
+    let acc = append acc (Assign(Id stack_pointer, Binop(LStar(Id frame_pointer), Sub, Int 2))) in
+    append acc (Goto e)(* goto(e); *)
+
 and translate_instructions tag_set maker is =
   iter is (fun i acc -> translate_instruction tag_set maker i acc) empty_cycle
 
 and translate_procedure tag_set maker proc_def acc =
   check_procedure proc_def tag_set;
-  (* Ajoute le tag correspondant a la procedure dans le code IMP *)
   let acc = append acc (TagDeclaration proc_def.name) in
-  (* Etape 2 du protocole d'appel *)
-  let deref_sp = LStar(Id stack_pointer) in
-  let decr_sp = simplify_assign_unop (Id stack_pointer) Decr in
-  let acc = append acc (Assign(deref_sp, LStar(Id return_address))) in (* *stack_pointer := return_adress; *)
-  let acc = append acc decr_sp in (* stack_pointer--; *)
-  let acc = append acc (Assign(deref_sp, LStar(Id frame_pointer))) in (* *stack_pointer := frame_pointer; *)
-  let acc = append acc decr_sp in (* stack_pointer--; *)
-  let acc = append acc (Assign(Id frame_pointer, Binop(LStar(Id stack_pointer), Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
-  (* Traduit le bloc d'instruction de la procédure en code IMP *)
   extend acc (translate_instructions tag_set maker proc_def.block)
 
 let translate_procedures tag_set maker procs acc =
@@ -207,18 +213,13 @@ let cll_to_imp cll_prog =
   let tag_set = union_duplicate cll_variables cll_prog.tag_set in
   let maker = Tagset.make_tag_maker tag_set in
 
-  let add_variables data =
-    let add_variable data var =
-      let var' = {line = var.line; column = var.column; contents = (var.contents, 0)} in
-      append data var'
-    in
-    let data' = add_variable data return_address in
-    add_variable data' frame_pointer
-  in
-
   let syntax_tree, data = 
     let procs, data = cll_prog.syntax_tree in 
-    let data = add_variables data in
+    let data = append data {
+      line = frame_pointer.line; 
+      column = frame_pointer.column; 
+      contents = (frame_pointer.contents, 0)
+    } in
     let instr = translate_procedures tag_set maker procs empty_cycle in
     (instr, data)
   in
@@ -229,6 +230,18 @@ let write_tabs file depth =
   for i = 1 to depth do
     fprintf file "\t"
   done
+
+let rec write_args file is =
+  if count_k is 2 then
+  begin
+    let (x, is') = take is in
+    write_art_right_expr file x;
+    fprintf file ", ";
+    write_args file is'
+  end
+  else if count_1 is then
+    let (x, is') = take is in
+    write_art_right_expr file x
 
 let write_assign file i =
   match i with
@@ -254,6 +267,10 @@ let write_assign file i =
     fprintf file " %s " (string_of_assign_binop op);
     write_art_right_expr file e
   | Call f ->
+    write_art_left_expr file f;
+    fprintf file "()"
+  | TerminalCall f ->
+    fprintf file "return ";
     write_art_left_expr file f;
     fprintf file "()"
   | _ ->
@@ -328,6 +345,10 @@ let rec write_instruction file i depth =
     fprintf file "}\n";
   | Call e ->
     write_art_left_expr file e;
+    fprintf file "();\n"
+  | TerminalCall f ->
+    fprintf file "return ";
+    write_art_left_expr file f;
     fprintf file "();\n"
 
 and write_instructions file is depth =

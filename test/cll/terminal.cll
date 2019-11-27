@@ -1,0 +1,22 @@
+f() {
+  function_result := *(frame_pointer + 2) % *(frame_pointer + 1);
+  return;
+}
+
+g() {
+  return f();
+}
+
+main() {
+  *stack_pointer := 97;
+  stack_pointer--;
+  *stack_pointer := 100;
+  stack_pointer--;
+  g();
+  print(function_result);
+  print(10);
+  exit;
+}
+
+.data
+  function_result: 0

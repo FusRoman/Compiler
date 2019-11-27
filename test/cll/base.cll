@@ -1,18 +1,18 @@
 main() {
-  print(97);
+  print(97); # a
   hi();
-  print(99);
+  print(99); # c
   print(10);
   exit;
 }
 
 hi() {
-  print(98);
+  print(98); # b
   hi2();
   return;
 }
 
 hi2(){
-  print(100);
+  print(100); # d
   return;
 }

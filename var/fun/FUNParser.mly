@@ -224,6 +224,10 @@ instruction:
 
 | d=l_expr op=assign_binop f=l_expr LP args=separated_list(COMMA, expr) RP
     { SetCall(d, op, f, args) }
+
+| RETURN f=l_expr LP RP
+| RETURN LP f=l_expr LP RP RP
+    { TerminalCall f }
 ;
 
 assign_binop:

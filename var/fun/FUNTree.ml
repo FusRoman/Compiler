@@ -28,6 +28,7 @@ type fun_instr =
   | For of fun_instrs * expression * fun_instrs * fun_instrs
   | SetCall of expression * assign_binop * expression * (expression list)
   | Call of expression * (expression list)
+  | TerminalCall of expression
 
 and fun_instrs = fun_instr list
 
@@ -81,7 +82,7 @@ let check_function fct genv =
         ignore (check_rec loop is'); 
         true
 
-      | Return e ->
+      | Return e | TerminalCall e ->
         check_expression e;
         ignore (check_rec loop is');
         true
@@ -160,9 +161,8 @@ let translate_expression e fct genv =
         raise (UnboundValue(fct.name, id))
     | x::s ->
       if x.name.contents = id.contents then
-        (* TODO pas sûr que ça marche ici ! *)
         let base = Binop(LStar(Id frame_pointer), Add, Int(nb_params - i)) in
-        if x.reference = true then LStar base else base
+        if x.reference then LStar base else base
       else
         translate_id id s (i+1)
   in
@@ -259,6 +259,9 @@ let rec translate_instruction i fct genv acc =
     let acc = stack_args args fct genv acc in
     let acc = append acc (Call e') in
     incr_sp acc (List.length args)
+
+  | TerminalCall e ->
+    append acc (TerminalCall e)
     
 and translate_instructions is fct genv =
   List.fold_left (fun acc i ->
@@ -302,9 +305,8 @@ let rec write_assign file i =
     write_art_right_expr file e;
     fprintf file ")"
   | Return e ->
-    fprintf file "return(";
-    write_art_right_expr file e;
-    fprintf file ")"
+    fprintf file "return ";
+    write_art_right_expr file e
   | Break _ ->
     fprintf file "break"
   | UnopAssign(e, op) ->
@@ -326,6 +328,10 @@ let rec write_assign file i =
     fprintf file "(";
     write_args file args;
     fprintf file ")"
+  | TerminalCall f ->
+    fprintf file "return ";
+    write_art_left_expr file f;
+    fprintf file "()"
   | _ ->
     failwith "FUNTree.write_assign: while writing the header of a for loop, found a control block"
 
@@ -374,9 +380,9 @@ and write_instruction file i depth =
     write_art_right_expr file e;
     fprintf file ");\n"
   | Return e ->
-    fprintf file "return(";
+    fprintf file "return ";
     write_art_right_expr file e;
-    fprintf file ");\n"
+    fprintf file ";\n"
   | Break _ ->
     fprintf file "break;\n"
   | Continue _ ->
@@ -431,6 +437,10 @@ and write_instruction file i depth =
     fprintf file "(";
     write_args file args;
     fprintf file ");\n"
+  | TerminalCall f ->
+    fprintf file "return ";
+    write_art_left_expr file f;
+    fprintf file "();\n"
 
 and write_instructions file is depth =
   List.iter (fun i -> write_instruction file i depth) is

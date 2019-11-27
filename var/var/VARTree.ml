@@ -211,7 +211,7 @@ let translate_expression e compiler immediate =
   (* 
     e : expression à traduire
     may_be_last : e est susceptible de contenir le dernier appel de fonction
-    Renvoie (b, e, c, l) avec b, e et c comme expliqués avant.
+    Renvoie (b, e, r, c, l) avec b, e, r et c comme expliqués avant.
     l vaut true si le dernier appel n'a pas été rencontré.
   *)
   and translate_expr e compiler may_be_last =
@@ -278,8 +278,112 @@ let extract_declarations block =
   ) (empty_cycle, empty_cycle) in
   (decl, block')
 
+(*
+  Utilisé pour optimiser les appels terminaux.
+  - remplace les adresses des paramètres par le calcul de leur adresse AVANT d'optimiser (voir le README)
+  - renvoie la liste des arguments qui doivent être copiés au sommet du stack
+  Renvoie (acc, f, args, compiler) avec :
+  - acc la liste des instructions avec potentiellement des déclarations en plus
+  - f la nouvelle expression de l'adresse de la fonction
+  - args la liste des expressions potentiellement modifiées
+  - compiler le nouvel état du compilateur
+*)
+let rec preprocess_terminal_call acc f args compiler =
+  let nb_new_args = List.length args in
+  let nb_old_args = List.length compiler.fct.params in
+  let not_overwritten = nb_old_args - nb_new_args in
+
+  let rec find_param (params: parameter list) id i =
+    match params with
+    | [] -> None
+    | x::_ when x.name.contents = id.contents -> Some(i, x)
+    | _::s -> find_param s id (i + 1)
+  in
+
+  (* is_param utilise le compiler originel, pas l'accumulé *)
+  let is_param id =
+    if Env.mem id.contents compiler.lenv then
+      (* lenv ne contient que les variables locales, pas les paramètres *)
+      None
+    else
+      find_param compiler.fct.params id 0
+  in
+
+  (* 
+    Renvoie l'ensemble des arguments précédents vu dans cette expression, et l'argument transformé 
+    e : l'argument à transformer
+    i : la position de cet argument
+  *)
+  let rec preprocess_expression e i =
+    match e with
+    | Int _ | Bool _ -> (Tagset.empty, e)
+    | Unop(op, e) ->
+      let depends, e' = preprocess_expression e i in 
+      (depends, Unop(op, e'))
+    | Binop(e1, op, e2) ->
+      let depends1, e1' = preprocess_expression e1 i in
+      let depends2, e2' = preprocess_expression e2 i in
+      (Tagset.union_duplicate depends1 depends2, Binop(e1', op, e2'))
+    | Call(f, args) ->
+      let depends, f' = preprocess_expression f i in
+      let depends, args' =
+        List.fold_left (fun (depends, args') e ->
+          let (depends2, e') = preprocess_expression e i in
+          (Tagset.union_duplicate depends depends2, e'::args')
+        ) (depends, []) args
+      in
+      (depends, Call(f', List.rev args'))
+    | Deref (Id id) ->
+    begin
+      match is_param id with
+      | None -> (Tagset.empty, e)
+      | Some(j, x) ->
+        if j >= not_overwritten && j < i then
+          (* j sera réécrit avant i *)
+          (Tagset.singleton x.name.contents, e)
+        else
+          (* j ne sera pas réécrit, ou après i *)
+          (Tagset.empty, e)
+    end
+    | Deref e ->
+      let depends, e' = preprocess_expression e i in
+      (depends, Deref e')
+    | Id id ->
+      (* On veut juste l'adresse de id *)
+      match is_param id with
+      | None -> (Tagset.empty, e) (* variable globale ou locale *)
+      | Some(j, x) ->
+        (* 
+          Ancienne version qui faisait en sorte que le paramètre puisse être modifié, ce qui est en fait le contraire de ce qu'on veut.
+          Seul cas où on modifiait l'expression, donc en fait l'expression rendue est maintenant identique. Changer la fonction ?
+        *)
+        (* copié-collé depuis FUN... (translate_id dans translate_expression) *)
+        (*let base = Binop(Deref(Id frame_pointer), Add, Int(nb_old_args - j)) in
+        (Tagset.empty, if x.reference then Deref base else base)*)
+        (Tagset.singleton id.contents, e)
+  in
+
+  (* Traduction préliminaire des expressions et détection des conflits *)
+  let _, f' = preprocess_expression f (-1) in
+  let depends, args', _ = 
+    List.fold_left (fun (depends, args, i) e ->
+      let (depends2, e') = preprocess_expression e i in
+      (Tagset.union_duplicate depends depends2, e'::args, i + 1)
+    ) (Tagset.empty, [], not_overwritten) args
+  in (* not_overwritten parce que c'est la position en mémoire qui nous intéresse, pas la position dans l'appel *)
+  let args' = List.rev args' in
+
+  (* Résolution des conflits *)
+  let acc, compiler =
+    Tagset.fold (fun id (acc, c) ->
+      let id_node = default_node id in
+      translate_instruction acc (Declaration(id_node, Deref (Id id_node))) c
+    ) depends (acc, compiler)
+  in
+  (acc, f', args', compiler)
+
 (* Pour l'instant, les conditions peuvent rajouter des désallocations de variables locales inutiles *)
-let rec translate_instruction acc i compiler =
+and translate_instruction acc i compiler =
   match i with
   | Nop -> 
     (append acc FUNTree.Nop, compiler)
@@ -295,19 +399,58 @@ let rec translate_instruction acc i compiler =
     let acc = quit_block acc compiler in
     (append acc (Continue n), compiler)
 
+  | Return(Call(f, args)) ->
+    let n = List.length args in
+    let space = List.length compiler.fct.params in
+    let not_overwritten = space - n in
+    if n <= space then
+      (* 
+        Appel terminal
+        1) On transforme les expressions pour que les adresses de paramètres renvoient bien celles des paramètres,
+          et pas celles des arguments
+        2) On déclare les nouvelles variables nécessaires pour gérer les conflits de mémoire :
+          on veut éviter qu'un paramètre soit réécrit puis utilisé dans les arguments suivants
+        3) On réécrit les paramètres
+      *)
+      let (acc, f', args', c) = preprocess_terminal_call acc f args compiler in
+      let (finit, f', _, c) = translate_expression f' c false in
+      let acc = extend acc finit in
+      let acc, c, _ =
+        List.fold_left (fun (acc, c, i) e ->
+          let overwritten_param = List.nth compiler.fct.params (i + not_overwritten) in
+          match e with
+          | Deref (Id id) when id.contents = overwritten_param.name.contents ->
+            (* Un des cas où l'affectation n'a aucun effet, on peut l'éviter *)
+            (acc, c, i + 1)
+          | _ ->
+            let (init, e', _, c) = translate_expression e c true in
+            let acc = extend acc init in
+            let acc = append acc (BinopAssign(Binop(LStar(Id frame_pointer), Add, Int(n - i)), Standard, e')) in
+            (acc, c, i + 1)
+          ) (acc, c, 0) args'
+      in
+      (append acc (TerminalCall f'), c)
+    else
+      (* 
+        Appel normal ou presque, puisqu'on n'a pas besoin de libérer les paramètres. 
+        Il n'y a pas non plus besoin de reset function_result, mais malheureusement
+        il faudrait implémenter les appels terminaux depuis FUN pour avoir le contrôle sur function_result.
+        Or FUN ne peut pas gérer les variables locales tel qu'il est actuellement.
+      *)
+      let (init, e', _, c) = translate_expression (Call(f, args)) compiler true in
+      let acc = extend acc init in
+      (append acc (Return e'), c)
+
   | Return e ->
     let (init, e', _, c) = translate_expression e compiler true in
     let acc = extend acc init in
-    let acc = quit_block acc c in
+    (*let acc = quit_block acc c in*)
     (append acc (Return e'), compiler)
 
   | Print e ->
     let (init, e', _, c) = translate_expression e compiler true in
     let acc = extend acc init in
     (append acc (Print e'), c)
-
-  (*| BinopAssign(e1, op, Call(f, args)) ->
-    En utilisant SetCall ici, on pourrait optimiser un peu *)
 
   | BinopAssign(e1, op, e2) -> 
     let (init1, e1', _, c)  = translate_expression e1 compiler false in
@@ -500,9 +643,8 @@ let write_assign file i =
     write_var_right_expr file e;
     fprintf file ")"
   | Return e ->
-    fprintf file "return(";
-    write_var_right_expr file e;
-    fprintf file ")"
+    fprintf file "return ";
+    write_var_right_expr file e
   | Break _ ->
     fprintf file "break"
   | Continue _ ->
@@ -566,9 +708,9 @@ let rec write_instruction file i depth =
   | Exit -> 
     fprintf file "exit;\n"
   | Print e ->
-    fprintf file "print(";
+    fprintf file "print ";
     write_var_right_expr file e;
-    fprintf file ");\n"
+    fprintf file ";\n"
   | Return e ->
     fprintf file "return(";
     write_var_right_expr file e;
