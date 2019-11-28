@@ -42,7 +42,7 @@
 
 %}
 
-%token VAR TINT TSTRING TFUN DOT TYPE ARROW DOTSIZE
+%token VAR TINT TBOOL TCHAR TSTRING TFUN DOT TYPE ARROW
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -100,16 +100,33 @@ program:
     }
 ;
 
+global_declaration:
+| def_fun=function_definition
+    {
+      Fun f
+    }
+
+| var=variable_declaration SEMI
+    {
+      Var v
+    }
+| t=list(type_declaration) SEMI
+    { 
+      Type t
+    }
+;
+
 type_declaration:
 | TYPE name_type=LABEL ASSIGN _type=type_expr
   {
     (make_node $startpos name_type, _type)
   }
 ;
+
 variable_declaration:
-| type_var=type_expr name=LABEL ASSIGN e=expr
+| type_variable=type_expr name=LABEL ASSIGN e=expr
     {
-      (type_var,make_node $startpos name, e)
+      (type_variable,make_node $startpos name, e)
     }
 ;
 
@@ -135,41 +152,41 @@ function_definition:
 type_expr:
 |TINT
   {
-    Int
+    TInt
   }
 |TSTRING
   {
-    Array (Int)
+    TArray (TChar)
   }
 |TFUN LP ps=separated_list(COMMA, type_expr) ARROW ty=type_expr RP
   {
-    Fun (ps, ty)
+    TFun (ps, ty)
   }
 |l = LABEL
   {
-    Unknown (make_node $startpos l)
+    TAlias (make_node $startpos l)
   }
 |t = type_expr LS RS
   {
-    Array (t)
+    TArray (t)
   }
 | t=type_expr MULT
   {
-    Pointer t
+    TPointer t
   }
 | LB fields=separated_nonempty_list(SEMI, field_declaration) RB
 | LB fields=separated_nonempty_list(SEMI, field_declaration) SEMI RB
   {
-    let e = List.fold_left (fun (acc, i) (s, t) ->
-      if StringMap.mem s.contents acc then
+    let (env, _) = List.fold_left (fun (s_map, decalage) (label, _type) ->
+      if StringMap.mem label.contents s_map then
          raise (SyntaxError(
            Printf.sprintf "Field '%s' has been declared twice in the same record type" s.contents,
            s.line, s.column
          ))
       else
-        ((StringMap.add s.contents (t, i) acc), i + 1)
+        ((StringMap.add label.contents (_type, decalage) s_map), decalage + 1)
     ) (StringMap.empty, 0) fields in
-    Record e
+    TRecord env
   }
 ;
 
@@ -178,21 +195,6 @@ field_declaration:
   {
     ((make_node $startpos f), t)
   }
-;
-global_declaration:
-| def_fun=function_definition
-    {
-      Fun f
-    }
-
-| var=variable_declaration SEMI
-    {
-      Var v
-    }
-| t=list(type_declaration) SEMI
-    { 
-      Type t
-    }
 ;
 
 instructions:
@@ -214,6 +216,21 @@ instructions:
     }
 
 |   { [] }
+;
+
+l_expr:
+| t=LABEL
+    { Id (make_node $startpos t) }
+| MULT LP l=expr RP (* La grammaire a changé par rapport à FUN pour éviter les ambiguïtés ! *)
+    { l }
+| l_expr=l_expr DOT l=LABEL
+    {
+      RecordAccess(l_expr, l)
+    }
+| l_expr=l_expr LS e=expr RS
+    {
+      ArrayAccess (l_expr, e)
+    }
 ;
 
 expr:
@@ -261,23 +278,10 @@ expr:
     { e }
 | f=l_expr LP args=separated_list(COMMA, expr) RP
     { Call(f, args) }
-
-| l_expr=l_expr DOT l=LABEL
+| t_e=type_expr LB fields=separated_nonempty_list(SEMI, field_instanciation) RB
+| t_e=type_expr LB fields=separated_nonempty_list(SEMI, field_instanciation) SEMI RB
     {
-      RecordAccess(l_expr, l)
-    }
-| l_expr=l_expr LS e=expr RS
-    {
-      ArrayAccess (l_expr, e)
-    }
-| l_expr=l_expr DOTSIZE
-    {
-      ArrayAccess (l_expr, Int (-1))
-    }
-| LB fields=separated_nonempty_list(SEMI, field_instanciation) RB
-| LB fields=separated_nonempty_list(SEMI, field_instanciation) SEMI RB
-    {
-      NewRecord fields
+      NewRecord (t_e,fields)
     }
 | LP size=expr RP LS init_elt=expr RS
     {
@@ -290,13 +294,6 @@ field_instanciation:
     {
       (make_node $startpos f,e)
     }
-;
-
-l_expr:
-| t=LABEL
-    { Id (make_node $startpos t) }
-| MULT LP l=expr RP (* La grammaire a changé par rapport à FUN pour éviter les ambiguïtés ! *)
-    { l }
 ;
 
 instruction:
@@ -331,12 +328,12 @@ instruction:
 
 | f=l_expr LP args=separated_list(COMMA, expr) RP
     {
-      Call(f, args) 
+      Call(f, args)
     }
 
 | v=variable_declaration
     { 
-      Declaration v 
+      Declaration v
     }
 ;
 

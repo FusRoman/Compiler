@@ -14,12 +14,6 @@ rule token = parse
       { VAR }
   | "int"
       { TINT }
-(* 
-    On utilise le mot clé '.size' pour ne pas empêcher l'utilisateur de pouvoir créer une 
-    variable size. 
- *)
-  | ".size"
-      { DOTSIZE }
   | "bool"
       { TINT }
   | "char"

@@ -163,7 +163,7 @@ run_tpl: build_tpl
 build_typ: build_tpl
 	menhir -v typ/typ/TYPParser.mly
 	ocamllex typ/typ/TYPLexer.mll
-	ocamlc -c -I typ/typ/ -I utils/ typ/typ/TYPParser.mli typ/typ/TYPParser.ml
+	ocamlc -c -I typ/typ/ -I utils/ utils/TYPTree.cmo typ/typ/TYPParser.mli typ/typ/TYPParser.ml
 	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
 
 
