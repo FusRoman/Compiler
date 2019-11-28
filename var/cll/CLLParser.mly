@@ -54,7 +54,7 @@
 %type <CLLTree.cll_instr> instruction
 %type <CLLTree.cll_instrs> block
 %type <CLLTree.cll_instrs> control
-%type <CLLTree.cll_instrs> assigns
+%type <CLLTree.cll_instrs> for_header
 %type <ARTTree.datas ARTTree.compiler_type> data_declarations
 %type <(CLLTree.procedure_definition Cycle.cycle) ARTTree.compiler_type> procedure_definitions
 
@@ -270,7 +270,7 @@ control:
       Cycle.from_elt (CLLTree.While(e, b))
     }
 
-| FOR LP init=assigns SEMI cond=expr SEMI it=assigns RP b=block
+| FOR LP init=for_header SEMI cond=expr SEMI it=for_header RP b=block
     {
       Cycle.from_elt (For(init, cond, it, b))
     }
@@ -281,14 +281,16 @@ control:
     }
 ;
 
-assigns:
+for_header:
 |   { Cycle.empty_cycle }
-| s=assigns_list { s }
+| s=for_header_list { s }
 ;
 
-assigns_list:
+for_header_list:
 | i=instruction { Cycle.from_elt i }
-| i=instruction COMMA s=assigns { Cycle.prepend s i }
+| i=instruction COMMA s=for_header_list { Cycle.prepend s i }
+| c=control { c }
+| c=control COMMA s=for_header_list { Cycle.extend s c }
 ;
 
 data_declarations:

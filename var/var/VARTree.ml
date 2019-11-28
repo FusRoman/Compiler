@@ -632,7 +632,7 @@ and write_var_left_expr file e =
     write_var_right_expr file e;
     fprintf file ")"
 
-let write_assign file i =
+and write_assign file i depth =
   match i with
   | Nop -> 
     fprintf file "nop"
@@ -665,29 +665,20 @@ let write_assign file i =
     fprintf file "var %s := " v.contents;
     write_var_right_expr file e
   | _ ->
-    failwith "VARTree.write_assign: while writing the header of a for loop, found a control block"
+    fprintf file "\n";
+    write_instruction file i (depth + 1)
 
-let rec write_assigns file is =
+and write_assigns file is depth =
   match is with
   | x::y::s ->
-    write_assign file x;
+    write_assign file x depth;
     fprintf file ", ";
-    write_assigns file (y::s)
+    write_assigns file (y::s) depth
   | x::[] ->
-    write_assign file x
+    write_assign file x depth
   | [] -> ()
 
-let rec write_args file args =
-  match args with
-  | x::y::s ->
-    write_var_right_expr file x;
-    fprintf file ", ";
-    write_args file (y::s)
-  | x::[] ->
-    write_var_right_expr file x
-  | [] -> ()
-
-let rec write_params file params =
+and write_params file params =
   match params with
   | x::y::s ->
     if x.reference then
@@ -700,7 +691,7 @@ let rec write_params file params =
     fprintf file "%s" x.name.contents
   | [] -> ()
 
-let rec write_instruction file i depth =
+and write_instruction file i depth =
   write_tabs file depth;
   match i with
   | Nop -> 
@@ -708,19 +699,19 @@ let rec write_instruction file i depth =
   | Exit -> 
     fprintf file "exit;\n"
   | Print e ->
-    fprintf file "print ";
-    write_var_right_expr file e;
-    fprintf file ";\n"
-  | Return e ->
-    fprintf file "return(";
+    fprintf file "print(";
     write_var_right_expr file e;
     fprintf file ");\n"
+  | Return e ->
+    fprintf file "return ";
+    write_var_right_expr file e;
+    fprintf file ";\n"
   | Break _ ->
     fprintf file "break;\n"
   | Continue _ ->
     fprintf file "continue;\n"
   | UnopAssign _ | BinopAssign _ ->
-    write_assign file i;
+    write_assign file i depth;
     fprintf file ";\n"
   | IfElse(c, t, e) ->
     fprintf file "if (";
@@ -748,11 +739,11 @@ let rec write_instruction file i depth =
     fprintf file "}\n"
   | For(init, c, it, b) ->
     fprintf file "for (";
-    write_assigns file init;
+    write_assigns file init depth;
     fprintf file "; ";
     write_var_right_expr file c;
     fprintf file "; ";
-    write_assigns file it;
+    write_assigns file it depth;
     fprintf file ") {\n";
     write_instructions file b (depth + 1);
     write_tabs file depth;

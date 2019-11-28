@@ -53,7 +53,7 @@
 %type <IMPTree.imp_instr> instruction
 %type <IMPTree.imp_instrs ARTTree.compiler_type> block
 %type <IMPTree.imp_instrs ARTTree.compiler_type> control
-%type <IMPTree.imp_instrs> assigns
+%type <IMPTree.imp_instrs ARTTree.compiler_type> for_header
 %type <ARTTree.datas ARTTree.compiler_type> data_declarations
 
 %nonassoc NO_ELSE
@@ -236,7 +236,6 @@ assign_unop:
 block:
 | i=instruction SEMI
     {
-      (* Pour l'instant, une déclaration d'étiquette suivie d'une seule intrusction, sans {}, n'est pas autorisée *) 
       {syntax_tree = Cycle.from_elt i; tag_set = empty} 
     }
 
@@ -271,39 +270,54 @@ control:
       {syntax_tree; tag_set = b.tag_set}
     }
 
-| FOR LP init=assigns SEMI cond=expr SEMI it=assigns RP b=block
+| FOR LP init=for_header SEMI cond=expr SEMI it=for_header RP b=block
     {
-      {syntax_tree = for_to_while init cond it b.syntax_tree; 
-      tag_set = b.tag_set}
-    }
-
-| WHILE block
-    {
-      raise_syntax_error $startpos "No condition found for 'while'"
-    }
-
-| FOR LP expr SEMI assigns RP block
-| FOR LP assigns SEMI assigns RP block
-| FOR LP assigns SEMI expr RP block
-| FOR LP assigns RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop"
-    }
-
-| FOR LP expr RP block
-    {
-      raise_syntax_error $startpos "Ill-formed 'for' loop; You may want to use a 'while' loop instead."
+      let syntax_tree = for_to_while init.syntax_tree cond it.syntax_tree b.syntax_tree in
+      let tag_set = Tagset.(union init.tag_set (union it.tag_set b.tag_set)) in
+      {syntax_tree; tag_set}
     }
 ;
 
-assigns:
-|   { Cycle.empty_cycle }
-| s=assigns_list { s }
+for_header:
+|   { 
+      {syntax_tree = Cycle.empty_cycle; tag_set = Tagset.empty} 
+    }
+| s=for_header_list { s }
 ;
 
-assigns_list:
-| i=instruction { Cycle.from_elt i }
-| i=instruction COMMA s=assigns { Cycle.prepend s i }
+(* 
+  Toutes les instructions sont acceptées dans les en-têtes de boucle for, pour faciliter le travail des languages de plus haut niveau. 
+  La syntaxe pour les blocs de contrôle n'est pas intuitive, mais peu importe puisque de toute façon ce n'est pas conçu pour être 
+  utilisé par le programmeur.
+*)
+for_header_list:
+| i=instruction 
+    { 
+      {syntax_tree = Cycle.from_elt i; 
+      tag_set = Tagset.empty} 
+    }
+| i=instruction COMMA s=for_header_list
+    {
+      {syntax_tree = Cycle.prepend s.syntax_tree i; tag_set = s.tag_set}
+    }
+| c=control { c }
+| c=control COMMA s=for_header_list
+    {
+      let syntax_tree = Cycle.extend c.syntax_tree s.syntax_tree in 
+      let tag_set = Tagset.union c.tag_set s.tag_set in
+      {syntax_tree; tag_set}
+    }
+| t=LABEL
+    { 
+      {syntax_tree = Cycle.from_elt (TagDeclaration (make_node $startpos t));
+      tag_set = Tagset.singleton t} 
+    }
+| t=LABEL COLON s=for_header_list
+    {
+      let syntax_tree = Cycle.prepend s.syntax_tree (TagDeclaration (make_node $startpos t)) in
+      let tag_set = Tagset.add t s.tag_set in
+      {syntax_tree; tag_set}
+    }
 ;
 
 data_declarations:
