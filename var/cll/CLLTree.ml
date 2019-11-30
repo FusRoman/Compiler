@@ -243,7 +243,7 @@ let rec write_args file is =
     let (x, is') = take is in
     write_art_right_expr file x
 
-let write_assign file i =
+let rec write_assign file i depth =
   match i with
   | Nop -> 
     fprintf file "nop"
@@ -274,21 +274,23 @@ let write_assign file i =
     write_art_left_expr file f;
     fprintf file "()"
   | _ ->
-    failwith "CLLTree.write_assign: while writing the header of a for loop, found a control block"
+    (* bloc de contrôle *)
+    fprintf file "\n";
+    write_instruction file i (depth + 1)
     
-let rec write_assigns file is =
+and write_assigns file is depth =
   if count_k is 2 then
   begin
     let (x, is') = take is in
-    write_assign file x;
+    write_assign file x depth;
     fprintf file ", ";
-    write_assigns file is'
+    write_assigns file is' depth
   end
   else if count_1 is then
     let (x, is') = take is in
-    write_assign file x
+    write_assign file x depth
 
-let rec write_instruction file i depth =
+and write_instruction file i depth =
   write_tabs file depth;
   match i with
   | Nop -> 
@@ -306,7 +308,7 @@ let rec write_instruction file i depth =
   | Continue _ ->
     fprintf file "continue;\n"
   | UnopAssign _ | BinopAssign _ ->
-    write_assign file i;
+    write_assign file i depth;
     fprintf file ";\n"
   | IfElse(c, t, e) ->
     fprintf file "if (";
@@ -334,11 +336,11 @@ let rec write_instruction file i depth =
     fprintf file "}\n"
   | For(init, c, it, b) ->
     fprintf file "for (";
-    write_assigns file init;
+    write_assigns file init depth;
     fprintf file "; ";
     write_art_right_expr file c;
     fprintf file "; ";
-    write_assigns file it;
+    write_assigns file it depth;
     fprintf file ") {\n";
     write_instructions file b (depth + 1);
     write_tabs file depth;

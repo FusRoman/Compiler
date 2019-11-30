@@ -296,8 +296,13 @@ control:
       While(e, b)
     }
 
-| FOR LP init=separated_list(COMMA, instruction) SEMI cond=expr SEMI it=separated_list(COMMA, instruction) RP b=block
+| FOR LP init=separated_list(COMMA, any_instruction) SEMI cond=expr SEMI it=separated_list(COMMA, any_instruction) RP b=block
     {
       For(init, cond, it, b)
     }
+;
+
+any_instruction:
+| i=instruction { i }
+| c=control {c}
 ;
