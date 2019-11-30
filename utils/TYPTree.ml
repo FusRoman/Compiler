@@ -339,7 +339,11 @@ let rec translate_expression genv type_env e =
     (* Rajouter les ifs *)
     let (init_struct1,name_array, reeval_struct1, new_env1) = translate_expression genv type_env name_array in
     let (init_struct2,offset_expr, reeval_struct2, new_env2) = translate_expression new_env1 type_env offset_expr in
-    (Cycle.extend init_struct1 init_struct2, VARTree.Binop (name_array, Add, offset_expr), Cycle.extend reeval_struct1 reeval_struct2, new_env2)
+    let tab_size = VARTree.Binop (name_array, Add, Int (-1)) in
+    let condition_size = VARTree.Binop (tab_size, Le, offset_expr) in
+    let test_size = VARTree.If (condition_size, [Exit]) in
+    let cycle_init = Cycle.extend init_struct1 init_struct2 in
+    (Cycle.prepend cycle_init test_size, VARTree.Binop (name_array, Add, offset_expr), Cycle.extend reeval_struct1 reeval_struct2, new_env2)
 
 
   |NewRecord (_type, record_field) ->
@@ -383,28 +387,142 @@ let rec translate_expression genv type_env e =
     let init_for = VARTree.BinopAssign (Id i, Standard, Int 0) in
     let cond_for = VARTree.Binop (Id i, Lt, var_size_expr) in
     let it_for = VARTree.UnopAssign (Id i, Incr) in
+
     (*
-      Optimisation ici : on n'a pas besoin d'évaluer elt_expr à chaque fois
-      En fait il ne faut pas l'évaluer, sinon ça n'a pas le comportement attendu
-      Déclare une variable locale initialisée à elt_expr
-      Puis utilise-la au lieu de elt_expr dans l'affectation 
+      Creation d'une variable temporaire a l'exterieur du block for pour evaluer l'expression 
+      des elements du tableau qu'une seul fois.
     *)
-    let (block_for: typ_instr) = BinopAssign (ArrayAccess (Id array_tag, Id i), Standard, elt_expr) in
+    let (init_elt_expr, var_elt_expr, reeval_elt_expr, map_elt_expr) = translate_expression map_size type_env elt_expr in
+    let (new_map2, tmpvar_tag) = make_var_node (check_expression map_size type_env elt_expr) map_elt_expr in
+    let tmp_variable = VARTree.Declaration (tmpvar_tag, var_elt_expr) in
+
+    let (block_for: typ_instr) = BinopAssign (ArrayAccess (Id array_tag, Id i), Standard, Id tmpvar_tag) in
     let (block_for, map_block_for) = translate_instruction empty_cycle map_size type_env block_for in
+
+
+
     let array_init_instr = VARTree.For ([init_for], cond_for, [it_for], to_list block_for) in
 
     let tmp_cycle = Cycle.append init_size_expr assign_return_malloc in
+    let tmp_cycle = Cycle.append tmp_cycle tmp_variable in
     let tmp_cycle = Cycle.append tmp_cycle array_init_instr in
+    let reeval_cycle = Cycle.extend reeval_size reeval_elt_expr in
+    let reeval_cycle = Cycle.append reeval_cycle tmp_variable in
+    let reeval_cycle = Cycle.append reeval_cycle array_init_instr in
     (
       tmp_cycle,
       VARTree.Id array_tag,
-      Cycle.append reeval_size array_init_instr,
-      map_size
+      reeval_cycle,
+      map_elt_expr
     )
-  |_ -> failwith "sdlfjbiods"
+  |Int x ->
+    (
+      empty_cycle,
+      Int x,
+      empty_cycle,
+      genv
+    )
+  |Bool b ->
+    (
+      empty_cycle,
+      Bool b,
+      empty_cycle,
+      genv
+    )
+  |Id s ->
+    (
+      empty_cycle,
+      Id s,
+      empty_cycle,
+      genv
+    )
+  |Deref e ->
+    let (init, var_e, reeval, new_env) = translate_expression genv type_env e in
+    (
+      init,
+      Deref var_e,
+      reeval,
+      new_env
+    )
+  |Unop (op, e) ->
+    let (init, var_e, reeval, new_env) = translate_expression genv type_env e in
+    (
+      init,
+      Unop (op, var_e),
+      reeval,
+      new_env
+    )
+  |Binop (e1, op, e2) ->
+    let (init1, var_e1, reeval1, new_env1) = translate_expression genv type_env e1 in
+    let (init2, var_e2, reeval2, new_env2) = translate_expression new_env1 type_env e2 in
+    (
+      Cycle.extend init1 init2,
+      Binop (var_e1, op, var_e2),
+      Cycle.extend reeval1 reeval2,
+      new_env2
+    )
+  |Call (function_name, function_block) ->
+    let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name in
+    let (init_param, var_param, reeval_param, env_param) = List.fold_left (
+        fun (acc_init, acc_var_param, acc_reeval, acc_env) typ_e ->
+          let (init_p, var_p, reeval_p, env_p) = translate_expression acc_env type_env typ_e in
+          (
+            Cycle.extend acc_init init_p,
+            Cycle.append acc_var_param var_p,
+            Cycle.extend acc_reeval reeval_p,
+            env_p
+          )
+      ) (init_fun, empty_cycle, reeval_fun, env_fun) function_block in
+    (
+      Cycle.extend init_fun init_param,
+      Call (var_fun, to_list var_param),
+      Cycle.extend reeval_fun reeval_param,
+      env_param
+    )
 
 and translate_instruction instr_acc genv type_env i =
   match i with
+  |Nop ->
+    (
+      append instr_acc VARTree.Nop,
+      genv
+    )
+  |Exit ->
+    (
+      append instr_acc VARTree.Exit,
+      genv
+    )
+  |Break s ->
+    (
+      append instr_acc (VARTree.Break s),
+      genv
+    )
+  |Continue s ->
+    (
+      append instr_acc (VARTree.Continue s),
+      genv
+    )
+  |Return e ->
+    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e in
+    let acc = extend instr_acc init_e in
+    (
+      append acc (Return var_e),
+      new_env
+    )
+  |Print e ->
+    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e in
+    let acc = extend instr_acc init_e in
+    (
+      append acc (Print var_e),
+      new_env
+    )
+  |UnopAssign (e, op) ->
+    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e in
+    let acc = extend instr_acc init_e in
+    (
+      append acc (VARTree.UnopAssign (var_e, op)),
+      new_env
+    )
   |BinopAssign (left_expr, assign_op, expression) ->
     let (init_l_e, var_l_e, reeval_l_e, new_env_l_e) = translate_expression genv type_env left_expr in
     let (init_expr, var_e, reeval_e, new_env_e) = translate_expression new_env_l_e type_env  expression in
@@ -414,7 +532,72 @@ and translate_instruction instr_acc genv type_env i =
       append acc (VARTree.BinopAssign (var_l_e, assign_op, var_e)),
       new_env_e
     )
-  |_ -> failwith "dfjnkj"
+  |If (cond, block_if) ->
+    let (init_cond, var_cond, reeval_cond, cond_env) = translate_expression genv type_env cond in
+    let (var_instr_cycle, block_env) = translate_instructions cond_env type_env block_if in
+    let acc = extend instr_acc init_cond in
+    (
+      append acc (If (var_cond, (to_list var_instr_cycle))),
+      cond_env
+    )
+  |IfElse (cond, block_if, block_else) ->
+    let (init_cond, var_cond, reeval_cond, cond_env) = translate_expression genv type_env cond in
+    let (var_block_if ,env_block_if) = translate_instructions cond_env type_env block_if in
+    let (var_block_else, env_block_else) = translate_instructions cond_env type_env block_else in
+    let acc = extend instr_acc init_cond in
+    (
+      append acc (IfElse (var_cond, (to_list var_block_if), (to_list var_block_else))),
+      cond_env
+    )
+  |Declaration (_, s, e) ->
+    let (init_e, var_e, reeval_e, env_expr) = translate_expression genv type_env e in
+    let acc = extend instr_acc init_e in
+    (
+      append acc (Declaration (s, var_e)),
+      env_expr
+    )
+  |Call (function_name, function_param) ->
+    let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name in
+    let (init_param, var_param, reeval_param, env_param) = List.fold_left (
+        fun (acc_init, acc_var, acc_reeval, acc_env) param ->
+          let (init_p, var_p, reeval_p, env_p) = translate_expression acc_env type_env param in
+          (
+            extend acc_init init_p,
+            append acc_var var_p,
+            extend acc_reeval reeval_p,
+            env_p
+          )
+      ) (init_fun, empty_cycle, reeval_fun, env_fun) function_param in
+    let acc = extend instr_acc init_fun in
+    (
+      append acc (Call (var_fun, (to_list var_param))),
+      env_param
+    )
+  |While (cond, block) ->
+    let (init_cond, var_cond, reeval_cond, env_cond) = translate_expression genv type_env cond in
+    let (var_block, env_block) = translate_instructions env_cond type_env block in
+    let acc = extend instr_acc init_cond in
+    let var_block = extend var_block reeval_cond in
+    (
+      append acc (While (var_cond, (to_list var_block))),
+      env_cond
+    )
+  |For (init, cond, it, block) ->
+    let (var_init, env_init) = translate_instructions genv type_env init in
+    let (init_cond, var_cond, reeval_cond, env_cond) = translate_expression env_init type_env cond in
+    let (var_block, env_block) = translate_instructions env_cond type_env block in
+    let (var_it, env_it) = translate_instructions env_block type_env it in
+    let var_it = extend reeval_cond var_it in
+    (
+      append instr_acc (For ((to_list var_init), var_cond, (to_list var_it), (to_list var_block))),
+      genv
+    )
+
+and translate_instructions genv type_env is =
+  List.fold_left (
+    fun (acc_instr ,acc_env) i ->
+      translate_instruction acc_instr acc_env type_env i
+  ) (empty_cycle, genv) is
 
 let typ_to_tpl typ_prog =
   ()
