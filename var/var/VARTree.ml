@@ -6,11 +6,7 @@ open IMPTree
 open CLLTree
 open FUNTree
 
-(* A faire :
-  - appels dans les expressions 
-*)
-
-let var_variables = fun_variables
+let var_variables = add "argv" fun_variables
 
 let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
@@ -100,6 +96,7 @@ let check_function fct genv =
       fct.name.line, fct.name.column
     ))
 
+
 (* ************************************************************************************************
  *
  * Fonctions de traduction
@@ -180,7 +177,11 @@ let translate_expression e compiler immediate =
       let index = Env.find id.contents compiler.lenv in
       ARTTree.Binop(LStar(Id frame_pointer), Sub, Int(index + 2))
     else if mem id.contents compiler.genv then
-      Id id
+      if id.contents = "argv" then
+        (* &stack_pointer + 2 ; on veut pointer sur argv[0], pas argc *)
+        Binop(Id stack_pointer, Add, Int 2)
+      else
+        Id id
     else
       raise (UnboundValue(compiler.fct.name, id))
   in
@@ -232,7 +233,6 @@ let translate_expression e compiler immediate =
       let (b1, e1, r1, c, l1) = translate_expr e1 compiler may_be_last in
       let (b2, e2, r2, c, l2) = translate_expr e2 c l1 in
       (extend b1 b2, Binop(e1, op, e2), extend r1 r2, c, l1 && l2)
-
     | Call(f, args) ->
       let (init, e, r, c) = call f args compiler may_be_last in
       (init, e, r, c, false)
@@ -241,7 +241,7 @@ let translate_expression e compiler immediate =
   let (b, e, r, c, _) = translate_expr e compiler immediate in
   (b, e, r, c)
 
-let declare_variable acc compiler v e =
+let declare_variable acc v e compiler =
   let (init, e', _, c) = translate_expression e compiler true in
   let acc = extend acc init in
   let acc = append acc FUNTree.(BinopAssign(LStar(Id stack_pointer), Standard, e')) in
@@ -253,30 +253,103 @@ let declare_variable acc compiler v e =
   } in
   (acc, c)
 
-(* 
-  Extrait les déclarations d'un bloc d'instructions, sans considérer les sous-blocs (il reste possible de le faire, assez facilement).
-  Renvoie (decl, block) avec block la suite des instructions déjà inversées,
-  decl la liste des déclarations trouvées dans l'ordre.
-  Permet d'éviter aux boucles d'éviter de réserver de l'espace pour des variables locales puis de les supprimer
-  de manière répétée.
+let rec is_constant e =
+  match e with
+  | Int _ | Bool _ | Id _ -> true (* Les adresses sont constantes *)
+  | Deref (Id _) | Call _ -> false
+  | Deref e | Unop(_, e) -> is_constant e
+  | Binop(e1, _, e2) -> is_constant e1 && is_constant e2
+
+(*
+  Renomme les variables déclarées dans un bloc de boucle, et fait sortir toutes les déclarations locales
+  pour optimiser.
+  La capture de variable est autorisée, il faut donc modifier les noms des variables et les rendre uniques afin de s'assurer
+  que le programme soit sémantiquement équivalent.
+  Renvoie (decl, acc) avec decl la liste des 
 *)
-let extract_declarations block =
-  let (decl, block') = iter block (fun i (decl_acc, block_acc) ->
+let extract_declarations loop =
+  let last_num = ref 0 in
+
+  let rec rename_expression map e =
+    match e with 
+    | Int _ | Bool _ -> e
+    | Deref e ->
+      Deref (rename_expression map e)
+    | Unop(op, e) ->
+      Unop(op, rename_expression map e)
+    | Binop(e1, op, e2) ->
+      Binop(rename_expression map e1, op, rename_expression map e2)
+    | Call(f, args) ->
+      let args' = List.map (rename_expression map) args in
+      Call(rename_expression map f, args')
+    | Id id ->
+      match Env.find_opt id.contents map with
+      | None -> e
+      | Some name ->
+        Id {id with contents = name}
+  in
+
+  let rec rename_instruction (acc, decl, map) i =
+    let return i =
+      (append acc i, decl, map)
+    in
     match i with
-    | Declaration(v, e) ->
-    begin
-      match e with
-      | Int _ | Bool _ ->
-        (* Si l'expression initiale est une constante, on peut optimiser encore un peu plus *)
-        (append decl_acc (Declaration(v, e)), block_acc)
-      | _ ->
-        (* Sinon on est obligé de laisser une affectation, à cause des potentiels effets de bord *)
-        (append decl_acc (Declaration(v, Int 0)), append block_acc (BinopAssign(Id v, Standard, e)))
-    end
-    | _ ->
-      (decl_acc, append block_acc i)
-  ) (empty_cycle, empty_cycle) in
-  (decl, block')
+    | Nop | Exit | Break _ | Continue _ -> 
+      return i
+    | Print e ->
+      return (Print (rename_expression map e))
+    | Return e ->
+      return (Return (rename_expression map e))
+    | UnopAssign(e, op) ->
+      return (UnopAssign(rename_expression map e, op))
+    | BinopAssign(d, op, e) ->
+      return (BinopAssign(rename_expression map d, op, rename_expression map e))
+    | IfElse(c, t, e) ->
+      let (t, decl, _) = rename_instructions decl map t in
+      let (e, decl, _) = rename_instructions decl map e in
+      let acc = append acc (IfElse(rename_expression map c, t, e)) in
+      (acc, decl, map)
+    | If(c, t) ->
+      let (t, decl, _) = rename_instructions decl map t in
+      let acc = append acc (If(rename_expression map c, t)) in
+      (acc, decl, map)
+    | While(c, b) ->
+      let (b, decl, _) = rename_instructions decl map b in
+      let acc = append acc (While(rename_expression map c, b)) in
+      (acc, decl, map)
+    | For(init, c, it, b) ->
+      let (init', decl, map_init) = rename_instructions decl map init in
+      let c' = rename_expression map_init c in
+      let (b', decl, _) = rename_instructions decl map_init b in
+      let (it', decl, _) = rename_instructions decl map_init it in
+      (append acc (For(init', c', it', b')), decl, map)
+    | Call(f, args) ->
+      let args' = List.map (rename_expression map) args in
+      return (Call(rename_expression map f, args'))
+    | Declaration(id, e) ->
+      let e' = rename_expression map e in
+      let num = !last_num in
+      incr last_num;
+      let name = id.contents ^ "$" ^ (string_of_int num) in
+      let new_id = {id with contents = name} in
+      let map = Env.add id.contents name map in
+      if is_constant e' then
+        let decl = append decl (Declaration(new_id, e')) in
+        (acc, decl, map)
+      else
+        let decl = append decl (Declaration(new_id, Int 0)) in
+        let acc = append acc (BinopAssign(Id new_id, Standard, e')) in
+        (acc, decl, map)
+
+  and rename_instructions decl map block =
+    let acc, decl, map =
+      List.fold_left rename_instruction (empty_cycle, decl, map) block
+    in
+    (to_list acc, decl, map)
+  in
+
+  let (acc, decl, _) = rename_instruction (empty_cycle, empty_cycle, Env.empty) loop in
+  (decl, fst (take acc)) (* On a la garantie d'avoir toujours un seul élement renvoyé si c'est une boucle *)
 
 (*
   Utilisé pour optimiser les appels terminaux.
@@ -357,7 +430,6 @@ let rec preprocess_terminal_call acc f args compiler =
           Ancienne version qui faisait en sorte que le paramètre puisse être modifié, ce qui est en fait le contraire de ce qu'on veut.
           Seul cas où on modifiait l'expression, donc en fait l'expression rendue est maintenant identique. Changer la fonction ?
         *)
-        (* copié-collé depuis FUN... (translate_id dans translate_expression) *)
         (*let base = Binop(Deref(Id frame_pointer), Add, Int(nb_old_args - j)) in
         (Tagset.empty, if x.reference then Deref base else base)*)
         (Tagset.singleton id.contents, e)
@@ -377,7 +449,8 @@ let rec preprocess_terminal_call acc f args compiler =
   let acc, compiler =
     Tagset.fold (fun id (acc, c) ->
       let id_node = default_node id in
-      translate_instruction acc (Declaration(id_node, Deref (Id id_node))) c
+      (*translate_instruction acc (Declaration(id_node, Deref (Id id_node))) c*)
+      declare_variable acc id_node (Deref (Id id_node)) c
     ) depends (acc, compiler)
   in
   (acc, f', args', compiler)
@@ -472,7 +545,7 @@ and translate_instruction acc i compiler =
     let acc = extend acc init in
     (append acc (If(e', i')), compiler)
 
-  | IfElse(e, i1, i2) -> 
+  | IfElse(e, i1, i2) ->
     let (init, e', _, compiler) = translate_expression e compiler true in
     let ci = enter_block compiler in
     let (i1', ci1) = translate_instructions (from_list i1) ci in
@@ -482,41 +555,50 @@ and translate_instruction acc i compiler =
     let acc = extend acc init in
     (append acc (IfElse(e', i1', i2')), compiler)
 
-  | While(e, b) ->
-    let c = enter_block compiler in
-    let (init, e', reeval, c) = translate_expression e c false in
-    let (decl, b_extracted) = extract_declarations (from_list b) in
-    let (decl, c) = translate_instructions decl c in
-    let (b_fun, c) = translate_instructions b_extracted c in
-    let b_fun = extend b_fun reeval in
-    let acc = extend acc decl in
-    let acc = extend acc init in
-    let acc = append acc (While(e', to_list b_fun)) in
-    (quit_block acc c, compiler)
+  | While _ ->
+  begin
+    match extract_declarations i with
+    | (decl, While(e, b)) ->
+      let c_while = enter_block compiler in
+      let (decl', c_while) = translate_instructions decl c_while in
+      let acc = extend acc decl' in
+      let (init, c', reeval, c_while) = translate_expression e c_while false in
+      let acc = extend acc init in
+      let (b', c_while) = translate_instructions (from_list b) c_while in
+      let b' = extend b' reeval in
+      let acc = append acc (While(c', to_list b')) in
+      (quit_block acc c_while, compiler)
+    | _ -> 
+      failwith "translate_instruction: expected extract_declarations to return a while loop"
+  end
 
-  | For (init, cond, it, b) ->
-    let cfor = enter_block compiler in
-    let (decl_b, b_extracted) = extract_declarations (from_list b) in
-    let (decl_it, it_extracted) = extract_declarations (from_list it) in
 
-    let init = extend (from_list init) (extend decl_b decl_it) in
-    let (init', cfor) = translate_instructions init cfor in
-    let (initcond, cond', reeval, cfor) = translate_expression cond cfor false in
-    let init' = extend init' initcond in
+  | For _ ->
+  begin
+    match extract_declarations i with
+    | (decl, For(init, c, it, b)) ->
+      let c_for = enter_block compiler in
+      let (decl', c_for) = translate_instructions decl c_for in
+      let acc = extend acc decl' in
+      let (init', c_for) = translate_instructions (from_list init) c_for in
+      let (initc, c', reeval, c_for) = translate_expression c c_for false in
+      let init' = extend init' initc in
+      let (b', c_for) = translate_instructions (from_list b) c_for in
+      let (it', c_for) = translate_instructions (from_list it) c_for in
+      let it' = extend it' reeval in
+      let acc = append acc (For(to_list init', c', to_list it', to_list b')) in
+      (quit_block acc c_for, compiler)
 
-    let (b', cfor) = translate_instructions b_extracted cfor in
-    let (it', cfor) = translate_instructions it_extracted cfor in
-    let it' = extend it' reeval in
-
-    let acc = append acc (For(to_list init', cond', to_list it', to_list b')) in
-    (quit_block acc cfor, compiler)
+    | _ ->
+      failwith "translate_instruction: expected extract_declarations to return a for loop"
+  end
 
   | Call(e, args) ->
     let (init, _, _, c) = translate_expression (Call(e, args)) compiler true in
     (extend acc init, c)
 
   | Declaration(id, e) ->
-    declare_variable acc compiler id e
+    declare_variable acc id e compiler
     
 and translate_instructions is compiler =
   iter is (fun i (acc, compiler) ->

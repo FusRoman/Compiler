@@ -24,6 +24,9 @@ val singleton : elt -> t
 (** *)
 val fold : (elt -> 'a -> 'a) -> t -> 'a -> 'a
 
+(** Crée un ensemble depuis une liste. Ne lance pas d'exception. *)
+val of_list: elt list -> t
+
 (** Ajoute un élément à un ensemble, sans lancer DuplicateElement *)
 val add_duplicate : elt -> t -> t
 

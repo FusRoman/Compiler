@@ -218,7 +218,12 @@ let cll_to_imp cll_prog =
     let data = append data {
       line = frame_pointer.line; 
       column = frame_pointer.column; 
-      contents = (frame_pointer.contents, 0)
+      contents = (frame_pointer.contents, 65537)
+      (* 
+        65537 car la première variable du main est stockée en 65536 (pas de cellule d'appel),
+        et est accédée avec frame_pointer - 2 
+      *)
+
     } in
     let instr = translate_procedures tag_set maker procs empty_cycle in
     (instr, data)

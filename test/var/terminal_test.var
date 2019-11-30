@@ -1,0 +1,38 @@
+main() {
+  print(97);
+  print(f1(65535) + 48);
+  print(10);
+  print(97);
+  print(f2(65535) + 48);
+  print(10);
+  exit;
+}
+
+f1(a) {
+  if (stack_pointer <= &stack_pointer) {
+    # Ne devrait jamais s'exécuter
+    print(98);
+    print(10);
+    exit;
+  }
+  if (a == 0)
+    return 0;
+  else
+    return f1(a - 1);
+}
+
+f2(a) {
+  if (stack_pointer <= &stack_pointer) {
+    # Aucune garantie que ce code s'exécute correctement
+    # (puisque stack_pointer a pu être modifié)
+    print(98);
+    print(10);
+    exit;
+  }
+  if (a == 0)
+    return 0;
+  else {
+    var r := f2(a - 1);
+    return r;
+  }
+}

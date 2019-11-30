@@ -1,6 +1,10 @@
 Trucs à faire (Guilhem) :
-  - modifier VAR pour que tout ça fonctionnise (empilement des args dès que possible)
-  - arguments du main
+  VAR:
+    - régler le problème de UnboundValue alors que pas du tout (capture.var)
+    - modifier l'ordre d'évaluation des expressions pour que ça ressemble à un truc
+    - rajouter les arguments du main
+    - virer FUN ?
+
   - adapter tous les langages pour l'arrivée des librairies
 
 Adresse des paramètres dans les appels terminaux :
