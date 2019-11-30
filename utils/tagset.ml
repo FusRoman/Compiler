@@ -20,6 +20,7 @@ let union l1 l2 =
   T.fold (fun x acc -> add x acc) l1 l2
 
 let fold = T.fold
+let of_list = T.of_list
 
 let add_duplicate = T.add
 let union_duplicate = T.union

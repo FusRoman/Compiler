@@ -432,7 +432,6 @@
     else
     begin
       (* Le registre n'est pas libre. Il faut d'abord empiler son ancienne valeur avant de le renvoyer. *)
-      fprintf output "# Empilement de la plus ancienne valeur\n";
       fprintf output "WRITE %s %s\n" sp current_reg;
       fprintf output "DECR %s 1\n" sp;
       ({state with stack_depth; commit = true}, current_reg)
@@ -508,13 +507,6 @@
     let (s', r2) = pop state line instr in
     let (s'', r1) = pop s' line instr in
     (s'', r1, r2)
-
-  let print_state state =
-    fprintf output "# stack_depth=%d, unused_regs=%d, current_reg=%d, used=%b\n"
-      state.stack_depth
-      state.unused_regs
-      (state.stack_depth mod max_reg)
-      (state.unused_regs <= 0)
 
   (* Traduit une instruction i et l'écrit dans le fichier output *)
   let compile_instr state line instr =

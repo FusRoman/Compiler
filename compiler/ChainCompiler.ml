@@ -42,7 +42,7 @@ let read f extension file =
     Printf.printf "[%s ERROR] Error at line %d, character %d. Message:\n%s\n" upper_ext l c msg;
     exit 1
   | FUNTree.UnboundValue(fct, var) ->
-    Printf.printf "[FUN ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
+    Printf.printf "[%s ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" upper_ext var.contents fct.contents var.line var.column;
     exit 1
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
@@ -60,7 +60,7 @@ let translate t extension source =
     Printf.printf "[%s ERROR] Error at line %d, character %d. Message:\n%s\n" upper_ext l c msg;
     exit 1
   | FUNTree.UnboundValue(fct, var) ->
-    Printf.printf "[FUN ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
+    Printf.printf "[%s ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" upper_ext var.contents fct.contents var.line var.column;
     exit 1
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;

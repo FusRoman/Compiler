@@ -1,0 +1,22 @@
+main() {
+  print(115);
+  print(105);
+  print(122);
+  print(101);
+  print(58);
+  print(32);
+
+  var size := *(&argv - 1);
+  print(size + 48);
+  print(10);
+
+  for (var i := 0; i < size; i++) {
+    var arg := *(&argv + i);
+    var size := *(arg - 1);
+    for (var j := 0; j < size; j++)
+      print(*(arg + i));
+    print(10);
+  }
+
+  exit;
+}

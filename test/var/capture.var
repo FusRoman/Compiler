@@ -1,0 +1,31 @@
+var a := 99;
+
+main() {
+  # Parce que les boucles sortent les déclarations de variable de leur corps,
+  # il faut vérifier ce genre de cas.
+  # Cette boucle doit afficher 5 fois ab
+  for (var i := 0; i < 5; i++) {
+    var a := 97;
+    print(a);
+    var a := 98;
+    print(a);
+    print(10);
+  }
+  print(10);
+
+  # Cette boucle doit afficher 5 lignes qui alternent entre caba et caaa (en commençant par caba)
+  for (var i := 0; i < 5; i++) {
+    print(a);
+    var a := 97;
+    print(a);
+    if (i % 2 == 0) {
+      var a := 98;
+      print(a);
+    } else
+      print(a);
+    print(a);
+    print(10);
+  }
+
+  exit;
+}

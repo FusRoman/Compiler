@@ -136,9 +136,28 @@ let _ =
     done
   with
     | End_of_file ->
-      close_in in_channel
+      close_in in_channel;
       (* memory.(!i) <- memory_size; *)
       (* stack_pointer := !i *)
+
+      (* Empilement de argc *)
+      let argc = (Array.length Sys.argv) - 1 in (* on ignore vm *)
+      let argc_pos = !i in
+      memory.(argc_pos) <- argc;
+      i := argc_pos + argc;
+
+      (* Empilement de argv *)
+      for a = 1 to argc do
+        let arg = Sys.argv.(a) in
+        let arg_len = String.length arg in
+        memory.(!i) <- arg_len;
+        incr i;
+        memory.(argc_pos + a) <- !i; (* les arrays pointent en fait sur leur deuxième élément, le premier étant leur taille *)
+        for j = 0 to arg_len - 1 do
+          memory.(!i) <- int_of_char arg.[j];
+          incr i
+        done
+      done
 
 (** Exécution :
     1/ lire l'instruction courante
