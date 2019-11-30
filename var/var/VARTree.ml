@@ -666,6 +666,7 @@ let rec write_args file args =
     write_var_right_expr file x
   | x::y::s ->
     write_var_right_expr file x;
+    fprintf file ",";
     write_args file (y::s)
 
 and write_var_right_expr file e =

@@ -2,7 +2,7 @@ open Printf
 open Tagset
 open Arith
 
-exception SyntaxError of string * int * int
+exception SyntaxError of string * int * int 
 
 type binop = 
   | Add
