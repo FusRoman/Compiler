@@ -1,7 +1,7 @@
 open ARTTree
 open VARTree
-open TPLTree
 open FUNTree
+open TPLTree
 
 let input_file = Sys.argv.(1)
 let _ =
