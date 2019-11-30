@@ -7,7 +7,7 @@ open CLLTree
 open FUNTree
 
 (* A faire :
-  - appels dans les expressions
+  - appels dans les expressions 
 *)
 
 let var_variables = fun_variables
@@ -584,6 +584,7 @@ let rec write_args file args =
     write_var_right_expr file x
   | x::y::s ->
     write_var_right_expr file x;
+    fprintf file ",";
     write_args file (y::s)
 
 and write_var_right_expr file e =
