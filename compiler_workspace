@@ -3,5 +3,11 @@
 		{
 			"path": "."
 		}
-	]
+	],
+	"settings": {
+		"files.associations": {
+			"*.ml": "ocaml",
+			"ostream": "cpp"
+		}
+	}
 }
