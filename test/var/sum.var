@@ -41,11 +41,18 @@ parse_int(s) {
 
 main() {
   var sum := 0;
+  print(48);
   for (var i := 1; i < argc; i++) {
-    sum += parse_int(*(argv + i));
-    print_int(sum);
-    print(10);
+    var number := parse_int(*(argv + i));
+    sum += number;
+    print(32);
+    print(43);
+    print(32);
+    print_int(number);
   }
+  print(32);
+  print(61);
+  print(32);
   print_int(sum);
   print(10);
   exit;

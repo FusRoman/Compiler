@@ -1,0 +1,44 @@
+main() {
+  # aa
+  print(f1_terminal(197, 0));
+  print(f1(197, 0));
+  print(10);
+
+  # aa
+  print(f2_terminal(197, 0));
+  print(f2(197, 0));
+  print(10);
+  # Affiche bb à la place
+  # Si une variable apparaît telle quelle dans une expression où une fonction qui la modifie est appelée,
+  # elle est modifiée avant. Dans l'expression aux(&b) + b, c'est bien ce qu'on veut,
+  # par contre dans l'expression b + aux(&b) on s'attend à ce que l'ordre soit inversé.
+
+  exit;
+}
+
+f(a, b) {
+  return a % b;
+}
+
+aux(&a) {
+  a := -1;
+  return 100;
+}
+
+f1_terminal(a, b) {
+  return f(a, b + aux(&a));
+}
+
+f1(a, b) {
+  var tmp := f(a, b + aux(&a));
+  return tmp;
+}
+
+f2_terminal(a, b) {
+  return f(a, b + aux(&b));
+}
+
+f2(a, b) {
+  var tmp := f(a, b + aux(&b));
+  return tmp;
+}

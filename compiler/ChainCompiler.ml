@@ -50,9 +50,9 @@ let read f extension file =
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
     exit 1
-  | _ ->
+  | e ->
     Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
-    exit 1
+    raise e
 
 let translate t extension source =
   let upper_ext = String.uppercase_ascii extension in
