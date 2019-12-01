@@ -1,4 +1,5 @@
 open ARTTree
+open FUNTree
 open VARTree
 open VARParser
 open VARLexer
@@ -21,7 +22,7 @@ let check_declaration tpl =
   ) tpl
 
 let tpl_to_var tpl =
-  check_declaration tpl.syntax_tree;
+  (*check_declaration tpl.syntax_tree;*)
   let tag_set = Tagset.union_duplicate tpl_variables tpl.tag_set in
   let tpl_lib = program token (Lexing.from_channel (open_in "typ/tpl/TPLLib.var")) in
   let syntax_tree = tpl_lib.syntax_tree @ tpl.syntax_tree in

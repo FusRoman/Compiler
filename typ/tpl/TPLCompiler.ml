@@ -1,7 +1,7 @@
 open ARTTree
 open VARTree
-open TPLTree
 open FUNTree
+open TPLTree
 
 let input_file = Sys.argv.(1)
 let _ =
@@ -22,14 +22,14 @@ let _ =
     exit 0
   with
   | SyntaxError(msg, l, c) -> 
-    Printf.printf "[VAR ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
+    Printf.printf "[TPL ERROR] Error at line %d, character %d. Message:\n%s\n" l c msg;
     exit 1
   | UnboundValue(fct, var) ->
-    Printf.printf "[VAR ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
+    Printf.printf "[TPL ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" var.contents fct.contents var.line var.column;
     exit 1
   | Failure msg ->
-    Printf.printf "[VAR ERROR] Syntax error. Message:\n%s\n" msg;
+    Printf.printf "[TPL ERROR] Syntax error. Message:\n%s\n" msg;
     exit 1
   | _ ->
-    Printf.printf "[VAR ERROR] Unknown error\n";
+    Printf.printf "[TPL ERROR] Unknown error\n";
     exit 1

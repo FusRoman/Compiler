@@ -13,6 +13,12 @@
 a.out
 compiler/ChainCompiler
 
+typ/tpl/*.cmi
+typ/tpl/*.cmo
+typ/tpl/TPLCompiler
+# A compléter
+
+
 var/var/*.cmi
 var/var/*.cmo
 var/var/VARParser.conflicts

@@ -8,6 +8,8 @@ type token =
   | TSTRING
   | TINT
   | TFUN
+  | TCHAR
+  | TBOOL
   | SUBASSIGN
   | SUB
   | SEMI
@@ -40,7 +42,6 @@ type token =
   | EQ
   | EOF
   | ELSE
-  | DOTSIZE
   | DOT
   | DIVASSIGN
   | DIV

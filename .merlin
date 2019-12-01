@@ -1,7 +1,13 @@
 S utils/
 S var/**
 S typ/**
+S imp/**
+S art/**
+S stk/**
 
 B utils/
 B var/**
 B typ/**
+B imp/**
+B art/**
+B stk/**
