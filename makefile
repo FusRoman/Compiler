@@ -130,18 +130,19 @@ run_fun: build_fun
 
 # - Langage VAR -----------------------------------------------------
 
-build_var : build_fun
-	@$(MAKE) -s build_cll
-	ocamlc -c -I utils/ utils/VARTree.mli utils/VARTree.ml
+build_var : 
+	@$(MAKE) -s build_fun
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		var/var/VARTree.mli var/var/VARTree.ml
 	menhir -v var/var/VARParser.mly
 	ocamllex var/var/VARLexer.mll
 	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
 		var/var/VARParser.mli var/var/VARParser.ml
 	ocamlc -c -I var/var/ var/var/VARLexer.ml
-
-	ocamlc -I utils/ -I var/var/ utils/cycle.cmo utils/arith.cmo utils/tagset.cmo utils/ARTTree.cmo \
-	utils/IMPTree.cmo utils/CLLTree.cmo utils/FUNTree.cmo utils/VARTree.cmo var/var/VARLexer.cmo \
-	var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
+	ocamlc -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		utils/cycle.cmo utils/arith.cmo utils/tagset.cmo \
+		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo var/var/VARTree.cmo \
+		var/var/VARLexer.cmo var/var/VARParser.cmo var/var/VARCompiler.ml -o var/var/VARCompiler	
 
 run_var_inter:
 	@./var/var/VARCompiler test/$(file).var
@@ -152,8 +153,7 @@ run_var: build_var
 
 # - Langage TPL -----------------------------------------------------
 
-build_tpl : build_var
-
+build_tpl: build_var
 	ocamlc -c -I utils/ -I var/var/ var/var/VARParser.cmo utils/ARTTree.cmo utils/TPLTree.mli \
 	utils/TPLTree.ml
 
@@ -170,13 +170,11 @@ run_tpl: build_tpl
 
 # - Langage TYP -----------------------------------------------------
 
-
 build_typ: build_tpl
 	menhir -v typ/typ/TYPParser.mly
 	ocamllex typ/typ/TYPLexer.mll
 	ocamlc -c -I typ/typ/ -I utils/ utils/TYPTree.cmo typ/typ/TYPParser.mli typ/typ/TYPParser.ml
 	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
-
 
 # - Langage REC -----------------------------------------------------
 
@@ -220,11 +218,11 @@ clear:
 	rm -rf test/cll/*.imp test/cll/*.art test/cll/*.stk test/cll/*.asm test/cll/*.btc
 
 	rm -rf test/tpl/*.var test/tpl/*.fun test/tpl/*.cll test/tpl/*.imp test/tpl/*.art test/tpl/*.stk \
-	test/tpl/*.asm test/tpl/*.btc
+		test/tpl/*.asm test/tpl/*.btc
 
 	rm -rf test/rec/*.var test/rec/*.fun test/rec/*.cll test/rec/*.imp test/rec/*.art test/rec/*.stk \
-	test/rec/*.asm test/rec/*.btc test/rec/*.tpl
- 	
+		test/rec/*.asm test/rec/*.btc test/rec/*.tpl
+	
 	rm -rf art/*.cmi art/*.cmx art/*.cmo art/*.o art/*a.out art/*.conflicts art/*.automaton art/ARTLexer.ml art/ARTParser.ml art/ARTParser.mli art/ARTCompiler
 	rm -rf imp/*.cmi imp/*.cmx imp/*.cmo imp/*.o imp/*a.out imp/*.conflicts imp/*.automaton imp/IMPLexer.ml imp/IMPParser.ml imp/IMPParser.mli imp/IMPCompiler
 	rm -rf interprete_var/*.cmi interprete_var/*.cmo interprete_var/VARParser.conflicts interprete_var/VARParser.automaton

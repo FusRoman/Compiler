@@ -1,5 +1,7 @@
 open ARTTree
 
+let imp_variables = art_variables
+
 type assign_binop =
   | Standard
   | AddAssign
@@ -181,8 +183,8 @@ let rec translate_instruction tag_set i maker _break _continue acc =
     check_expression e tag_set;
     append (Assign(l, e))
   | TagDeclaration t -> 
-    if t.contents = "stack_pointer" then
-      raise (SyntaxError ("'stack_pointer' is a reserved tag and can not be declared.", t.line, t.column));
+    if Tagset.mem t.contents imp_variables then
+      raise (SyntaxError (Printf.sprintf "'%s' is a reserved tag and can not be declared." t.contents, t.line, t.column));
     append (TagDeclaration t)
 
   | Break t ->
@@ -231,7 +233,7 @@ and translate_instructions tag_set is maker _break _continue acc =
     translate_instructions tag_set s maker _break _continue acc'
 
 let imp_to_art imp =
-  let imp = {imp with tag_set = Tagset.add_duplicate "stack_pointer" imp.tag_set} in
+  let imp = {imp with tag_set = Tagset.union_duplicate imp_variables imp.tag_set} in
   (* Phase d'optimisation *)
   let opt_instrs, data = 
     match imp.syntax_tree with

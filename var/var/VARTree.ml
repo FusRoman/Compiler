@@ -6,7 +6,7 @@ open IMPTree
 open CLLTree
 open FUNTree
 
-let var_variables = add "argv" fun_variables
+let var_variables = fun_variables
 
 let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
@@ -177,11 +177,7 @@ let translate_expression e compiler immediate =
       let index = Env.find id.contents compiler.lenv in
       ARTTree.Binop(LStar(Id frame_pointer), Sub, Int(index + 2))
     else if mem id.contents compiler.genv then
-      if id.contents = "argv" then
-        (* &stack_pointer + 2 ; on veut pointer sur argv[0], pas argc *)
-        Binop(Id stack_pointer, Add, Int 2)
-      else
-        Id id
+      Id id
     else
       raise (UnboundValue(compiler.fct.name, id))
   in
@@ -253,12 +249,12 @@ let declare_variable acc v e compiler =
   } in
   (acc, c)
 
-let rec is_constant e =
+(*let rec is_constant e =
   match e with
   | Int _ | Bool _ | Id _ -> true (* Les adresses sont constantes *)
   | Deref (Id _) | Call _ -> false
   | Deref e | Unop(_, e) -> is_constant e
-  | Binop(e1, _, e2) -> is_constant e1 && is_constant e2
+  | Binop(e1, _, e2) -> is_constant e1 && is_constant e2*)
 
 (*
   Renomme les variables déclarées dans un bloc de boucle, et fait sortir toutes les déclarations locales
@@ -333,13 +329,9 @@ let extract_declarations loop =
       let name = id.contents ^ "$" ^ (string_of_int num) in
       let new_id = {id with contents = name} in
       let map = Env.add id.contents name map in
-      if is_constant e' then
-        let decl = append decl (Declaration(new_id, e')) in
-        (acc, decl, map)
-      else
-        let decl = append decl (Declaration(new_id, Int 0)) in
-        let acc = append acc (BinopAssign(Id new_id, Standard, e')) in
-        (acc, decl, map)
+      let decl = append decl (Declaration(new_id, Int 0)) in
+      let acc = append acc (BinopAssign(Id new_id, Standard, e')) in
+      (acc, decl, map)
 
   and rename_instructions decl map block =
     let acc, decl, map =

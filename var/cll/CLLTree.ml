@@ -4,7 +4,7 @@ open Tagset
 open ARTTree
 open IMPTree
 
-let cll_variables = add "frame_pointer" (singleton "stack_pointer")
+let cll_variables = add "frame_pointer" imp_variables
 
 let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"

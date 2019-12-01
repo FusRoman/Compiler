@@ -58,7 +58,7 @@ let check_function fct genv =
     match params with
     | [] -> env
     | x::s ->
-      compute_env (add x.name.contents env) s
+      compute_env (add_duplicate x.name.contents env) s
   in
   let env = compute_env genv fct.params in
   let rec check_expression e =
@@ -278,10 +278,16 @@ let fun_to_cll fun_prog =
   let genv = union_duplicate fun_variables fun_prog.tag_set in
   let functions, data = fun_prog.syntax_tree in
   let main = ref false in
-  let procedures = List.fold_left (fun acc fct -> translate_function fct genv main acc) empty_cycle functions in
-  let data_cycle = List.fold_left (fun acc (t, v) -> 
-    append acc {contents = (t.contents, v); line = t.line; column = t.column}
-  ) empty_cycle data in
+  let procedures = 
+    List.fold_left (fun acc fct -> 
+      translate_function fct genv main acc
+    ) empty_cycle functions 
+  in
+  let data_cycle = 
+    List.fold_left (fun acc (t, v) -> 
+      append acc {contents = (t.contents, v); line = t.line; column = t.column}
+    ) empty_cycle data 
+  in
   let data_cycle = append data_cycle (default_node ("function_result", 0)) in
   if !main then
     {syntax_tree = (procedures, data_cycle); tag_set = genv}

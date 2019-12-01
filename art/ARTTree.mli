@@ -1,5 +1,8 @@
 exception SyntaxError of string * int * int
 
+(** Variables spéciales de ART, les mêmes que celles de STK : stack_pointer, argc et argv *)
+val art_variables: Tagset.t
+
 type binop = 
   | Add
   | Sub 
