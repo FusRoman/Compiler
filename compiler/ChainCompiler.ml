@@ -140,6 +140,16 @@ let run_var file =
   copy VARTree.write_var "var" var file;
   run_var_inter var file
 
+let run_tpl_inter tpl file =
+  let var = translate TPLTree.tpl_to_var "tpl" tpl in 
+  write_opt VARTree.write_var "var" var file;
+  run_var_inter var file
+
+let run_tpl file =
+  let tpl = read (VARParser.program VARLexer.token) "tpl" file in
+  copy VARTree.write_var "tpl" tpl file;
+  run_tpl_inter tpl file
+
 let rec run file =
   match !language with
   | "btc" ->
@@ -158,6 +168,8 @@ let rec run file =
     run_fun file
   | "var" ->
     run_var file
+  | "tpl" ->
+    run_tpl file
   | "none" ->
     let rec find_extension acc i =
       if i < 0 then
@@ -189,4 +201,4 @@ let start file =
   run file
 
 let _ =
-  Arg.parse speclist start "Usage: ./compiler/ChainCompiler -p -l <source language> <source file WITHOUT extension>\nOr: ./compiler/ChainCompiler -p <source file WITH extension>"
+  Arg.parse speclist start "Usage: ./compiler/ChainCompiler -p -l <source language> <source file WITHOUT extension> [<parameter> ...]\nOr: ./compiler/ChainCompiler -p <source file WITH extension> [<parameter> ...]"

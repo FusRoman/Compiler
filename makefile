@@ -165,9 +165,9 @@ run_var: build_var
 
 build_tpl:
 	@$(MAKE) -s build_var
-	ocamlc -c -I var/var -I art/ -I utils/ typ/tpl/TPLTree.mli
-	ocamlc -c -I var/var -I var/fun/ -I art/ -I utils/ -I typ/tpl/ typ/tpl/TPLTree.ml
-	ocamlc -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -o typ/tpl/TPLCompiler \
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ \
+		typ/tpl/TPLTree.mli typ/tpl/TPLTree.ml
+	ocamlc -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -o typ/tpl/TPLCompiler \
 		utils/arith.cmo utils/tagset.cmo utils/cycle.cmo art/ARTTree.cmo imp/IMPTree.cmo \
 		var/cll/CLLTree.cmo var/fun/FUNTree.cmo var/var/VARTree.cmo \
 		var/var/VARParser.cmo var/var/VARLexer.cmo typ/tpl/TPLTree.cmo \
@@ -180,36 +180,38 @@ run_tpl_inter:
 run_tpl: build_tpl
 	@$(MAKE) -s run_var_inter file=$(file)
 
-
-#<<<<<<< HEAD
-build_typ: build_tpl
-	menhir -v typ/typ/TYPParser.mly
-	ocamllex typ/typ/TYPLexer.mll
-	ocamlc -c -I typ/typ/ -I utils/ utils/TYPTree.cmo typ/typ/TYPParser.mli typ/typ/TYPParser.ml
-	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
-
-#=======
 # ------------------------------ Langage TYP ---------------------------------------
 
-#build_typ:
-#	@$(MAKE) -s build_tpl
-#	menhir -v typ/typ/TYPParser.mly
-	
-#>>>>>>> 96f43f0a4fac38bf6feb9d5a6162a082f82e3f50
+build_typ: 
+	@$(MAKE) -s build_tpl
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
+		typ/typ/TYPTree.mli typ/typ/TYPTree.ml
+	menhir -v typ/typ/TYPParser.mly
+	ocamllex typ/typ/TYPLexer.mll
+	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
+		typ/typ/TYPParser.mli typ/typ/TYPParser.ml
+	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I /var/cll/ -I /var/fun/ -I /var/var/ -I typ/tpl/ -I typ/typ/ \
+		utils/arith.cmo utils/tagset.cmo utils/cycle.cmo art/ARTTree.cmo imp/IMPTree.cmo \
+		var/cll/CLLTree.cmo var/fun/FUNTree.cmo var/var/VARTree.cmo \
+		var/var/VARParser.cmo var/var/VARLexer.cmo typ/tpl/TPLTree.cmo \
+		typ/typ/TYPTree.cmo 
+	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
 
 
 # ------------------------------ ChainCompiler -------------------------------------
 
 build_chain_compiler: 
-	@$(MAKE) -s build_var
+	@$(MAKE) -s build_tpl
 	ocamlc -o compiler/ChainCompiler \
-		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ \
+		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
 		art/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
 		imp/IMPTree.cmo imp/IMPParser.cmo imp/IMPLexer.cmo \
 		var/cll/CLLTree.cmo var/cll/CLLParser.cmo var/cll/CLLLexer.cmo \
 		var/fun/FUNTree.cmo var/fun/FUNParser.cmo var/fun/FUNLexer.cmo \
 		var/var/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
+		typ/tpl/TPLTree.cmo \
 		compiler/ChainCompiler.ml
 
 
@@ -241,7 +243,10 @@ clear:
 	rm -rf var/var/*.cmi var/var/*.cmo var/var/*.o var/var/VARParser.ml var/var/VARParser.mli var/var/VARParser.automaton var/var/VARParser.conflicts var/var/VARLexer.ml var/var/VARCompiler
 	rm -rf test/var/*.btc test/var/*.asm test/var/*.stk test/var/*.art test/var/*.imp test/var/*.cll test/var/*.fun
 
-	# Y a des trucs à mettre ici normalement (TPLTree notamment)
+	rm -rf typ/tpl/*.cmi typ/tpl/*.cmo var/var/*.o var/var/TPLCompiler 
 	rm -rf test/tpl/*.var test/tpl/*.fun test/tpl/*.cll test/tpl/*.imp test/tpl/*.art test/tpl/*.stk test/tpl/*.asm test/tpl/*.btc
+
+	rm -rf typ/typ/*.cmi typ/typ/*.cmo typ/typ/*.o typ/typ/TYPParser.ml typ/typ/TYPParser.mli typ/typ/TYPParser.automaton typ/typ/TYPParser.conflicts typ/typ/TYPLexer.ml typ/typ/TYPCompiler
+	rm -rf test/typ/*.btc test/typ/*.asm test/typ/*.stk test/typ/*.art test/typ/*.imp test/typ/*.cll test/typ/*.fun test/typ/*.var test/typ/*.tpl
 
 	rm -rf compiler/*.cmi compiler/*.cmo compiler/ChainCompiler

@@ -12,12 +12,31 @@
 **/*.asm
 a.out
 compiler/ChainCompiler
+compiler_workspace
+
+typ/typ/*.cmi
+typ/typ/*.cmo
+typ/typ/TYPParser.conflicts
+typ/typ/TYPParser.automaton
+typ/typ/TYPParser.mli
+typ/typ/TYPParser.ml
+typ/typ/TYPLexer.ml
+typ/typ/TYPCompiler
+test/typ/*.fun
+test/typ/*.cll
+test/typ/*.imp
+test/typ/*.art
+test/typ/*.stk
 
 typ/tpl/*.cmi
 typ/tpl/*.cmo
 typ/tpl/TPLCompiler
-# A compléter
-
+test/tpl/*.var
+test/tpl/*.fun
+test/tpl/*.cll
+test/tpl/*.imp
+test/tpl/*.art
+test/tpl/*.stk
 
 var/var/*.cmi
 var/var/*.cmo

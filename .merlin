@@ -4,6 +4,7 @@ S typ/**
 S imp/**
 S art/**
 S stk/**
+S compiler/**
 
 B utils/
 B var/**
@@ -11,3 +12,4 @@ B typ/**
 B imp/**
 B art/**
 B stk/**
+B compiler/**
