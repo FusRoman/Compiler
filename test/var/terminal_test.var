@@ -1,7 +1,10 @@
 main() {
+  # Ce code devrait fonctionner parfaitement bien
   print(97);
   print(f1(65535) + 48);
   print(10);
+
+  # Ce code devrait crasher (pas assez de mémoire)
   print(97);
   print(f2(65535) + 48);
   print(10);
