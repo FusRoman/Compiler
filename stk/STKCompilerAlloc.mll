@@ -207,7 +207,7 @@
 
   let initial_info () = {
     current_line = {num = 1; line = ""};
-    tags = Tagset.singleton "stack_pointer";
+    tags = Tagset.of_list ["stack_pointer"; "argc"; "argv"];
     instr = empty_cycle;
     data = empty_cycle;
     previous_is_cte = false;
@@ -599,7 +599,15 @@
     fprintf output "READ %s %s\n" sp spa;
     compile_instrs state;
     compile_data state.remaining_data;
-    fprintf output "stack_pointer:\n65535"
+    fprintf output "stack_pointer:\n65535\n";
+    fprintf output "argv:\n0\nargc:\n0"
+    (* 
+      La machine virtuelle va donner les bonnes valeurs à argv et argc,
+      à condition que ce soit les dernières variables et déclarées dans cet ordre
+      Comme on veut que ce soit compatible avec les langages haut niveau,
+      tout est organisé comme les arrays : argv pointera sur le premier élément du tableau,
+      soit &argc + 1, et ainsi argv pourra être utilisé comme un array comme un autre.
+    *)
 
   (* Extrait le nom du tag depuis une déclaration de tag (avec ':') *)
   let extract_tag s =

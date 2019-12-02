@@ -12,8 +12,11 @@ let set_language l =
 let speclist = [
   ("-p", Arg.Set make_medium_file, "Generates the intermediate output files");
   ("-l", Arg.String set_language, "Specifies the source language. If not given, the program will try to guess based on the extension. Otherwise, the extension should not be given.");
-  ("-c", Arg.Set copy, "Generates a copy of the source from its syntax tree (useful for debugging)")
+  ("-c", Arg.Set copy, "Generates a copy of the source from its abstract syntax tree (useful for debugging)")
 ]
+
+(* Début des arguments du main *)
+let argv = ref (-1)
 
 let write f extension source file =
   let output_file = "test/" ^ file ^ "." ^ extension in
@@ -47,9 +50,9 @@ let read f extension file =
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
     exit 1
-  | _ ->
+  | e ->
     Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
-    exit 1
+    raise e
 
 let translate t extension source =
   let upper_ext = String.uppercase_ascii extension in
@@ -65,18 +68,28 @@ let translate t extension source =
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
     exit 1
-  | _ ->
+  | e ->
     Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
-    exit 1
+    raise e
 
 let run_btc file =
-  exit (command ("./vm/VM " ^ file ^ ".btc"))
+  let line = ref ("./vm/VM test/" ^ file ^ ".btc ") in
+  for i = !argv to (Array.length Sys.argv) - 1 do
+    line := !line ^ Sys.argv.(i) ^ " ";
+  done;
+  exit (command !line)
 
 let run_asm file =
-  exit (command ("make run_asm_inter file=" ^ file))
+  let code = command ("./assembler/Assembler test/" ^ file ^ ".asm") in
+  if code = 0 then
+    run_btc file;
+  exit code
   
 let run_stk file =
-  exit (command ("make run_stk_inter file=" ^ file))
+  let code = command ("./stk/STKCompilerAlloc test/" ^ file ^ ".stk") in
+  if code = 0 then
+    run_asm file;
+  exit code
 
 let run_art_inter art file =
   write ARTTree.compile "stk" art file;
@@ -165,5 +178,15 @@ let rec run file =
     Printf.printf "Unknown language '%s'\n" !language;
     exit 1
 
+let start file =
+  let i = ref 0 in
+  let argc = Array.length Sys.argv in
+  while !i < argc && !argv = -1 do
+    if Sys.argv.(!i) = file then
+      argv := !i + 1;
+    incr i
+  done;
+  run file
+
 let _ =
-  Arg.parse speclist run "Usage: ./ChainCompiler -p -l <source language> <source file without extension>\nOr: ./ChainCompiler -p <source file WITH extension>"
+  Arg.parse speclist start "Usage: ./compiler/ChainCompiler -p -l <source language> <source file WITHOUT extension>\nOr: ./compiler/ChainCompiler -p <source file WITH extension>"

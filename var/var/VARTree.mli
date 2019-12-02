@@ -3,7 +3,6 @@ open IMPTree
 open CLLTree
 open FUNTree
 
-(** VAR définit argv en plus *)
 val var_variables : Tagset.t
 
 type var_expression =

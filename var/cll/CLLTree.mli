@@ -1,13 +1,7 @@
 open ARTTree
 open IMPTree
 
-(** 
-  Ensemble des tags réservés de CLL. Les langages plus haut niveau les utilisent donc aussi indirectement. 
-  Contient stack_pointer, frame_pointer et function_result.
-  function_result devrait être défini dans FUN mais est utilisé par CLL pour stocker temporairement
-  l'adresse de retour pour certains appels terminaux. Les deux rôles ne se chevauchent pas, il n'est donc pas
-  problématique d'utiliser uniquement function_result au lieu d'utiliser return_address très peu de fois.
-*)
+(** En plus des variables réservés d'IMP, rajoute frame_pointer. *)
 val cll_variables : Tagset.t
 
 (**

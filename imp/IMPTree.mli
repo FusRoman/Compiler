@@ -1,5 +1,8 @@
 open ARTTree
 
+(** Mêmes variables qu'en ART *)
+val imp_variables: Tagset.t
+
 (** Les différents types d'assignation *)
 type assign_binop =
   | Standard

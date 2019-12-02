@@ -16,9 +16,6 @@
   let raise_duplicate_element pos t =
     raise_syntax_error pos (Printf.sprintf "Tag '%s' is declared at least twice" t)
 
-  let raise_stack_pointer pos =
-    raise_syntax_error pos "'stack_pointer' is a reserved tag."
-
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 %}

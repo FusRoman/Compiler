@@ -6,7 +6,7 @@ open IMPTree
 open CLLTree
 open FUNTree
 
-let var_variables = add "argv" fun_variables
+let var_variables = fun_variables
 
 let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
@@ -155,7 +155,7 @@ let quit_block acc compiler =
 let decr_sp = FUNTree.UnopAssign(Id stack_pointer, Decr)
 
 (*
-  Renvoie (init, e, c, reevaluate, ompiler) avec :
+  Renvoie (init, e, c, reevaluate, compiler) avec :
   - init : les instructions à exécuter avant l'évaluation de l'expression
   - e : l'expression traduite
   - reevaluate : les instructions à exécuter si on veut réévaluer l'expression
@@ -164,85 +164,77 @@ let decr_sp = FUNTree.UnopAssign(Id stack_pointer, Decr)
     On peut vouloir appeler enter_block avant l'évaluation de l'expression pour pouvoir ensuite
     supprimer ces variables sans affecter le reste du bloc.
 
-  Ordre des appels de fonctions :
-  On parcourt l'expression en DFS. Le premier appel rencontré sera le premier exécuté.
-  L'adresse de la fonction sera calculée en premier, ensuite ce seront ses arguments, dans l'ordre et de manière récursive.
-  Le reste de l'expression parent sera calculé en dernier.
-
-  Si immediate vaut vrai, le dernier appel de fonction sera remplacée dans e par function_result.
+  Ordre d'évaluation :
+  On parcourt l'expression en DFS à gauche. Les fonctions sont une exception puisqu'on évalue
+  les arguments de gauche à droite puis ensuite seulement l'adresse de la fonction.
 *)
-let translate_expression e compiler immediate =
+let translate_expression e compiler =
   let translate_id id compiler =
     if Env.mem id.contents compiler.lenv then
       let index = Env.find id.contents compiler.lenv in
       ARTTree.Binop(LStar(Id frame_pointer), Sub, Int(index + 2))
     else if mem id.contents compiler.genv then
-      if id.contents = "argv" then
-        (* &stack_pointer + 2 ; on veut pointer sur argv[0], pas argc *)
-        Binop(Id stack_pointer, Add, Int 2)
-      else
-        Id id
+      Id id
     else
       raise (UnboundValue(compiler.fct.name, id))
   in
 
   (* Gère les appels de fonctions dans les expressions *)
-  let rec call f args compiler last =
-    let (finit, fe, fr, fcompiler, _) = translate_expr f compiler false in
-    let init, args', reeval, compiler =
-      List.fold_left (fun (init_acc, args_acc, reeval_acc, compiler) e ->
-        let (b, e, r, c, l) = translate_expr e compiler last in
-        (extend init_acc b, append args_acc e, extend reeval_acc r, c)
-      ) (finit, empty_cycle, fr, fcompiler) args
+  let rec call f args old_compiler =
+    let compiler = enter_block old_compiler in
+    let init, reeval, compiler =
+      List.fold_left (fun (init_acc, reeval_acc, compiler) e ->
+        let (b, e, r, c) = translate_expr e compiler in
+        let init_acc = extend init_acc b in
+        let reeval_acc = extend reeval_acc r in
+        let stack_arg = from_list FUNTree.[
+          BinopAssign(LStar(Id stack_pointer), Standard, e);
+          decr_sp
+        ] in
+        let init_acc = extend init_acc stack_arg in
+        let reeval_acc = extend reeval_acc stack_arg in
+        let compiler = {compiler with local = compiler.local + 1; variables = compiler.variables + 1} in
+        (init_acc, reeval_acc, compiler)
+      ) (empty_cycle, empty_cycle, compiler) args
     in
-    let arg_list = to_list args' in
-    if last then
-      (* Dernier appel de fonction avant utilisation du résultat ; on peut utiliser function_result directement *)
-      (append init (FUNTree.Call(fe, arg_list)), LStar(Id function_result), reeval, compiler)
-    else
-      (* Sinon on doit déclarer une variables anonyme pour stocker le résultat *)
-      (* Déclaration à l'envers. C'est vraiment le bordel... Je ferais mieux d'utiliser des cycles en interne *)
-      let init = append init (SetCall(LStar(Id stack_pointer), Standard, fe, arg_list)) in
-      let init = append init decr_sp in
-      let anonymous = ARTTree.Binop(LStar(Id frame_pointer), Sub, Int(compiler.variables + 2)) in
-      let reeval = append reeval (SetCall(anonymous, Standard, fe, arg_list)) in
-      let compiler = {compiler with local = compiler.local + 1; variables = compiler.variables + 1} in
-      (init, LStar anonymous, reeval, compiler)
+    let finit, fe, fr, compiler = translate_expr f compiler in
+    let init = extend init finit in
+    let reeval = extend reeval fr in
+    let call = FUNTree.Call(fe, []) in
+    let init = quit_block (append init call) compiler in
+    let reeval = quit_block (append reeval call) compiler in
+    (init, LStar(Id function_result), reeval, old_compiler)
 
   (* 
     e : expression à traduire
-    may_be_last : e est susceptible de contenir le dernier appel de fonction
-    Renvoie (b, e, r, c, l) avec b, e, r et c comme expliqués avant.
-    l vaut true si le dernier appel n'a pas été rencontré.
+    Renvoie (b, e, r, c) avec b, e, r et c comme expliqués avant.
   *)
-  and translate_expr e compiler may_be_last =
+  and translate_expr e compiler =
     match e with
     | Int i -> 
-      (empty_cycle, ARTTree.Int i, empty_cycle, compiler, may_be_last)
+      (empty_cycle, ARTTree.Int i, empty_cycle, compiler)
     | Bool b -> 
-      (empty_cycle, Bool b, empty_cycle, compiler, may_be_last)
+      (empty_cycle, Bool b, empty_cycle, compiler)
     | Id id ->
-      (empty_cycle, translate_id id compiler, empty_cycle, compiler, may_be_last)
+      (empty_cycle, translate_id id compiler, empty_cycle, compiler)
     | Deref e ->
-      let (b, e, r, c, l) = translate_expr e compiler may_be_last in
-      (b, LStar e, r, c, l)
+      let (b, e, r, c) = translate_expr e compiler in
+      (b, LStar e, r, c)
     | Unop(op, e) ->
-      let (b, e, r, c, l) = translate_expr e compiler may_be_last in
-      (b, Unop(op, e), r, c, l)
+      let (b, e, r, c) = translate_expr e compiler in
+      (b, Unop(op, e), r, c)
     | Binop(e1, op, e2) ->
-      let (b1, e1, r1, c, l1) = translate_expr e1 compiler may_be_last in
-      let (b2, e2, r2, c, l2) = translate_expr e2 c l1 in
-      (extend b1 b2, Binop(e1, op, e2), extend r1 r2, c, l1 && l2)
+      let (b1, e1, r1, c) = translate_expr e1 compiler in
+      let (b2, e2, r2, c) = translate_expr e2 c in
+      (extend b1 b2, Binop(e1, op, e2), extend r1 r2, c)
     | Call(f, args) ->
-      let (init, e, r, c) = call f args compiler may_be_last in
-      (init, e, r, c, false)
+      let (init, e, r, c) = call f args compiler in
+      (init, e, r, c)
   in
-
-  let (b, e, r, c, _) = translate_expr e compiler immediate in
-  (b, e, r, c)
+  translate_expr e compiler
 
 let declare_variable acc v e compiler =
-  let (init, e', _, c) = translate_expression e compiler true in
+  let (init, e', _, c) = translate_expression e compiler in
   let acc = extend acc init in
   let acc = append acc FUNTree.(BinopAssign(LStar(Id stack_pointer), Standard, e')) in
   let acc = append acc decr_sp in
@@ -252,13 +244,6 @@ let declare_variable acc v e compiler =
     lenv = Env.add v.contents compiler.variables compiler.lenv
   } in
   (acc, c)
-
-let rec is_constant e =
-  match e with
-  | Int _ | Bool _ | Id _ -> true (* Les adresses sont constantes *)
-  | Deref (Id _) | Call _ -> false
-  | Deref e | Unop(_, e) -> is_constant e
-  | Binop(e1, _, e2) -> is_constant e1 && is_constant e2
 
 (*
   Renomme les variables déclarées dans un bloc de boucle, et fait sortir toutes les déclarations locales
@@ -333,13 +318,9 @@ let extract_declarations loop =
       let name = id.contents ^ "$" ^ (string_of_int num) in
       let new_id = {id with contents = name} in
       let map = Env.add id.contents name map in
-      if is_constant e' then
-        let decl = append decl (Declaration(new_id, e')) in
-        (acc, decl, map)
-      else
-        let decl = append decl (Declaration(new_id, Int 0)) in
-        let acc = append acc (BinopAssign(Id new_id, Standard, e')) in
-        (acc, decl, map)
+      let decl = append decl (Declaration(new_id, Int 0)) in
+      let acc = append acc (BinopAssign(Id new_id, Standard, e')) in
+      (acc, decl, map)
 
   and rename_instructions decl map block =
     let acc, decl, map =
@@ -486,7 +467,7 @@ and translate_instruction acc i compiler =
         3) On réécrit les paramètres
       *)
       let (acc, f', args', c) = preprocess_terminal_call acc f args compiler in
-      let (finit, f', _, c) = translate_expression f' c false in
+      let (finit, f', _, c) = translate_expression f' c in
       let acc = extend acc finit in
       let acc, c, _ =
         List.fold_left (fun (acc, c, i) e ->
@@ -496,7 +477,7 @@ and translate_instruction acc i compiler =
             (* Un des cas où l'affectation n'a aucun effet, on peut l'éviter *)
             (acc, c, i + 1)
           | _ ->
-            let (init, e', _, c) = translate_expression e c true in
+            let (init, e', _, c) = translate_expression e c in
             let acc = extend acc init in
             let acc = append acc (BinopAssign(Binop(LStar(Id frame_pointer), Add, Int(n - i)), Standard, e')) in
             (acc, c, i + 1)
@@ -510,35 +491,35 @@ and translate_instruction acc i compiler =
         il faudrait implémenter les appels terminaux depuis FUN pour avoir le contrôle sur function_result.
         Or FUN ne peut pas gérer les variables locales tel qu'il est actuellement.
       *)
-      let (init, e', _, c) = translate_expression (Call(f, args)) compiler true in
+      let (init, e', _, c) = translate_expression (Call(f, args)) compiler in
       let acc = extend acc init in
       (append acc (Return e'), c)
 
   | Return e ->
-    let (init, e', _, c) = translate_expression e compiler true in
+    let (init, e', _, c) = translate_expression e compiler in
     let acc = extend acc init in
     (*let acc = quit_block acc c in*)
     (append acc (Return e'), compiler)
 
   | Print e ->
-    let (init, e', _, c) = translate_expression e compiler true in
+    let (init, e', _, c) = translate_expression e compiler in
     let acc = extend acc init in
     (append acc (Print e'), c)
 
   | BinopAssign(e1, op, e2) -> 
-    let (init1, e1', _, c)  = translate_expression e1 compiler false in
-    let (init2, e2', _, c) = translate_expression e2 c true in
+    let (init1, e1', _, c)  = translate_expression e1 compiler in
+    let (init2, e2', _, c) = translate_expression e2 c in
     let acc = extend acc init1 in
     let acc = extend acc init2 in
     (append acc (BinopAssign(e1', op, e2')), c)
 
   | UnopAssign(e, op) -> 
-    let (init, e', _, c) = translate_expression e compiler true in
+    let (init, e', _, c) = translate_expression e compiler in
     let acc = extend acc init in
     (append acc (UnopAssign(e', op)), c)
 
   | If(e, i) -> 
-    let (init, e', _, compiler) = translate_expression e compiler true in
+    let (init, e', _, compiler) = translate_expression e compiler in
     let ci = enter_block compiler in
     let (i', ci) = translate_instructions (from_list i) ci in
     let i' = to_list (quit_block i' ci) in
@@ -546,7 +527,7 @@ and translate_instruction acc i compiler =
     (append acc (If(e', i')), compiler)
 
   | IfElse(e, i1, i2) ->
-    let (init, e', _, compiler) = translate_expression e compiler true in
+    let (init, e', _, compiler) = translate_expression e compiler in
     let ci = enter_block compiler in
     let (i1', ci1) = translate_instructions (from_list i1) ci in
     let i1' = to_list (quit_block i1' ci1) in
@@ -562,7 +543,7 @@ and translate_instruction acc i compiler =
       let c_while = enter_block compiler in
       let (decl', c_while) = translate_instructions decl c_while in
       let acc = extend acc decl' in
-      let (init, c', reeval, c_while) = translate_expression e c_while false in
+      let (init, c', reeval, c_while) = translate_expression e c_while in
       let acc = extend acc init in
       let (b', c_while) = translate_instructions (from_list b) c_while in
       let b' = extend b' reeval in
@@ -581,7 +562,7 @@ and translate_instruction acc i compiler =
       let (decl', c_for) = translate_instructions decl c_for in
       let acc = extend acc decl' in
       let (init', c_for) = translate_instructions (from_list init) c_for in
-      let (initc, c', reeval, c_for) = translate_expression c c_for false in
+      let (initc, c', reeval, c_for) = translate_expression c c_for in
       let init' = extend init' initc in
       let (b', c_for) = translate_instructions (from_list b) c_for in
       let (it', c_for) = translate_instructions (from_list it) c_for in
@@ -594,7 +575,7 @@ and translate_instruction acc i compiler =
   end
 
   | Call(e, args) ->
-    let (init, _, _, c) = translate_expression (Call(e, args)) compiler true in
+    let (init, _, _, c) = translate_expression (Call(e, args)) compiler in
     (extend acc init, c)
 
   | Declaration(id, e) ->

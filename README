@@ -1,8 +1,14 @@
 Trucs à faire (Guilhem) :
   VAR:
-    - régler le problème de UnboundValue alors que pas du tout (capture.var)
-    - modifier l'ordre d'évaluation des expressions pour que ça ressemble à un truc
-    - rajouter les arguments du main
+    - opti des déclarations de variables :
+      - regrouper les stack_pointer-- pour être plus efficace
+      - pas mettre d'initialisation dans le cas où on les extrait
+    - remodifier l'ordre d'évaluation des expressions ?
+      Pour l'instant, si g modifie la variable dont l'adresse lui est donnée, a + g(&a) n'est pas évaluée correctement.
+      On pourrait régler le problème en empilant d'abord a, évaluer g(&a), puis l'additioner à là on a empilé a.
+      Par contre c'est pas ce qu'il y a de plus performant donc il faudra détecter quand c'est nécessaire.
+      (en supposant par ailleurs que si on ne lui file pas l'adresse de la variable, g est incapable de modifier sa valeur,
+      quand bien même si on sait comment est structurée la pile c'est en fait possible).
     - virer FUN ?
 
   - adapter tous les langages pour l'arrivée des librairies

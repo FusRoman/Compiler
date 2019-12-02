@@ -2,7 +2,9 @@ open Printf
 open Tagset
 open Arith
 
-exception SyntaxError of string * int * int 
+exception SyntaxError of string * int * int
+
+let art_variables = Tagset.of_list ["stack_pointer"; "argc"; "argv"]
 
 type binop = 
   | Add
@@ -193,9 +195,9 @@ let optimize_expression e =
 let opt_exp_sub e =
   fst (optimize_expression e)
 
-let check_stack_pointer t line column =
-  if t = "stack_pointer" then
-    raise (SyntaxError ("'stack_pointer' is a reserved tag and can not be declared.", line, column))
+let check_reserved_variable t line column =
+  if Tagset.mem t art_variables then
+    raise (SyntaxError (Printf.sprintf "'%s' is a reserved tag and can not be declared." t, line, column))
 
 let string_of_binop_direct op = 
   match op with
@@ -257,7 +259,7 @@ let compile_instr file tag_set instr =
     compile_exprs file tag_set e;
     fprintf file "WRITE\n"
   | TagDeclaration t ->
-    check_stack_pointer t.contents t.line t.column;
+    check_reserved_variable t.contents t.line t.column;
     fprintf file "%s:\n" t.contents
 
 let rec compile_instrs file tag_set instrs = 
@@ -271,7 +273,7 @@ let rec compile_instrs file tag_set instrs =
 let compile_data file data =
   match data with
   | {contents = (s, i); line = l; column = c} ->
-    check_stack_pointer s l c;
+    check_reserved_variable s l c;
     fprintf file "%s: %d\n" s i
 
 let rec compile_datas file datas =
@@ -283,7 +285,7 @@ let rec compile_datas file datas =
     end
 
 let rec compile file art =
-  let tag_set = Tagset.add_duplicate "stack_pointer" art.tag_set in
+  let tag_set = Tagset.union_duplicate art_variables art.tag_set in
   match art.syntax_tree with
   | Prog is -> fprintf file ".text\n";
     compile_instrs file tag_set is

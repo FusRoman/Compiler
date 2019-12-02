@@ -140,11 +140,14 @@ let _ =
       (* memory.(!i) <- memory_size; *)
       (* stack_pointer := !i *)
 
-      (* Empilement de argc *)
+      (* Initialisation de argv, qui doit valoir &argc + 1 *)
+      memory.(!i - 2) <- !i;
+
+      (* Initialisation de argc *)
       let argc = (Array.length Sys.argv) - 1 in (* on ignore vm *)
-      let argc_pos = !i in
+      let argc_pos = !i - 1 in
       memory.(argc_pos) <- argc;
-      i := argc_pos + argc;
+      i := argc_pos + argc + 1;
 
       (* Empilement de argv *)
       for a = 1 to argc do
