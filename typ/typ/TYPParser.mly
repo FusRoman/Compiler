@@ -175,7 +175,6 @@ type_expr:
     TPointer t
   }
 | LB fields=separated_nonempty_list(SEMI, field_declaration) RB
-| LB fields=separated_nonempty_list(SEMI, field_declaration) SEMI RB
   {
     let (env, _) = List.fold_left (fun (s_map, decalage) (label, _type) ->
       if StringMap.mem label.contents s_map then
@@ -279,7 +278,6 @@ expr:
 | f=l_expr LP args=separated_list(COMMA, expr) RP
     { Call(f, args) }
 | t_e=type_expr LB fields=separated_nonempty_list(SEMI, field_instanciation) RB
-| t_e=type_expr LB fields=separated_nonempty_list(SEMI, field_instanciation) SEMI RB
     {
       NewRecord (t_e,fields)
     }
