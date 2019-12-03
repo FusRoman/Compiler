@@ -304,5 +304,5 @@ control:
 
 any_instruction:
 | i=instruction { i }
-| c=control {c}
+| c=control { c }
 ;

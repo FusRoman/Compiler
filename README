@@ -1,8 +1,5 @@
 Trucs à faire (Guilhem) :
   VAR:
-    - opti des déclarations de variables :
-      - regrouper les stack_pointer-- pour être plus efficace
-      - pas mettre d'initialisation dans le cas où on les extrait
     - remodifier l'ordre d'évaluation des expressions ?
       Pour l'instant, si g modifie la variable dont l'adresse lui est donnée, a + g(&a) n'est pas évaluée correctement.
       On pourrait régler le problème en empilant d'abord a, évaluer g(&a), puis l'additioner à là on a empilé a.
@@ -11,7 +8,8 @@ Trucs à faire (Guilhem) :
       quand bien même si on sait comment est structurée la pile c'est en fait possible).
     - virer FUN ?
 
-  - adapter tous les langages pour l'arrivée des librairies
+  - adapter tous les langages pour l'arrivée des librairies ->
+    autoriser @ dans les noms, sauf à partir de TYP. Nom d'une fonction f de la librairie l dans TYP: f@l (comme ça on est sûr que le nom est pas pris)
 
 Adresse des paramètres dans les appels terminaux :
   Comme certains paramètres sont recopiés, leur adresse change. Exemple :

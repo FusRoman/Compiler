@@ -1,0 +1,84 @@
+f(i) {
+  # 3 variables au plus à tout moment
+  var j := i;
+  if (j > 0) {
+    # 2 variables
+    var a := 97;
+    var b := 98;
+    print(a);
+    print(b);
+  }
+  else {
+    # 1 seule
+    var c:= 99;
+    print(c);
+  }
+  print(10);
+  return 0;
+}
+
+g(a) {
+  # 1 variable
+  for (var i := 0; i < a; i++)
+    print(i + 48);
+  print(10);
+  return 0;
+}
+
+h(a) {
+  # 0 variable
+  print(a);
+  if (a == 97)
+   print(97);
+  else
+    print(98);
+  print(10);
+  return 0;
+}
+
+i(a, b) {
+  # 3 variables
+  for (var i := 0; i < a; i++) {
+    # 3 variables
+    for (var j := 48; j < 58; j++) {
+      # 2 variables
+      print(i + 48);
+      print(j);
+      if (b) {
+        # 1 variable
+        var c := 48;
+        print(c);
+      }
+      print(10);
+    }
+  }
+
+  return 0;
+}
+
+main() {
+  # 0 variable
+
+  # ab
+  f(1);
+
+  # c
+  f(0);
+
+  # 0123456789
+  g(10);
+
+  # aa
+  h(97);
+
+  # 0b
+  h(48);
+
+  # 000, 010, 020, ..., 190
+  i(2, true);
+
+  # 00, 01, 02, ..., 19
+  i(2, false);
+
+  exit;
+}

@@ -238,11 +238,14 @@ let declare_variable acc v e compiler =
   (acc, c)
 
 (*
-  Renomme les variables déclarées dans un bloc, et fait sortir toutes les déclarations localespour optimiser.
+  Renomme les variables déclarées dans un bloc. Les déclarations sont en fait laissées dans le code, mais au lieu de les traduire
+  en réservant de l'espace sur la pile comme les anciennes versions de VARTree, elles servent maintenant juste à donner la position 
+  de la variable par rapport à frame_pointer dans la seconde passe de compilation (translate_instruction). Elles sont traduites
+  comme des affectations par ailleurs.
   La capture de variable est autorisée, il faut donc modifier les noms des variables et les rendre uniques afin de s'assurer
   que le programme soit sémantiquement équivalent.
-  Renvoie (env, block) avec env l'environnement local initial de la fonction excluant les variables globales et les paramètres,
-  et block le bloc d'instructions transformées.
+  Renvoie (block, variables) avec block le bloc d'instructions transformées, et variables le nombre minimum de variables 
+  que l'on peut utiliser.
 *)
 let extract_declarations block =
   let last_num = ref 0 in
@@ -266,9 +269,15 @@ let extract_declarations block =
         Id {id with contents = name}
   in
 
-  let rec rename_instruction (env, acc, map) i =
+  (*
+    acc: instructions transformées
+    variables: nombre de variables déclarées dans le bloc courant
+    subvariables: nombre maximum de variables déclarées dans un sous-bloc du bloc courant
+    map: associe les variables à leur nouveau nom
+  *)
+  let rec rename_instruction (acc, variables, subvariables, map) i =
     let return i =
-      (env, append acc i, map)
+      (append acc i, variables, subvariables, map)
     in
     match i with
     | Nop | Exit | Break _ | Continue _ -> 
@@ -282,24 +291,25 @@ let extract_declarations block =
     | BinopAssign(d, op, e) ->
       return (BinopAssign(rename_expression map d, op, rename_expression map e))
     | IfElse(c, t, e) ->
-      let (env, t, _) = rename_instructions env map t in
-      let (env, e, _) = rename_instructions env map e in
+      let (t, vt, _) = rename_instructions t map in
+      let (e, ve, _) = rename_instructions e map in
       let acc = append acc (IfElse(rename_expression map c, to_list t, to_list e)) in
-      (env, acc, map)
+      (acc, variables, max subvariables (max vt ve), map)
     | If(c, t) ->
-      let (env, t, _) = rename_instructions env map t in
+      let (t, vt, _) = rename_instructions t map in
       let acc = append acc (If(rename_expression map c, to_list t)) in
-      (env, acc, map)
+      (acc, variables, max subvariables vt, map)
     | While(c, b) ->
-      let (env, b, _) = rename_instructions env map b in
+      let (b, vb, _) = rename_instructions b map in
       let acc = append acc (While(rename_expression map c, to_list b)) in
-      (env, acc, map)
+      (acc, variables, max subvariables vb, map)
     | For(init, c, it, b) ->
-      let (env, init', map_init) = rename_instructions env map init in
+      let (init', vinit, map_init) = rename_instructions init map in
       let c' = rename_expression map_init c in
-      let (env, b', _) = rename_instructions env map_init b in
-      let (env, it', _) = rename_instructions env map_init it in
-      (env, append acc (For(to_list init', c', to_list it', to_list b')), map)
+      let (b', vb, _) = rename_instructions b map_init in
+      let (it', vit, _) = rename_instructions it map_init in
+      let acc = append acc (For(to_list init', c', to_list it', to_list b')) in
+      (acc, variables, max subvariables (vinit + vb + vit), map)
     | Call(f, args) ->
       let args' = List.map (rename_expression map) args in
       return (Call(rename_expression map f, args'))
@@ -310,16 +320,18 @@ let extract_declarations block =
       let name = id.contents ^ "$" ^ (string_of_int num) in
       let new_id = {id with contents = name} in
       let map = Env.add id.contents name map in
-      let env = Env.add name num env in
-      let acc = append acc (BinopAssign(Id new_id, Standard, e')) in
-      (env, acc, map)
+      let acc = append acc (Declaration(new_id, e')) in
+      (acc, variables + 1, subvariables, map)
 
-  and rename_instructions env map block =
-    List.fold_left rename_instruction (env, empty_cycle, map) block
+  and rename_instructions block map =
+    let block, variables, subvariables, map =
+      List.fold_left rename_instruction (empty_cycle, 0, 0, map) block
+    in
+    (block, variables + subvariables, map)
   in
 
-  let (env, acc, _) = rename_instructions Env.empty Env.empty block in
-  (env, acc)
+  let (acc, v, _) = rename_instructions block Env.empty in
+  (acc, v)
 
 (*
   Utilisé pour optimiser les appels terminaux.
@@ -539,7 +551,16 @@ let rec translate_instruction acc i compiler =
 
   | Declaration(id, e) ->
     (*declare_variable acc id e compiler*)
-    failwith (Printf.sprintf "Found a local declaration in function '%s'; expected it to be moved back at the start of the function" compiler.fct.name.contents)
+    (* 
+      Suite à extract_declarations, Declaration a changé de sens : maintenant le compilateur s'en sert juste pour savoir
+      comment traduire les variables. L'espace a déjà été réservé sur le stack_pointer au début de la fonction.
+    *)
+    let compiler = {compiler with
+      local = compiler.local + 1;
+      variables = compiler.variables + 1;
+      lenv = Env.add id.contents compiler.variables compiler.lenv
+    } in
+    translate_instruction acc (BinopAssign(Id id, Standard, e)) compiler
     
 and translate_instructions is compiler =
   List.fold_left (fun (acc, compiler) i ->
@@ -559,15 +580,19 @@ let translate_function acc fct genv =
       add_duplicate p.name.contents acc
     ) genv fct.params 
   in
-  let (lenv, block) = extract_declarations fct.block in
-  let variables = Env.cardinal lenv in
+  let (block, variables) = extract_declarations fct.block in
   let block = 
     if variables = 0 then
       block
     else
       prepend block (BinopAssign(Id stack_pointer, SubAssign, Int variables)) 
   in
-  let compiler = {genv; lenv; variables; fct; local = 0} in
+  let compiler = {
+    genv; fct; 
+    lenv = Env.empty; 
+    local = 0;
+    variables = 0
+  } in
   let (block, _) = translate_instructions_cycle block compiler in
   {name = fct.name; block = to_list block; params = fct.params}::acc 
 
