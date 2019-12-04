@@ -105,7 +105,17 @@ let check_function fct genv =
 
 module Env = Map.Make(String)
 
-(* Un type contenant diverses données pour la gestion des variables locales *)
+(* 
+  Un type contenant diverses données pour la gestion des variables locales 
+  fct : la fonction en train d'être compilée
+  genv : environnement global, comprenant toutes les variables globales, toutes les fonctions,
+    et les paramètres de fct
+  lenv : les variables locales déclarées et utilisables là où se situe dans le code.
+  variables : le nombre total de variables locales utilisées. Ces variables peuvent avoir
+    été déclarées par le programme ou par le compilateur.
+  local : nombre de variables locales utilisées dans le bloc actuel, autrement dit le nombre de mots
+    de la pile à libérer à la fin du bloc
+*)
 type var_compiler = {
   genv: Tagset.t;
   lenv: int Env.t;
@@ -556,7 +566,7 @@ let rec translate_instruction acc i compiler =
       comment traduire les variables. L'espace a déjà été réservé sur le stack_pointer au début de la fonction.
     *)
     let compiler = {compiler with
-      local = compiler.local + 1;
+      local = compiler.local; (* Espace déjà réservé, aucune nouvelle variable à libérer *)
       variables = compiler.variables + 1;
       lenv = Env.add id.contents compiler.variables compiler.lenv
     } in
