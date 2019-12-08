@@ -1,5 +1,6 @@
 open ARTTree
 open IMPTree
+open FUNTree
 open VARTree
 open Cycle
 
@@ -7,7 +8,6 @@ module StringMap = Map.Make(String)
 
 type env = _type StringMap.t
 and record_env = (_type * int) StringMap.t
-
 
 and _type =
   |TInt
@@ -342,7 +342,7 @@ and check_global_declaration genv type_env l =
         if not ((check_expression genv type_env expr) = true_type) then
           raise TypeError
       |_ -> ()
-  )
+  ) l
 
 let make_var_node _type env =
   let max =
@@ -520,20 +520,46 @@ let rec translate_expression genv type_env e =
       new_env
     )
 
-  
+
   |NewTuple l ->
-  let type_list = List.fold_right (
+    let type_list = List.fold_right (
         fun e acc ->
           let true_type = find_type_alias type_env (check_expression genv type_env e) in
           true_type::acc
       ) l [] in
-  let (new_map, array_tag) = make_var_node (TPointer (TTuple type_list)) genv in
+    let (new_map, tuple_tag) = make_var_node (TPointer (TTuple type_list)) genv in
 
-  let array_size = VARTree.Int (List.length l) in
-  let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [array_size]) in
-  let assign_return_malloc = VARTree.BinopAssign (Id array_tag, Standard, call_to_malloc) in
-  
-  
+    let tuple_size = VARTree.Int (List.length l) in
+    let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [tuple_size]) in
+    let assign_return_malloc = VARTree.BinopAssign (Id tuple_tag, Standard, call_to_malloc) in
+
+    let (init, reeval, return_env, _) = List.fold_left (
+        fun (init_acc, reeval_acc, map_acc, index) e ->
+          let (init, var_expr, reeval, s_map) = translate_expression map_acc type_env e in
+
+          let access_array = VARTree.Binop (Id tuple_tag ,Add, Int index) in
+          let assign_expr_to_tuple = VARTree.BinopAssign (access_array, Standard, var_expr) in
+          let tmp_cycle = extend init_acc init in
+          let tmp_cycle = append tmp_cycle assign_expr_to_tuple in
+          (
+            tmp_cycle,
+            extend reeval_acc reeval,
+            s_map,
+            index + 1
+          )
+
+      ) (empty_cycle, empty_cycle, new_map, 0) l in
+
+    let tmp_cycle = append empty_cycle assign_return_malloc in
+    let tmp_cycle = extend tmp_cycle init in
+
+    (
+      tmp_cycle,
+      Id tuple_tag,
+      reeval,
+      return_env
+    )
+
 
   |Int x ->
     (
@@ -720,5 +746,38 @@ and translate_instructions genv type_env is =
       translate_instruction acc_instr acc_env type_env i
   ) (empty_cycle, genv) is
 
+let translate_globals genv type_env g =
+  let rec inter acc g =
+    match g with
+    |[] -> acc
+    |x :: s ->
+      begin
+        match x with
+        |Fun f -> 
+          let (block_var_fun, new_env) = translate_instructions genv type_env f.block in
+          let new_params_list = List.map (
+              fun (p: parameter) ->
+                { reference = p.reference; name = p.name}
+            ) f.params in
+          let var_globals = VARTree.Fun {
+              name = f.name; block = to_list block_var_fun; params = new_params_list
+            } in
+          inter (var_globals::acc) s
+        |Var (_, name, t_expr) ->
+          let init, var_expr, reeval, new_env = translate_expression genv type_env t_expr in
+          let var_globals = VARTree.Var (name, var_expr) in
+          inter (var_globals::acc) s
+        |Type t -> 
+          inter acc s
+      end in
+  inter [] g
+
+
 let typ_to_tpl typ_prog =
-  ()
+  check_global_declaration typ_prog.genv typ_prog._type typ_prog.tree;
+  let syntax_tree = translate_globals typ_prog.genv typ_prog._type typ_prog.tree in
+  let tag_set = List.fold_left (
+      fun acc (name_global, _) ->
+        Tagset.add name_global acc
+    ) Tagset.empty (StringMap.bindings typ_prog.genv) in
+  {syntax_tree; tag_set}

@@ -30,14 +30,14 @@
     fun (genv, type_env, tree) elt ->
       match elt with
       |Type (s, t) ->
-        (genv, type_env.add s t,tree)
-      |Var (t, s, e) -> (genv.add s t, type_env, (Var (t,s,e)) :: tree)
+        (genv, StringMap.add s.contents t type_env,tree)
+      |Var (t, s, e) -> (StringMap.add s.contents t genv, type_env, (Var (t,s,e)) :: tree)
       |Fun f -> 
         let param_list = List.map (
           fun param ->
             param.params_type
         ) f.params in
-        (genv.add f.name.contents (Fun (param_list, f.return_type)), type_env, (Fun f)::tree)
+        (StringMap.add f.name.contents (TFun (param_list, f.return_type)) genv, type_env, (Fun f)::tree)
   ) (StringMap.empty, StringMap.empty, [])
 
   let get_left start _end  e =
@@ -101,7 +101,7 @@ program:
 | globals=list(global_declaration) EOF
     {
       let (genv, _type, tree) = make_env globals in
-      {genv, _type, tree}
+      {genv; _type; tree}
     }
 
 | error
@@ -111,19 +111,33 @@ program:
 ;
 
 global_declaration:
-| def_fun=function_definition
+| f=function_definition
     {
       Fun f
     }
 
-| var=variable_declaration SEMI
+| var=global_variable_declaration SEMI
     {
-      Var v
+      Var var
     }
 | t=type_declaration SEMI
     { 
       Type t
     }
+;
+
+global_variable_declaration:
+| TINT name=LABEL ASSIGN e=immediat
+  {
+    (TInt, make_node $startpos name, e)
+  }
+;
+
+immediat:
+| i=INT
+    { Int i }
+| b=BOOL
+    { Bool b }
 ;
 
 type_declaration:
@@ -167,11 +181,11 @@ type_expr:
   }
 |TSTRING
   {
-    TPointer (TArray (TInt))
+    (TPointer (TArray (TInt)))
   }
 |TFUN LP ps=separated_list(COMMA, type_expr) ARROW ty=type_expr RP
   {
-    TPointer (TFun (ps, ty))
+    (TPointer (TFun (ps, ty)))
   }
 | LT l = LABEL GT
   {
@@ -179,11 +193,11 @@ type_expr:
   }
 |t = type_expr LS RS
   {
-    TPointer (TArray (t))
+    (TPointer (TArray (t)))
   }
-|t = LP separated_nonempty_list(COMMA, type_expr) RP
+|LP t = separated_nonempty_list(COMMA, type_expr) RP
   {
-    TPointer (TTuple (t))
+    (TPointer (TTuple t))
   }
 | t=type_expr MULT
   {
@@ -194,8 +208,8 @@ type_expr:
     let (env, _) = List.fold_left (fun (s_map, decalage) (label, _type) ->
       if StringMap.mem label.contents s_map then
          raise (SyntaxError(
-           Printf.sprintf "Field '%s' has been declared twice in the same record type" s.contents,
-           s.line, s.column
+           Printf.sprintf "Field '%s' has been declared twice in the same record type" label.contents,
+           label.line, label.column
          ))
       else
         ((StringMap.add label.contents (_type, decalage) s_map), decalage + 1)
@@ -238,7 +252,7 @@ expr:
 | op=unop e=expr
     { Unop(op, e) }
 | f=simple_expr LP args=separated_list(COMMA, expr) RP
-    { Call(get_left $startpos(f) $endpos(f), args) }
+    { Call((get_left $startpos $endpos f), args) }
 | e=simple_expr
     { e }
 | l=simple_expr LS e=expr RS
@@ -261,7 +275,7 @@ simple_expr:
 | MULT l=simple_expr
     { Deref l }
 | ADDRESS l=simple_expr
-    { get_left $startpos(l) $endpos(l) }
+    { get_left $startpos $endpos l }
 | LB LT t_e=type_expr GT fields=separated_nonempty_list(SEMI, field_instanciation) RB
     { NewRecord (t_e,fields) }
 | LS size=expr PIPE init_elt=expr RS
@@ -323,17 +337,17 @@ instruction:
 
 | l=expr op=assign_binop e=expr
     {
-      BinopAssign(get_left $startpos(l) $endpos(l), op, e)
+      BinopAssign(get_left $startpos $endpos l, op, e)
     }
 
 | l=expr op=assign_unop
     {
-      UnopAssign(get_left $startpos(l) $endpos(l) l, op)
+      UnopAssign(get_left $startpos $endpos l, op)
     }
 
 | f=simple_expr LP args=separated_list(COMMA, expr) RP
     {
-      Call(get_left $startpos(f) $endpos(f) f, args)
+      Call(get_left $startpos $endpos f, args)
     }
 
 | v=variable_declaration
@@ -369,7 +383,7 @@ block:
 control:
 | IF LP e=expr RP b=block %prec NO_ELSE
     {
-      VARTree.If(e, b)
+      If(e, b)
     } 
 
 | IF LP c=expr RP t=block ELSE e=block
