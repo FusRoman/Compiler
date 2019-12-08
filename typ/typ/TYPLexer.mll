@@ -104,6 +104,8 @@ rule token = parse
       { COLON }
   | ","
       { COMMA }
+  | "|"
+      { PIPE }
   | "("
       { LP }
   | ")"

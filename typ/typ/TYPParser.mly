@@ -40,9 +40,19 @@
         (genv.add f.name.contents (Fun (param_list, f.return_type)), type_env, (Fun f)::tree)
   ) (StringMap.empty, StringMap.empty, [])
 
+  let get_left start _end  e =
+    match e with
+    | Deref e -> e
+    | _ -> 
+      let line = get_line start in
+      let column = get_column start in
+      raise (SyntaxError(
+        Printf.sprintf "Line %d, character %d to line %d, character %d: this is not a left expression" line column (get_line _end) (get_column _end),
+        line, column
+      ))
 %}
 
-%token VAR TINT TBOOL TCHAR TSTRING TFUN DOT TYPE ARROW
+%token VAR TINT TSTRING TFUN TYPE ARROW
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -57,7 +67,7 @@
 %token AND OR
 %token NOT CPL
 %token ADDRESS
-%token SEMI COLON COMMA
+%token SEMI COLON COMMA DOT PIPE
 %token LP RP LB RB LS RS
 %token <bool>BOOL
 %token <int>INT
@@ -71,7 +81,7 @@
 %type <TYPTree.typ_function> function_definition
 %type <TYPTree.typ_instrs> instructions
 %type <TYPTree.typ_expression> expr
-%type <TYPTree.typ_expression> l_expr
+%type <TYPTree.typ_expression> simple_expr
 %type <TYPTree.typ_instr> instruction
 %type <TYPTree.typ_instrs> block
 %type <TYPTree.typ_instr> control
@@ -110,7 +120,7 @@ global_declaration:
     {
       Var v
     }
-| t=list(type_declaration) SEMI
+| t=type_declaration SEMI
     { 
       Type t
     }
@@ -149,6 +159,7 @@ function_definition:
     }
 ;
 
+
 type_expr:
 |TINT
   {
@@ -156,19 +167,23 @@ type_expr:
   }
 |TSTRING
   {
-    TArray (TChar)
+    TPointer (TArray (TInt))
   }
 |TFUN LP ps=separated_list(COMMA, type_expr) ARROW ty=type_expr RP
   {
-    TFun (ps, ty)
+    TPointer (TFun (ps, ty))
   }
-|l = LABEL
+| LT l = LABEL GT
   {
     TAlias (make_node $startpos l)
   }
 |t = type_expr LS RS
   {
-    TArray (t)
+    TPointer (TArray (t))
+  }
+|t = LP separated_nonempty_list(COMMA, type_expr) RP
+  {
+    TPointer (TTuple (t))
   }
 | t=type_expr MULT
   {
@@ -185,7 +200,7 @@ type_expr:
       else
         ((StringMap.add label.contents (_type, decalage) s_map), decalage + 1)
     ) (StringMap.empty, 0) fields in
-    TRecord env
+    TPointer (TRecord env)
   }
 ;
 
@@ -217,74 +232,66 @@ instructions:
 |   { [] }
 ;
 
-l_expr:
-| t=LABEL
-    { Id (make_node $startpos t) }
-| MULT LP l=expr RP (* La grammaire a changé par rapport à FUN pour éviter les ambiguïtés ! *)
-    { l }
-| l_expr=l_expr DOT l=LABEL
-    {
-      RecordAccess(l_expr, l)
-    }
-| l_expr=l_expr LS e=expr RS
-    {
-      ArrayAccess (l_expr, e)
-    }
+expr:
+| e1=expr op=binop e2=expr
+    { Binop(e1, op, e2) }
+| op=unop e=expr
+    { Unop(op, e) }
+| f=simple_expr LP args=separated_list(COMMA, expr) RP
+    { Call(get_left $startpos(f) $endpos(f), args) }
+| e=simple_expr
+    { e }
+| l=simple_expr LS e=expr RS
+    { Deref (ArrayAccess(l, e)) }
+| l=simple_expr DOT f=LABEL
+    { Deref (RecordAccess(l, make_node $startpos(f) f)) }
+| l=simple_expr DOT LP i=INT RP
+    { Deref (TupleAccess (l, i)) }
 ;
 
-expr:
+simple_expr:
 | i=INT
     { Int i }
-| b=BOOL 
+| b=BOOL
     { Bool b }
-| l=l_expr
-    { Deref l }
+| t=LABEL
+    { Deref(Id(make_node $startpos t)) }
 | LP e=expr RP
     { e }
-| e1=expr ADD e2=expr
-    { Binop(e1, Add, e2) }
-| e1=expr SUB e2=expr
-    { Binop(e1, Sub, e2) }
-| e1=expr MULT e2=expr
-    { Binop(e1, Mult, e2) }
-| e1=expr DIV e2=expr
-    { Binop(e1, Div, e2) }
-| e1=expr REM e2=expr
-    { Binop(e1, Rem, e2) }
-| e1=expr AND e2=expr
-    { Binop(e1, And, e2) }
-| e1=expr OR e2=expr
-    { Binop(e1, Or, e2) }
-| e1=expr LT e2=expr
-    { Binop(e1, Lt, e2) }
-| e1=expr LE e2=expr
-    { Binop(e1, Le, e2) }
-| e1=expr GT e2=expr
-    { Binop(e1, Gt, e2) }
-| e1=expr GE e2=expr
-    { Binop(e1, Ge, e2) }
-| e1=expr EQ e2=expr
-    { Binop(e1, Eq, e2) }
-| e1=expr NEQ e2=expr
-    { Binop(e1, Neq, e2) }
-| SUB e=expr
-    { Unop(Minus, e) }
-| CPL e=expr
-    { Unop(Cpl, e) }
-| NOT e=expr
-    { Unop(Not, e) }
-| ADDRESS e=l_expr
-    { e }
-| f=l_expr LP args=separated_list(COMMA, expr) RP
-    { Call(f, args) }
-| t_e=type_expr LB fields=separated_nonempty_list(SEMI, field_instanciation) RB
-    {
-      NewRecord (t_e,fields)
-    }
-| LP size=expr RP LS init_elt=expr RS
-    {
-      NewArray (size,init_elt)
-    }
+| MULT l=simple_expr
+    { Deref l }
+| ADDRESS l=simple_expr
+    { get_left $startpos(l) $endpos(l) }
+| LB LT t_e=type_expr GT fields=separated_nonempty_list(SEMI, field_instanciation) RB
+    { NewRecord (t_e,fields) }
+| LS size=expr PIPE init_elt=expr RS
+    { NewArray (size,init_elt) }
+| LS l=separated_nonempty_list(SEMI, expr) RS
+    { InitArray (l) }
+| LT LP l=separated_nonempty_list(COMMA, expr) RP GT
+    { NewTuple (l) }
+;
+
+%inline binop:
+| ADD         { Add }
+| SUB         { Sub }
+| MULT        { Mult }
+| DIV         { Div }
+| REM         { Rem }
+| AND         { And }
+| OR          { Or }
+| LT          { Lt }
+| GT          { Gt }
+| LE          { Le }
+| GE          { Ge }
+| EQ          { Eq }
+| NEQ         { Neq }
+;
+
+%inline unop:
+| SUB         { Minus }
+| CPL         { Cpl }
+| NOT         { Not }
 ;
 
 field_instanciation:
@@ -314,19 +321,19 @@ instruction:
 | RETURN e=expr
     { Return e }
 
-| l=l_expr op=assign_binop e=expr
+| l=expr op=assign_binop e=expr
     {
-      BinopAssign(l, op, e)
+      BinopAssign(get_left $startpos(l) $endpos(l), op, e)
     }
 
-| l=l_expr op=assign_unop
+| l=expr op=assign_unop
     {
-      UnopAssign(l, op)
+      UnopAssign(get_left $startpos(l) $endpos(l) l, op)
     }
 
-| f=l_expr LP args=separated_list(COMMA, expr) RP
+| f=simple_expr LP args=separated_list(COMMA, expr) RP
     {
-      Call(f, args)
+      Call(get_left $startpos(f) $endpos(f) f, args)
     }
 
 | v=variable_declaration
@@ -375,8 +382,13 @@ control:
       While(e, b)
     }
 
-| FOR LP init=separated_list(COMMA, instruction) SEMI cond=expr SEMI it=separated_list(COMMA, instruction) RP b=block
+| FOR LP init=separated_list(COMMA, any_instruction) SEMI cond=expr SEMI it=separated_list(COMMA, any_instruction) RP b=block
     {
       For(init, cond, it, b)
     }
+;
+
+any_instruction:
+| i=instruction { i }
+| c=control { c }
 ;
