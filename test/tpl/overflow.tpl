@@ -20,10 +20,15 @@ print_int(v) {
   return 0;
 }
 
+println_int(v) {
+  print_int(v);
+  print(10);
+  return 0;
+}
+
 main() {
   print(100); print(10);
-  print_int(memory_break@);
-  print(10);
+  println_int(memory_break@);
   print(10);
   var a := 0;
   while (true) {
@@ -31,8 +36,7 @@ main() {
     print(32);
     print(47);
     print(32);
-    print_int(memory_break@);
-    print(10);
+    println_int(memory_break@);
     malloc(200);
     a++;
   }
