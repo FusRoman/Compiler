@@ -15,5 +15,7 @@ int main(){
 
     int[] tab2 := [1;2;3];
 
+    int v := tab1[5];
+
     return 0;
 }
