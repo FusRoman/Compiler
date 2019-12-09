@@ -5,10 +5,15 @@ int f(int t){
 }
 
 int main(){
-    fun (int -> int) j := f(97);
+    int j := f(97);
     print(j);
     (int,fun (int -> int),int) tuple1 := <(5, &f, 20)>;
     int t := (tuple1.(1))(97);
     print(t);
+
+    int[] tab1 := [10 | 5];
+
+    int[] tab2 := [1;2;3];
+
     return 0;
 }

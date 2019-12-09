@@ -280,7 +280,7 @@ let rec check_expression genv type_env e =
     let type_array = find_type_alias type_env (check_expression genv type_env array_elt.contents) in
     begin
       match type_size, type_array with
-      |TInt, t -> TPointer t
+      |TInt, t -> TPointer (TArray t)
       |x, _ -> raise (TypeError 
                         ("This expression has type " ^ (string_of_type type_env x) ^
                          "\nbut an expression was expected of type int", 
@@ -327,7 +327,7 @@ let rec check_expression genv type_env e =
                     expr.column)
                 )
     ) (List.tl expr_list);
-    first_true_type
+    TPointer (TArray first_true_type)
   |TupleAccess (tpl, i) ->
     let true_type = find_type_alias type_env (check_expression genv type_env tpl.contents) in
     begin
@@ -614,7 +614,7 @@ let rec translate_expression genv type_env e =
     (* Rajouter les ifs *)
     let (init_struct1,name_array, reeval_struct1, new_env1) = translate_expression genv type_env name_array.contents in
     let (init_struct2,offset_expr, reeval_struct2, new_env2) = translate_expression new_env1 type_env offset_expr.contents in
-    let tab_size = VARTree.Binop (name_array, Add, Int (-1)) in
+    let tab_size = VARTree.Binop (name_array, Sub, Int 1) in
     let condition_size = VARTree.Binop (tab_size, Le, offset_expr) in
     let test_size = VARTree.If (condition_size, [Exit]) in
     let cycle_init = Cycle.extend init_struct1 init_struct2 in
@@ -659,7 +659,7 @@ let rec translate_expression genv type_env e =
     let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [var_size_expr]) in
     let assign_return_malloc = VARTree.BinopAssign (Id array_tag, Standard, call_to_malloc) in
 
-    let access_array_size = VARTree.Binop (Id array_tag ,Add, Int (-1)) in
+    let access_array_size = VARTree.Binop (Id array_tag ,Sub, Int 1) in
     let assign_array_size = VARTree.BinopAssign (access_array_size ,Standard, var_size_expr) in
 
 
@@ -708,7 +708,7 @@ let rec translate_expression genv type_env e =
     let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [array_size]) in
     let assign_return_malloc = VARTree.BinopAssign (Id array_tag, Standard, call_to_malloc) in
 
-    let access_array_size = VARTree.Binop (Id array_tag ,Add, Int (-1)) in
+    let access_array_size = VARTree.Binop (Id array_tag ,Sub, Int 1) in
     let assign_array_size = VARTree.BinopAssign (access_array_size ,Standard, Int (List.length list_expr)) in
 
     let (init, var_instr_cycle, reeval, new_env,_) = List.fold_left (
