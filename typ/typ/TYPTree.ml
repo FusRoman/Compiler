@@ -161,7 +161,6 @@ let rec check_expression genv type_env e =
   |Deref e ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
-      Printf.printf "%s\n" (string_of_type type_env true_type); 
       match true_type with
       | TPointer t -> t
       | x -> raise (TypeError (
@@ -217,7 +216,7 @@ let rec check_expression genv type_env e =
                   "\nbut an expression was expected of type " ^ (string_of_type type_env param_type),
                   expr.line,
                   expr.column
-                )) 
+                ))
         ) expr_list type_params;
         return_type
       |x -> raise (TypeError (
@@ -239,7 +238,7 @@ let rec check_expression genv type_env e =
                              field.line, 
                              field.column)
                          )
-          |Some (_type,_) -> _type
+          |Some (_type,_) -> TPointer _type
         end
       |x -> raise (TypeError 
                      ("This expression has type " ^ (string_of_type type_env x) ^
@@ -335,9 +334,9 @@ let rec check_expression genv type_env e =
       match true_type with
       |TPointer TTuple t ->
         if i >= 0 || i < (List.length t) then
-          List.nth t i
+            TPointer (List.nth t i)
         else
-          raise (TypeError 
+          raise (TypeError
                    ("Tuple_Index_Out_Of_Bounds with index " ^ (string_of_int i), 
                     tpl.line, 
                     tpl.column)
@@ -554,7 +553,7 @@ let make_var_node _type env =
         max acc (String.length k)
       ) env 0
   in
-  let var = String.make max 'a' in
+  let var = String.make (max + 1) 'a' in
   (StringMap.add var _type env, ARTTree.default_node var)
 
 (*

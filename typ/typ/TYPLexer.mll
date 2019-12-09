@@ -10,6 +10,8 @@ let comment = '#' [^ '\n']* ('\n' | eof)
 rule token = parse
   | "/*"
       { comment lexbuf; token lexbuf }
+  | "new"
+    { NEW }
   | "var"
       { VAR }
   | "int"
