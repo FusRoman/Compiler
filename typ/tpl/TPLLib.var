@@ -2,7 +2,7 @@
 var heap_pointer@ := 0;
 var memory_break@ := 0;
 
-malloc(n) {
+allocate@(n) {
     var r := memory_break@;
     memory_break@ += n;
     if (stack_pointer <= memory_break@) {
@@ -27,5 +27,74 @@ malloc(n) {
         print(10);
         exit;
     }
-    return r;
+
+    *r := n; # Pas de flag free !
+    return r + 1;
+}
+
+set_next_free_block@(previous, next) {
+    if (previous != 0)
+        *(previous + 1) := next;
+    return 0;
+}
+
+# Masque pour récupérer le flag de disponibilité (bit 31, le plus à gauche)
+# Arranger ART pour que ce soit une variable locale parce que là c'est dégueu
+var free_flag@ := 2147483648;
+
+malloc(n) {
+    # Taille minimale d'un bloc (pour pouvoir contenir toutes les infos quand le bloc est libre)
+    var smallest := 4;
+
+    # Masque pour récupérer la taille ou un pointeur (16 bits de plus faible poids)
+    var size_mask := 65535;
+
+    # Si n est plus petit que smallest, on prendre smallest à la place
+    # On rajoute au moins 1 à n quoiqu'il arrive parce qu'il faut prendre en compte l'espace utilisé pour la taille du bloc
+    # Ce mot supplémentaire est compté dans la taille
+    if (n < smallest)
+        n := smallest;
+    else
+        n++;
+
+    # On cherche le premier bloc libre
+    var free := heap_pointer@;
+    var size := *free && size_mask;
+    while (free < memory_break@ && !(*free && free_flag@)) {
+        free := free + size;
+        size := *free && size_mask;
+    }
+
+    # Pas de bloc libre
+    if (free >= memory_break@)
+        return allocate@(n);
+
+    # Recherche du premier bloc libre de taille suffisante
+    # Optimisation possible en suivant une stratégie plus fine que "premier bloc assez grand"
+    var previous_free := free;
+    while (free != 0 && (*free && size_mask < n)) {
+        previous_free := free;
+        # Second mot d'un bloc libre : pointeur vers le prochain bloc libre (0 si aucun)
+        free := *(free + 1) && size_mask;
+    }
+
+    # Pas de bloc libre de taille suffisante
+    if (free == 0)
+        return allocate@(n);
+
+    # Un bloc libre de taille suffisante a été trouvé
+    # Si trop grand, on le découpe
+    # On change aussi le pointeur vers le bloc libre suivant du bloc précédent
+    size := *free && size_mask;
+    var remaining_size := size - n;
+    if (remaining_size >= smallest) {
+        # Si le bloc restant est de toute façon trop petit, autant ne pas séparer
+        *(free + n) := remaining_size || free_flag@;
+        *free := n; # le bit de disponibilité est à 0
+        set_next_free_block@(previous_free, free + n);
+    }
+    else
+        set_next_free_block@(previous_free, *(free + 1));
+
+    return free + 1;
 }
