@@ -150,6 +150,16 @@ let run_tpl file =
   copy VARTree.write_var "tpl" tpl file;
   run_tpl_inter tpl file
 
+let run_typ_inter typ file =
+  let tpl = translate TYPTree.typ_to_tpl "typ" typ in 
+  write_opt VARTree.write_var "tpl" tpl file;
+  run_tpl_inter tpl file
+
+let run_typ file =
+  let typ = read (TYPParser.program TYPLexer.token) "typ" file in
+  (*copy TYPTree.write_typ "typ" typ file;*)
+  run_typ_inter typ file
+
 let rec run file =
   match !language with
   | "btc" ->
@@ -170,6 +180,8 @@ let rec run file =
     run_var file
   | "tpl" ->
     run_tpl file
+  | "typ" ->
+    run_typ file
   | "none" ->
     let rec find_extension acc i =
       if i < 0 then
