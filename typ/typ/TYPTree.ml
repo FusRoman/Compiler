@@ -334,7 +334,7 @@ let rec check_expression genv type_env e =
       match true_type with
       |TPointer TTuple t ->
         if i >= 0 || i < (List.length t) then
-            TPointer (List.nth t i)
+          TPointer (List.nth t i)
         else
           raise (TypeError
                    ("Tuple_Index_Out_Of_Bounds with index " ^ (string_of_int i), 
@@ -458,12 +458,12 @@ let rec check_instruction genv type_env f i =
     end
   |For (init, cond, iteration, block_for) ->
     begin
-      let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
+      let local_env = check_list_instruction_with_return_new_env genv type_env f init in
+      let true_type = find_type_alias type_env (check_expression local_env type_env cond.contents) in
       match true_type with
       |TInt ->
-        check_list_instruction genv type_env f init;
-        check_list_instruction genv type_env f iteration;
-        check_list_instruction genv type_env f block_for
+        check_list_instruction local_env type_env f iteration;
+        check_list_instruction local_env type_env f block_for
       |x -> raise (TypeError 
                      ("This expression has type " ^ (string_of_type type_env x) ^
                       "\nbut an expression was expected of type int", 
@@ -519,11 +519,32 @@ and check_list_instruction genv type_env f l =
         check_list_instruction genv type_env f s
     end
 
+and check_list_instruction_with_return_new_env genv type_env f l =
+  match l with
+  |[] -> genv
+  | x :: s ->
+    begin
+      match x with
+      |Declaration (_type_var, name_node, expr) ->
+        check_instruction genv type_env f x;
+        check_list_instruction (StringMap.add name_node.contents _type_var genv) type_env f s;
+        (StringMap.add name_node.contents _type_var genv)
+      |_ -> 
+        check_instruction genv type_env f x;
+        check_list_instruction genv type_env f s;
+        genv
+    end
+
 and check_global_declaration genv type_env l =
   List.iter (
     fun globals ->
       match globals with
-      |Fun f -> check_list_instruction genv type_env (Some f) f.block
+      |Fun f -> 
+        let env_with_param = List.fold_left (
+            fun acc (p: parameter) ->
+              StringMap.add p.name.contents p.params_type acc
+          ) genv f.params in
+        check_list_instruction env_with_param type_env (Some f) f.block
       |Var (_type_var, name_var, expr) ->
         begin
           match _type_var with
@@ -618,7 +639,7 @@ let rec translate_expression genv type_env e =
     let condition_size = VARTree.Binop (Deref tab_size, Le, offset_expr) in
     let test_size = VARTree.If (condition_size, [Exit]) in
     let cycle_init = Cycle.extend init_struct1 init_struct2 in
-    (Cycle.prepend cycle_init test_size, VARTree.Binop (name_array, Add, offset_expr), Cycle.extend reeval_struct1 reeval_struct2, new_env2)
+    (Cycle.append cycle_init test_size, VARTree.Binop (name_array, Add, offset_expr), Cycle.extend reeval_struct1 reeval_struct2, new_env2)
 
 
   |NewRecord (_type, record_field) ->
@@ -654,39 +675,47 @@ let rec translate_expression genv type_env e =
     let array_type = check_expression genv type_env elt_expr.contents in
     let (new_map, array_tag) = make_var_node array_type genv in
 
-    (* Allocation memoire du tableau *)
+    (* On crée une variable temporaire contenant l'evaluation de l'expression de la taille du 
+       tableau pour éviter que cette expression ne se fasse évaluer a chaque tour de boucle 
+       et également dans l'appel du malloc*)
+
     let (init_size_expr, var_size_expr, reeval_size, map_size) = translate_expression new_map type_env size_expr.contents in
-    let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [var_size_expr]) in
+    let (new_map_with_tag_size, tmpsize_tag) = make_var_node TInt map_size in
+    let assign_size = VARTree.Declaration (tmpsize_tag, var_size_expr) in
+
+
+
+    (* Allocation memoire du tableau *)
+    let var_size_expr_plus_un = VARTree.Binop (Deref (Id tmpsize_tag), Add, Int 1) in
+    let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [var_size_expr_plus_un]) in
     let assign_return_malloc = VARTree.Declaration (array_tag, call_to_malloc) in
 
-    let access_array_size = VARTree.Binop (Id array_tag ,Sub, Int 1) in
-    let assign_array_size = VARTree.BinopAssign (access_array_size ,Standard, var_size_expr) in
+    let assign_array_size = VARTree.BinopAssign ((Deref (Id array_tag)) ,Standard, Deref (Id tmpsize_tag)) in
 
 
     (* Initialisation du tableau avec un for *)
     let i = default_node "i" in
-    let init_for = VARTree.BinopAssign (Id i, Standard, Int 0) in
-    let cond_for = VARTree.Binop (Id i, Lt, var_size_expr) in
+    let init_for = VARTree.Declaration (i, Int 1) in
+    let cond_for = VARTree.Binop (Deref (Id i), Le, Deref (Id tmpsize_tag)) in
     let it_for = VARTree.UnopAssign (Id i, Incr) in
 
     (*
       Creation d'une variable temporaire a l'exterieur du block for pour evaluer l'expression 
       des elements du tableau qu'une seul fois.
     *)
-    let (init_elt_expr, var_elt_expr, reeval_elt_expr, map_elt_expr) = translate_expression map_size type_env elt_expr.contents in
+    let (init_elt_expr, var_elt_expr, reeval_elt_expr, map_elt_expr) = translate_expression new_map_with_tag_size type_env elt_expr.contents in
     let (new_map2, tmpvar_tag) = make_var_node (check_expression map_size type_env elt_expr.contents) map_elt_expr in
     let tmp_variable = VARTree.Declaration (tmpvar_tag, var_elt_expr) in
 
-
-    let access_array = {line = 0; column = 0; contents = ArrayAccess ({line=0;column=0;contents=Id array_tag}, {line=0;column=0;contents=Id i})} in
-    let (block_for: typ_instr) = BinopAssign (access_array, Standard, {line = 0;column = 0; contents=Id tmpvar_tag}) in
-    let (block_for, map_block_for) = translate_instruction empty_cycle map_size type_env block_for in
+    let access_array = VARTree.Binop (Deref (Id array_tag), Add, Deref (Id i)) in
+    let block_for = VARTree.BinopAssign (access_array, Standard, Deref (Id tmpvar_tag)) in
 
 
 
-    let array_init_instr = VARTree.For ([init_for], cond_for, [it_for], to_list block_for) in
+    let array_init_instr = VARTree.For ([init_for], cond_for, [it_for], [block_for]) in
 
-    let tmp_cycle = Cycle.append init_size_expr assign_return_malloc in
+    let tmp_cycle = Cycle.append init_size_expr assign_size in
+    let tmp_cycle = Cycle.append tmp_cycle assign_return_malloc in
     let tmp_cycle = Cycle.append tmp_cycle assign_array_size in
     let tmp_cycle = Cycle.append tmp_cycle tmp_variable in
     let tmp_cycle = Cycle.append tmp_cycle array_init_instr in
@@ -695,7 +724,7 @@ let rec translate_expression genv type_env e =
     let reeval_cycle = Cycle.append reeval_cycle array_init_instr in
     (
       tmp_cycle,
-      VARTree.Id array_tag,
+      Binop (Deref (Id array_tag), Add, Int 1),
       reeval_cycle,
       map_elt_expr
     )
@@ -704,18 +733,18 @@ let rec translate_expression genv type_env e =
     let array_type = check_expression genv type_env (List.hd list_expr).contents in
     let (new_map, array_tag) = make_var_node (TPointer (TArray array_type)) genv in
 
-    let array_size = VARTree.Int (List.length list_expr) in
+    let array_size = VARTree.Int ((List.length list_expr)+1) in
     let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [array_size]) in
     let assign_return_malloc = VARTree.Declaration (array_tag, call_to_malloc) in
 
-    let access_array_size = VARTree.Binop (Id array_tag ,Sub, Int 1) in
+    let access_array_size = VARTree.Binop (Deref (Id array_tag) ,Add, Int 0) in
     let assign_array_size = VARTree.BinopAssign (access_array_size ,Standard, Int (List.length list_expr)) in
 
     let (init, var_instr_cycle, reeval, new_env,_) = List.fold_left (
         fun (init_acc, var_acc, reeval_acc, env_acc, cpt) e ->
           let (init, var_expr, reeval, new_env) = translate_expression env_acc type_env e.contents in
 
-          let access_array = VARTree.Binop (Id array_tag ,Add, Int cpt) in
+          let access_array = VARTree.Binop (Deref (Id array_tag) ,Add, Int cpt) in
           let assign_array_elt = VARTree.BinopAssign (access_array ,Standard, var_expr) in
 
           (
@@ -725,13 +754,13 @@ let rec translate_expression genv type_env e =
             new_env,
             cpt + 1
           )
-      ) (empty_cycle, empty_cycle, empty_cycle, genv, 0) list_expr in
+      ) (empty_cycle, empty_cycle, empty_cycle, new_map, 1) list_expr in
     let tmp_cycle = append empty_cycle assign_return_malloc in
     let tmp_cycle = append tmp_cycle assign_array_size in
     let tmp_cycle = extend tmp_cycle init in
     (
       extend tmp_cycle var_instr_cycle,
-      Id array_tag,
+      Binop (Deref (Id array_tag), Add, Int 1),
       reeval,
       new_env
     )
@@ -970,7 +999,11 @@ let translate_globals genv type_env g =
       begin
         match x with
         |Fun f -> 
-          let (block_var_fun, new_env) = translate_instructions genv type_env f.block in
+          let env_with_param = List.fold_left (
+              fun acc (p: parameter) ->
+                StringMap.add p.name.contents p.params_type acc
+            ) genv f.params in
+          let (block_var_fun, new_env) = translate_instructions env_with_param type_env f.block in
           let new_params_list = List.map (
               fun (p: parameter) ->
                 { reference = p.reference; name = p.name}
