@@ -191,12 +191,11 @@ build_typ:
 	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
 		typ/typ/TYPParser.mli typ/typ/TYPParser.ml
 	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
-	ocamlc -c -I utils/ -I art/ -I imp/ -I /var/cll/ -I /var/fun/ -I /var/var/ -I typ/tpl/ -I typ/typ/ \
-		utils/arith.cmo utils/tagset.cmo utils/cycle.cmo art/ARTTree.cmo imp/IMPTree.cmo \
-		var/cll/CLLTree.cmo var/fun/FUNTree.cmo var/var/VARTree.cmo \
-		var/var/VARParser.cmo var/var/VARLexer.cmo typ/tpl/TPLTree.cmo \
-		typ/typ/TYPTree.cmo 
-	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
+
+	ocamlc -I utils/ -I art/ -I var/var/ -I typ/typ/ utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
+	art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo typ/typ/TYPTree.cmo \
+	typ/typ/TYPLexer.cmo typ/typ/TYPParser.cmo var/var/VARTree.cmo -o typ/typ/TYPCompiler \
+	typ/typ/TYPCompiler.ml
 
 
 # ------------------------------ ChainCompiler -------------------------------------

@@ -127,7 +127,7 @@ global_declaration:
 ;
 
 global_variable_declaration:
-| TINT name=LABEL ASSIGN e=immediat
+| VAR name=LABEL ASSIGN e=immediat
   {
     (TInt, make_node $startpos name, e)
   }

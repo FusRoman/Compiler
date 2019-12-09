@@ -1,3 +1,5 @@
+open VARTree
+
 let input_file = Sys.argv.(1)
 let _ =
   if not (Filename.check_suffix input_file ".typ") then
@@ -11,6 +13,6 @@ let output = open_out output_file
 let _ =
   let source = TYPParser.program TYPLexer.token lexing_buffer in
   let target = TYPTree.typ_to_tpl source in
-  VARTree.write_var output target;
+  write_var output target;
   close_out output;
   exit 0
