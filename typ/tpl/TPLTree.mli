@@ -18,4 +18,4 @@ open VARTree
 *)
 val tpl_variables : Tagset.t
 
-val tpl_to_var : var_prog compiler_type -> var_prog compiler_type 
+val tpl_to_var : bool -> var_prog compiler_type -> var_prog compiler_type 

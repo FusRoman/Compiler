@@ -37,20 +37,17 @@ and var_instrs = var_instr list
 
 type var_function = var_instrs function_definition
 
+(* 
+  Les variables globales sont limitées aux valeurs immédiates par la grammaire.
+  Ce n'était pas notre choix initial donc le type ne le reflète pas.
+*)
 type global_declaration =
   | Fun of var_function
   | Var of variable
 
 type var_prog = global_declaration list
 
-(** 
-  Analogue à ARTTree.check_expression.
-  'check_fun_expression e fct lenv genv' vérifie que chaque ID est dans l'environnement local,
-  sinon global. Si l'id est absent des deux ensembles, une exception est lancée.
-*)
-(*val check_fun_expression : fun_expr -> function_definition -> Tagset.t -> Tagset.t -> unit*)
-
-val var_to_fun : var_prog compiler_type -> fun_prog compiler_type
+val var_to_fun : bool -> var_prog compiler_type -> fun_prog compiler_type
 
 val write_var_right_expr : out_channel -> var_expression -> unit
 

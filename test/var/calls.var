@@ -1,4 +1,4 @@
-var i := init();
+var i := 0;
 
 init() {
   return 97;
@@ -9,6 +9,7 @@ succ(n) {
 }
 
 main() {
+  i := init();
   print(succ(i));
   if (true)
     print(succ(9));

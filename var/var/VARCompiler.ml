@@ -15,7 +15,7 @@ let output = open_out output_file
 let _ =
   try
     let source = VARParser.program VARLexer.token lexing_buffer in
-    let target = var_to_fun source in
+    let target = var_to_fun false source in
     write_fun output target;
     close_out output;
     exit 0
