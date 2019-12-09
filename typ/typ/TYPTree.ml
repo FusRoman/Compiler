@@ -1,5 +1,6 @@
 open ARTTree
 open IMPTree
+open FUNTree
 open VARTree
 open Cycle
 
@@ -8,56 +9,49 @@ module StringMap = Map.Make(String)
 type env = _type StringMap.t
 and record_env = (_type * int) StringMap.t
 
-(*
-   Type des types des expressions
-   Alias peut être retourné par le parser lorsqu'il rencontre un nom
-   alors qu'il attendait un type. N'ayant pas encore forcément parsé la 
-   déclaration du type, il ne peut pas savoir exactement quoi renvoyer. 
-   Il faudra, dans la première passe du compilateur, remplacer les Alias
-   par leurs vrais types puis vérifier que les expressions sont bien typées.
-   Rencontrer des Alias en-dehors de la première passe est une erreur
-   et ne devrait jamais arriver.
-*)
 and _type =
   |TInt
-  |TPointer of _type
+  |TPointer of _type 
   |TArray of _type
   |TFun of (_type list) * _type
   |TRecord of record_env
-  |TTuple of int * _type
+  |TTuple of _type list
   |TAlias of string node
 
-type record_field = string node * typ_expression
+type record_field = string node * typ_expression node
 and typ_expression =
   | Int of int
   | Bool of bool
   | Id of string node
-  | Deref of typ_expression
-  | Unop of unop * typ_expression
-  | Binop of typ_expression * binop * typ_expression
-  | Call of typ_expression * (typ_expression list)
-  | RecordAccess of typ_expression * string
+  | Deref of typ_expression node
+  | Unop of unop * typ_expression node
+  | Binop of typ_expression node * binop * typ_expression node
+  | Call of typ_expression node * (typ_expression node list)
+  | RecordAccess of typ_expression node * string node
   | NewRecord of _type * record_field list
-  | ArrayAccess of typ_expression * typ_expression
-  | NewArray of typ_expression * typ_expression
+  | ArrayAccess of typ_expression node * typ_expression node
+  | NewArray of typ_expression node * typ_expression node
+  | TupleAccess of typ_expression node * int
+  | NewTuple of typ_expression node list
+  | InitArray of typ_expression node list
 
-type variable = _type * string node * typ_expression
+type variable = _type * string node * typ_expression node
 type declaration_type = string node * _type
-(** Instructions en REC *)
+(** Instructions en TYP *)
 type typ_instr =
   | Nop
   | Exit
-  | Return of typ_expression
+  | Return of typ_expression node
   | Break of unit node
   | Continue of unit node
-  | Print of typ_expression
-  | UnopAssign of typ_expression * assign_unop
-  | BinopAssign of typ_expression * assign_binop * typ_expression
-  | IfElse of typ_expression * typ_instrs * typ_instrs
-  | If of typ_expression * typ_instrs
-  | While of typ_expression * typ_instrs
-  | For of typ_instrs * typ_expression * typ_instrs * typ_instrs
-  | Call of typ_expression * (typ_expression list)
+  | Print of typ_expression node
+  | UnopAssign of typ_expression node * assign_unop
+  | BinopAssign of typ_expression node * assign_binop * typ_expression node
+  | IfElse of typ_expression node * typ_instrs * typ_instrs
+  | If of typ_expression node * typ_instrs
+  | While of typ_expression node * typ_instrs
+  | For of typ_instrs * typ_expression node * typ_instrs * typ_instrs
+  | Call of typ_expression node * (typ_expression node list)
   | Declaration of variable
 
 and typ_instrs = typ_instr list
@@ -96,83 +90,203 @@ type 'a program = {
   tree: 'a
 }
 
-exception TypeError
+exception TypeError of string * int * int
 
 let malloc = default_node "malloc"
 
-let rec check_expression genv type_env e =
+let rec string_of_type type_env t =
+  let rec aux separator l =
+    match l with
+    |[] -> ""
+    |[x] -> string_of_type type_env x
+    |x :: s ->
+      (string_of_type type_env x) ^ separator ^ (aux separator s) in
+  match t with
+  |TInt -> "int"
+  |TPointer x ->
+    "pointer of " ^ (string_of_type type_env x)
+  |TArray x ->
+    "array of " ^ (string_of_type type_env x)
+  |TFun (params, return) ->
+    "fun " ^ (aux "," params) ^ " -> " ^ (string_of_type type_env return)
+  |TRecord env ->
+    let rec aux l = 
+      match l with
+      |[] -> ""
+      |[(key, (_type, _))] -> key ^ "=" ^ (string_of_type type_env _type)
+      |(key, (_type, _)) :: s ->
+        key ^ "=" ^(string_of_type type_env _type) ^ ";" ^ (aux s) in
+    "{" ^ (aux (StringMap.bindings env)) ^ "}"
+  |TTuple t ->
+    (aux "*" t)
+  |TAlias s ->
+    begin
+      match StringMap.find_opt s.contents type_env with
+      |None -> raise (TypeError 
+                        ("this alias" ^ s.contents ^ "was never declared before", 
+                         s.line, 
+                         s.column)
+                     )
+      |Some _type ->
+        string_of_type type_env _type
+    end
+
+let find_type_alias type_env a =
+  match a with
+  |TAlias alias ->
+    begin
+      match StringMap.find_opt alias.contents type_env with
+      |None -> raise (TypeError 
+                        ("this alias" ^ alias.contents ^ "was never declared before", 
+                         alias.line, 
+                         alias.column)
+                     )
+      |Some t -> t
+    end
+  |x -> x
+
+let rec check_expression genv type_env e = 
   match e with
   |Int _ -> TInt
   |Bool _ -> TInt
   |Id s_node ->
     begin
       match StringMap.find_opt s_node.contents genv with
-      |None -> 
+      |None ->
         raise (SyntaxError (
             (Printf.sprintf "tag %s undefined" s_node.contents),s_node.line,s_node.column 
           ))
       |Some t -> TPointer t
     end
-  |Deref e -> 
+  |Deref e ->
     begin
-      match check_expression genv type_env e with
+      let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in 
+      match true_type with
       | TPointer t -> t
-      | _ -> raise TypeError
+      | x -> raise (TypeError (
+          "This expression has type " ^ (string_of_type type_env x) ^
+          "\nbut an expression was expected of type pointer of 'a",
+          e.line,
+          e.column
+        ))
     end
   |Unop (_, e) -> 
     begin
-      match check_expression genv type_env e with
+      let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+      match true_type with
       |TInt -> TInt
-      |_ -> raise TypeError
+      |x -> raise (TypeError (
+          "This expression has type " ^ (string_of_type type_env x) ^
+          "\nbut an expression was expected of type int",
+          e.line,
+          e.column
+        ))
     end
   |Binop (e1, op, e2) ->
     begin
-      match (check_expression genv type_env e1, check_expression genv type_env e2) with
+      let true_type_e1 = find_type_alias type_env (check_expression genv  type_env e1.contents) in
+      let true_type_e2 = find_type_alias type_env (check_expression genv type_env e2.contents) in
+      match (true_type_e1, true_type_e2) with
       |TInt, TInt -> TInt
       |TPointer t, TInt |TInt, TPointer t when op = Add || op = Sub ->
         TPointer t
-      |_,_ -> raise TypeError
+      |x,y -> 
+        let s_op = string_of_binop op in
+        raise (TypeError (
+            "This expression has type " ^
+            (string_of_type type_env x) ^ s_op ^ (string_of_type type_env y) ^
+            "\nbut an expression was expected of type int " ^ s_op ^ "int, pointer " ^ s_op ^ "int or
+        int " ^ s_op ^ "pointer",
+            e1.line,
+            e1.column
+          ))
     end
   |Call (s, expr_list) ->
 
-    begin 
-      match check_expression genv type_env s with
+    begin
+      let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
+      match true_type with
       | TPointer (TFun (type_params, return_type)) ->
         List.iter2 (
           fun expr param_type ->
-            if not ((check_expression genv type_env expr) = param_type) then
-              raise TypeError
+            let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+            if not (true_type = param_type) then
+              raise (TypeError (
+                  "This expression has type " ^ (string_of_type type_env true_type) ^
+                  "\nbut an expression was expected of type " ^ (string_of_type type_env param_type),
+                  expr.line,
+                  expr.column
+                )) 
         ) expr_list type_params;
         return_type
-      |_ -> failwith "grosse erreur sur type des fonctions !!!"
+      |x -> raise (TypeError (
+          "This expression has type " ^ (string_of_type type_env x) ^
+          "\nbut an expression was expected of type pointer of function",
+          s.line,
+          s.column
+        )) 
     end
   |RecordAccess (expression, field) ->
     begin
-      match check_expression genv type_env expression with
+      let true_type = find_type_alias type_env (check_expression genv type_env expression.contents) in
+      match true_type with
       |TPointer (TRecord env) ->
         begin
-          match StringMap.find_opt field env with
-          |None -> raise TypeError
+          match StringMap.find_opt field.contents env with
+          |None -> raise (TypeError 
+                            ("this field" ^ field.contents ^ "was never declared before", 
+                             field.line, 
+                             field.column)
+                         )
           |Some (_type,_) -> _type
         end
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type pointer of record", 
+                      expression.line, 
+                      expression.column)
+                  )
     end
   |ArrayAccess (name_tab, index) ->
-    let type_index = check_expression genv type_env index in
-    let type_name_tab = check_expression genv type_env name_tab in
+    let type_index = find_type_alias type_env (check_expression genv type_env index.contents) in
+    let type_name_tab = find_type_alias type_env (check_expression genv type_env name_tab.contents) in
     begin
       match type_index, type_name_tab with
       |TInt, TPointer (TArray _type_array) -> 
         _type_array
-      |_ -> raise TypeError
+      |TInt,y -> raise (TypeError 
+                          ("This expression has type " ^ (string_of_type type_env y) ^
+                           "\nbut an expression was expected of type pointer of array", 
+                           name_tab.line, 
+                           name_tab.column)
+                       )
+      |x, TPointer (TArray _type_array) ->
+        raise (TypeError 
+                 ("This expression has type " ^ (string_of_type type_env x) ^
+                  "\nbut an expression was expected of type int", 
+                  index.line, 
+                  index.column)
+              )
+      |x,y -> raise (TypeError 
+                       ("This expression has type " ^ (string_of_type type_env x) ^
+                        "\nfor the index and type " ^ (string_of_type type_env y) ^ "for the name array" ^
+                        "\nbut an expression was expected of type int for index and pointer of array for the name array", 
+                        name_tab.line, 
+                        name_tab.column)
+                    )
     end
   |NewArray (size, array_elt) ->
-    let type_size = check_expression genv type_env size in
-    let type_array = check_expression genv type_env array_elt in
+    let type_size = find_type_alias type_env (check_expression genv type_env size.contents) in
+    let type_array = find_type_alias type_env (check_expression genv type_env array_elt.contents) in
     begin
       match type_size, type_array with
-      |TInt, t -> t
-      |_, _ -> raise TypeError
+      |TInt, t -> TPointer (TArray t)
+      |x, _ -> raise (TypeError 
+                        ("This expression has type " ^ (string_of_type type_env x) ^
+                         "\nbut an expression was expected of type int", 
+                         size.line, 
+                         size.column)
+                     )
     end
   |NewRecord (type_record,list_field) ->
     begin
@@ -181,14 +295,67 @@ let rec check_expression genv type_env e =
         List.iter (
           fun (name_node, expr) ->
             match StringMap.find_opt name_node.contents e with
-            |None -> raise TypeError
-            |Some (_type,_) -> 
-              if not ((check_expression genv type_env expr) = _type) then
-                raise TypeError
+            |None -> raise (TypeError 
+                              ("This field " ^ name_node.contents ^ "was not declared in the 
+                              record type declaration.", 
+                               0, 
+                               0)
+                           )
+            |Some (_type,_) ->
+              let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+              if not (true_type = _type) then
+                raise (TypeError 
+                         ("This expression has type " ^ (string_of_type type_env true_type) ^
+                          "\nbut an expression was expected of type " ^ (string_of_type type_env _type), 
+                          expr.line, 
+                          expr.column)
+                      )
         ) list_field;
         type_record
       |_ -> failwith "erreur sur les records"
     end
+  |InitArray expr_list ->
+    let first_true_type = find_type_alias type_env (check_expression genv type_env (List.hd expr_list).contents) in
+    List.iter (
+      fun expr ->
+        let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+        if not (true_type = first_true_type) then
+          raise (TypeError 
+                   ("This expression has type " ^ (string_of_type type_env true_type) ^
+                    "\nbut an expression was expected of type " ^ (string_of_type type_env first_true_type), 
+                    expr.line, 
+                    expr.column)
+                )
+    ) (List.tl expr_list);
+    TPointer (TArray first_true_type)
+  |TupleAccess (tpl, i) ->
+    let true_type = find_type_alias type_env (check_expression genv type_env tpl.contents) in
+    begin
+      match true_type with
+      |TPointer TTuple t ->
+        if i >= 0 || i < (List.length t) then
+          List.nth t i
+        else
+          raise (TypeError 
+                   ("Tuple_Index_Out_Of_Bounds with index " ^ (string_of_int i), 
+                    tpl.line, 
+                    tpl.column)
+                )
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type pointer of tuple", 
+                      tpl.line, 
+                      tpl.column)
+                  )
+    end
+  |NewTuple l ->
+    let type_list = List.fold_right (
+        fun e acc ->
+          let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+          true_type::acc
+      ) l [] in
+    TPointer (TTuple type_list)
+
 
 let rec check_instruction genv type_env f i =
   match i with
@@ -197,74 +364,146 @@ let rec check_instruction genv type_env f i =
     begin
       match f with
       |Some fonction ->
-        let type_return = check_expression genv type_env e in
-        if not (type_return = fonction.return_type) then
-          raise TypeError
+        let true_type_return = find_type_alias type_env (check_expression genv type_env e.contents) in
+        if not (true_type_return = fonction.return_type) then
+          raise (TypeError 
+                   ("This expression has type " ^ (string_of_type type_env true_type_return) ^
+                    "\nbut an expression was expected of type " ^ (string_of_type type_env fonction.return_type), 
+                    e.line, 
+                    e.column)
+                )
       |None -> 
         raise (SyntaxError ("no return find in this block function",0,0) )
     end
   |Print e ->
-    if not ((check_expression genv type_env e) = TInt) then
-      raise TypeError
+    let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+    if not (true_type = TInt) then
+      raise (TypeError 
+               ("This expression has type " ^ (string_of_type type_env true_type) ^
+                "\nbut an expression was expected of type int", 
+                e.line, 
+                e.column)
+            )
   |UnopAssign (e, op) ->
     begin
-      match check_expression genv type_env e with
+      let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+      match true_type with
       |TPointer TInt |TPointer (TPointer _) -> ()
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type pointer of 'a with 'a has type int or pointer of 'b", 
+                      e.line, 
+                      e.column)
+                  )
     end
   |BinopAssign (e1, op, e2) ->
     let t =
-      match check_expression genv type_env e1 with
+      let true_type = find_type_alias type_env (check_expression genv type_env e1.contents) in
+      match true_type with
       |TPointer t -> t
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type pointer of 'a", 
+                      e1.line, 
+                      e1.column)
+                  )
     in
-    if not ((check_expression genv type_env e2) = t) then
-      raise TypeError
+    let true_type = find_type_alias type_env (check_expression genv type_env e2.contents) in
+    if not (true_type = t) then
+      raise (TypeError 
+               ("This expression has type " ^ (string_of_type type_env true_type) ^
+                "\nbut an expression was expected of type " ^ (string_of_type type_env t), 
+                e2.line, 
+                e2.column)
+            )
   |IfElse (cond, block_if, block_else) ->
     begin
-      match check_expression genv type_env cond with
+      let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
+      match true_type with
       |TInt ->
         check_list_instruction genv type_env f block_if;
         check_list_instruction genv type_env f block_else
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type int", 
+                      cond.line, 
+                      cond.column)
+                  )
     end
   |If (cond, block_if) ->
     begin
-      match check_expression genv type_env cond with
+      let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
+      match true_type with
       |TInt -> 
         check_list_instruction genv type_env f block_if
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type int", 
+                      cond.line, 
+                      cond.column)
+                  )
     end
   |While (cond, block_while) ->
     begin
-      match check_expression genv type_env cond with
+      let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
+      match true_type with
       |TInt -> 
         check_list_instruction genv type_env f block_while
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type int", 
+                      cond.line, 
+                      cond.column)
+                  )
     end
   |For (init, cond, iteration, block_for) ->
     begin
-      match check_expression genv type_env cond with
+      let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
+      match true_type with
       |TInt ->
         check_list_instruction genv type_env f init;
         check_list_instruction genv type_env f iteration;
         check_list_instruction genv type_env f block_for
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type int", 
+                      cond.line, 
+                      cond.column)
+                  )
     end
   |Call (s, expr_list) ->
-    begin 
-      match check_expression genv type_env s with
+    begin
+      let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
+      match true_type with
       |TFun (type_params, return_type) ->
         List.iter2 (
           fun expr param_type ->
-            if not ((check_expression genv type_env expr) = param_type) then
-              raise TypeError
+            let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+            if not (true_type = param_type) then
+              raise (TypeError 
+                       ("This expression has type " ^ (string_of_type type_env true_type) ^
+                        "\nbut an expression was expected of type " ^ (string_of_type type_env param_type), 
+                        expr.line, 
+                        expr.column)
+                    )
         ) expr_list type_params
-      |_ -> failwith "grosse erreur sur type des fonctions !!!"
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type function", 
+                      s.line, 
+                      s.column)
+                  )
     end
   |Declaration (_type_var, name_node, expr) ->
-    if not ((check_expression genv type_env expr) = _type_var) then
-      raise TypeError
+    let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+    let true_type2 = find_type_alias type_env _type_var in
+    if not (true_type = true_type2) then
+      raise (TypeError 
+               ("This expression has type " ^ (string_of_type type_env true_type) ^
+                "\nbut an expression was expected of type " ^ (string_of_type type_env true_type2), 
+                expr.line, 
+                expr.column)
+            )
 
 and check_list_instruction genv type_env f l =
   match l with
@@ -285,11 +524,28 @@ and check_global_declaration genv type_env l =
     fun globals ->
       match globals with
       |Fun f -> check_list_instruction genv type_env (Some f) f.block
-      |Var (_type_var, name_var, expr) -> 
-        if not ((check_expression genv type_env expr) = _type_var) then
-          raise TypeError
+      |Var (_type_var, name_var, expr) ->
+        begin
+          match _type_var with
+          |TInt ->
+            let true_type = find_type_alias type_env _type_var in
+            let type_expr = check_expression genv type_env expr.contents in
+            if not (type_expr = true_type) then
+              raise (TypeError 
+                       ("This expression has type " ^ (string_of_type type_env true_type) ^
+                        "\nbut an expression was expected of type " ^ (string_of_type type_env _type_var), 
+                        expr.line, 
+                        expr.column)
+                    )
+          |x -> raise (TypeError 
+                         ("This expression has type " ^ (string_of_type type_env x) ^
+                          "\nbut an expression was expected of type int, only int are allowed for the globals variable declaration", 
+                          0, 
+                          0)
+                      )
+        end
       |_ -> ()
-  )
+  ) l
 
 let make_var_node _type env =
   let max =
@@ -320,26 +576,45 @@ let make_var_node _type env =
 *)
 let rec translate_expression genv type_env e =
   match e with
+  |TupleAccess (tpl, i) ->
+    let (init_struct, name_tuple, reeval_struct, new_env) = translate_expression genv type_env tpl.contents in
+    (
+      init_struct,
+      VARTree.Binop (name_tuple, Add, Int i),
+      reeval_struct,
+      new_env
+    )
+
+
   |RecordAccess (name_record, field) ->
     begin
-      match check_expression genv type_env name_record with
+      match check_expression genv type_env name_record.contents with
       |TRecord env_record ->
         begin
-          match StringMap.find_opt field env_record with
+          match StringMap.find_opt field.contents env_record with
           |Some (_type, offset) ->
-            let (init_struct, name_record, reeval_struct, new_env) = translate_expression genv type_env name_record in
+            let (init_struct, name_record, reeval_struct, new_env) = translate_expression genv type_env name_record.contents in
             (init_struct, VARTree.Binop (name_record, Add, VARTree.Int offset), reeval_struct, new_env)
-          |None -> raise TypeError
+          |None -> raise (TypeError 
+                            ("This field " ^ field.contents ^ "was not declared before.",
+                             field.line, 
+                             field.column)
+                         )
         end
-      |_ -> raise TypeError
+      |x -> raise (TypeError 
+                     ("This expression has type " ^ (string_of_type type_env x) ^
+                      "\nbut an expression was expected of type record", 
+                      name_record.line, 
+                      name_record.column)
+                  )
     end
 
 
   |ArrayAccess (name_array, offset_expr) ->
     (* Rajouter les ifs *)
-    let (init_struct1,name_array, reeval_struct1, new_env1) = translate_expression genv type_env name_array in
-    let (init_struct2,offset_expr, reeval_struct2, new_env2) = translate_expression new_env1 type_env offset_expr in
-    let tab_size = VARTree.Binop (name_array, Add, Int (-1)) in
+    let (init_struct1,name_array, reeval_struct1, new_env1) = translate_expression genv type_env name_array.contents in
+    let (init_struct2,offset_expr, reeval_struct2, new_env2) = translate_expression new_env1 type_env offset_expr.contents in
+    let tab_size = VARTree.Binop (name_array, Sub, Int 1) in
     let condition_size = VARTree.Binop (tab_size, Le, offset_expr) in
     let test_size = VARTree.If (condition_size, [Exit]) in
     let cycle_init = Cycle.extend init_struct1 init_struct2 in
@@ -357,7 +632,9 @@ let rec translate_expression genv type_env e =
     (* Initialise chaque champ d'un enregistrement *)
     let (var_instr, new_env) = List.fold_left (
         fun (var_instr_acc, map_acc) (field_name, expr_field) ->
-          let (instr_init_field:typ_instr) = BinopAssign (RecordAccess (Id record_tag, field_name.contents), Standard, expr_field) in
+          let access_record = {line = 0; column = 0; contents = RecordAccess (
+              {line = 0; column = 0; contents= Id record_tag}, field_name)} in
+          let (instr_init_field:typ_instr) = BinopAssign (access_record, Standard, expr_field) in
           let new_var_instr, new_map_acc = translate_instruction var_instr_acc map_acc type_env instr_init_field in
           (
             new_var_instr,
@@ -374,13 +651,17 @@ let rec translate_expression genv type_env e =
 
 
   |NewArray (size_expr, elt_expr) ->
-    let array_type = check_expression genv type_env elt_expr in
+    let array_type = check_expression genv type_env elt_expr.contents in
     let (new_map, array_tag) = make_var_node array_type genv in
 
     (* Allocation memoire du tableau *)
-    let (init_size_expr, var_size_expr, reeval_size, map_size) = translate_expression new_map type_env size_expr in
+    let (init_size_expr, var_size_expr, reeval_size, map_size) = translate_expression new_map type_env size_expr.contents in
     let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [var_size_expr]) in
     let assign_return_malloc = VARTree.BinopAssign (Id array_tag, Standard, call_to_malloc) in
+
+    let access_array_size = VARTree.Binop (Id array_tag ,Sub, Int 1) in
+    let assign_array_size = VARTree.BinopAssign (access_array_size ,Standard, var_size_expr) in
+
 
     (* Initialisation du tableau avec un for *)
     let i = default_node "i" in
@@ -392,11 +673,13 @@ let rec translate_expression genv type_env e =
       Creation d'une variable temporaire a l'exterieur du block for pour evaluer l'expression 
       des elements du tableau qu'une seul fois.
     *)
-    let (init_elt_expr, var_elt_expr, reeval_elt_expr, map_elt_expr) = translate_expression map_size type_env elt_expr in
-    let (new_map2, tmpvar_tag) = make_var_node (check_expression map_size type_env elt_expr) map_elt_expr in
+    let (init_elt_expr, var_elt_expr, reeval_elt_expr, map_elt_expr) = translate_expression map_size type_env elt_expr.contents in
+    let (new_map2, tmpvar_tag) = make_var_node (check_expression map_size type_env elt_expr.contents) map_elt_expr in
     let tmp_variable = VARTree.Declaration (tmpvar_tag, var_elt_expr) in
 
-    let (block_for: typ_instr) = BinopAssign (ArrayAccess (Id array_tag, Id i), Standard, Id tmpvar_tag) in
+
+    let access_array = {line = 0; column = 0; contents = ArrayAccess ({line=0;column=0;contents=Id array_tag}, {line=0;column=0;contents=Id i})} in
+    let (block_for: typ_instr) = BinopAssign (access_array, Standard, {line = 0;column = 0; contents=Id tmpvar_tag}) in
     let (block_for, map_block_for) = translate_instruction empty_cycle map_size type_env block_for in
 
 
@@ -404,6 +687,7 @@ let rec translate_expression genv type_env e =
     let array_init_instr = VARTree.For ([init_for], cond_for, [it_for], to_list block_for) in
 
     let tmp_cycle = Cycle.append init_size_expr assign_return_malloc in
+    let tmp_cycle = Cycle.append tmp_cycle assign_array_size in
     let tmp_cycle = Cycle.append tmp_cycle tmp_variable in
     let tmp_cycle = Cycle.append tmp_cycle array_init_instr in
     let reeval_cycle = Cycle.extend reeval_size reeval_elt_expr in
@@ -416,7 +700,83 @@ let rec translate_expression genv type_env e =
       map_elt_expr
     )
 
-  
+  |InitArray list_expr ->
+    let array_type = check_expression genv type_env (List.hd list_expr).contents in
+    let (new_map, array_tag) = make_var_node (TPointer (TArray array_type)) genv in
+
+    let array_size = VARTree.Int (List.length list_expr) in
+    let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [array_size]) in
+    let assign_return_malloc = VARTree.BinopAssign (Id array_tag, Standard, call_to_malloc) in
+
+    let access_array_size = VARTree.Binop (Id array_tag ,Sub, Int 1) in
+    let assign_array_size = VARTree.BinopAssign (access_array_size ,Standard, Int (List.length list_expr)) in
+
+    let (init, var_instr_cycle, reeval, new_env,_) = List.fold_left (
+        fun (init_acc, var_acc, reeval_acc, env_acc, cpt) e ->
+          let (init, var_expr, reeval, new_env) = translate_expression env_acc type_env e.contents in
+
+          let access_array = VARTree.Binop (Id array_tag ,Add, Int cpt) in
+          let assign_array_elt = VARTree.BinopAssign (access_array ,Standard, var_expr) in
+
+          (
+            extend init_acc init,
+            append var_acc assign_array_elt,
+            extend reeval_acc reeval,
+            new_env,
+            cpt + 1
+          )
+      ) (empty_cycle, empty_cycle, empty_cycle, genv, 0) list_expr in
+    let tmp_cycle = append empty_cycle assign_return_malloc in
+    let tmp_cycle = append tmp_cycle assign_array_size in
+    let tmp_cycle = extend tmp_cycle init in
+    (
+      extend tmp_cycle var_instr_cycle,
+      Id array_tag,
+      reeval,
+      new_env
+    )
+
+
+  |NewTuple l ->
+    let type_list = List.fold_right (
+        fun e acc ->
+          let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+          true_type::acc
+      ) l [] in
+    let (new_map, tuple_tag) = make_var_node (TPointer (TTuple type_list)) genv in
+
+    let tuple_size = VARTree.Int (List.length l) in
+    let (call_to_malloc: var_expression) = VARTree.Call (Id malloc, [tuple_size]) in
+    let assign_return_malloc = VARTree.BinopAssign (Id tuple_tag, Standard, call_to_malloc) in
+
+    let (init, reeval, return_env, _) = List.fold_left (
+        fun (init_acc, reeval_acc, map_acc, index) e ->
+          let (init, var_expr, reeval, s_map) = translate_expression map_acc type_env e.contents in
+
+          let access_array = VARTree.Binop (Id tuple_tag ,Add, Int index) in
+          let assign_expr_to_tuple = VARTree.BinopAssign (access_array, Standard, var_expr) in
+          let tmp_cycle = extend init_acc init in
+          let tmp_cycle = append tmp_cycle assign_expr_to_tuple in
+          (
+            tmp_cycle,
+            extend reeval_acc reeval,
+            s_map,
+            index + 1
+          )
+
+      ) (empty_cycle, empty_cycle, new_map, 0) l in
+
+    let tmp_cycle = append empty_cycle assign_return_malloc in
+    let tmp_cycle = extend tmp_cycle init in
+
+    (
+      tmp_cycle,
+      Id tuple_tag,
+      reeval,
+      return_env
+    )
+
+
   |Int x ->
     (
       empty_cycle,
@@ -439,7 +799,7 @@ let rec translate_expression genv type_env e =
       genv
     )
   |Deref e ->
-    let (init, var_e, reeval, new_env) = translate_expression genv type_env e in
+    let (init, var_e, reeval, new_env) = translate_expression genv type_env e.contents in
     (
       init,
       Deref var_e,
@@ -447,7 +807,7 @@ let rec translate_expression genv type_env e =
       new_env
     )
   |Unop (op, e) ->
-    let (init, var_e, reeval, new_env) = translate_expression genv type_env e in
+    let (init, var_e, reeval, new_env) = translate_expression genv type_env e.contents in
     (
       init,
       Unop (op, var_e),
@@ -455,8 +815,8 @@ let rec translate_expression genv type_env e =
       new_env
     )
   |Binop (e1, op, e2) ->
-    let (init1, var_e1, reeval1, new_env1) = translate_expression genv type_env e1 in
-    let (init2, var_e2, reeval2, new_env2) = translate_expression new_env1 type_env e2 in
+    let (init1, var_e1, reeval1, new_env1) = translate_expression genv type_env e1.contents in
+    let (init2, var_e2, reeval2, new_env2) = translate_expression new_env1 type_env e2.contents in
     (
       Cycle.extend init1 init2,
       Binop (var_e1, op, var_e2),
@@ -464,10 +824,10 @@ let rec translate_expression genv type_env e =
       new_env2
     )
   |Call (function_name, function_block) ->
-    let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name in
+    let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name.contents in
     let (init_param, var_param, reeval_param, env_param) = List.fold_left (
         fun (acc_init, acc_var_param, acc_reeval, acc_env) typ_e ->
-          let (init_p, var_p, reeval_p, env_p) = translate_expression acc_env type_env typ_e in
+          let (init_p, var_p, reeval_p, env_p) = translate_expression acc_env type_env typ_e.contents in
           (
             Cycle.extend acc_init init_p,
             Cycle.append acc_var_param var_p,
@@ -505,29 +865,29 @@ and translate_instruction instr_acc genv type_env i =
       genv
     )
   |Return e ->
-    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e in
+    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e.contents in
     let acc = extend instr_acc init_e in
     (
       append acc (Return var_e),
       new_env
     )
   |Print e ->
-    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e in
+    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e.contents in
     let acc = extend instr_acc init_e in
     (
       append acc (Print var_e),
       new_env
     )
   |UnopAssign (e, op) ->
-    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e in
+    let (init_e, var_e, reeval_e, new_env) = translate_expression genv type_env e.contents in
     let acc = extend instr_acc init_e in
     (
       append acc (VARTree.UnopAssign (var_e, op)),
       new_env
     )
   |BinopAssign (left_expr, assign_op, expression) ->
-    let (init_l_e, var_l_e, reeval_l_e, new_env_l_e) = translate_expression genv type_env left_expr in
-    let (init_expr, var_e, reeval_e, new_env_e) = translate_expression new_env_l_e type_env  expression in
+    let (init_l_e, var_l_e, reeval_l_e, new_env_l_e) = translate_expression genv type_env left_expr.contents in
+    let (init_expr, var_e, reeval_e, new_env_e) = translate_expression new_env_l_e type_env  expression.contents in
     let acc = extend instr_acc init_l_e in
     let acc = extend acc init_expr in
     (
@@ -535,7 +895,7 @@ and translate_instruction instr_acc genv type_env i =
       new_env_e
     )
   |If (cond, block_if) ->
-    let (init_cond, var_cond, reeval_cond, cond_env) = translate_expression genv type_env cond in
+    let (init_cond, var_cond, reeval_cond, cond_env) = translate_expression genv type_env cond.contents in
     let (var_instr_cycle, block_env) = translate_instructions cond_env type_env block_if in
     let acc = extend instr_acc init_cond in
     (
@@ -543,7 +903,7 @@ and translate_instruction instr_acc genv type_env i =
       cond_env
     )
   |IfElse (cond, block_if, block_else) ->
-    let (init_cond, var_cond, reeval_cond, cond_env) = translate_expression genv type_env cond in
+    let (init_cond, var_cond, reeval_cond, cond_env) = translate_expression genv type_env cond.contents in
     let (var_block_if ,env_block_if) = translate_instructions cond_env type_env block_if in
     let (var_block_else, env_block_else) = translate_instructions cond_env type_env block_else in
     let acc = extend instr_acc init_cond in
@@ -552,17 +912,17 @@ and translate_instruction instr_acc genv type_env i =
       cond_env
     )
   |Declaration (_, s, e) ->
-    let (init_e, var_e, reeval_e, env_expr) = translate_expression genv type_env e in
+    let (init_e, var_e, reeval_e, env_expr) = translate_expression genv type_env e.contents in
     let acc = extend instr_acc init_e in
     (
       append acc (Declaration (s, var_e)),
       env_expr
     )
   |Call (function_name, function_param) ->
-    let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name in
+    let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name.contents in
     let (init_param, var_param, reeval_param, env_param) = List.fold_left (
         fun (acc_init, acc_var, acc_reeval, acc_env) param ->
-          let (init_p, var_p, reeval_p, env_p) = translate_expression acc_env type_env param in
+          let (init_p, var_p, reeval_p, env_p) = translate_expression acc_env type_env param.contents in
           (
             extend acc_init init_p,
             append acc_var var_p,
@@ -576,7 +936,7 @@ and translate_instruction instr_acc genv type_env i =
       env_param
     )
   |While (cond, block) ->
-    let (init_cond, var_cond, reeval_cond, env_cond) = translate_expression genv type_env cond in
+    let (init_cond, var_cond, reeval_cond, env_cond) = translate_expression genv type_env cond.contents in
     let (var_block, env_block) = translate_instructions env_cond type_env block in
     let acc = extend instr_acc init_cond in
     let var_block = extend var_block reeval_cond in
@@ -586,12 +946,13 @@ and translate_instruction instr_acc genv type_env i =
     )
   |For (init, cond, it, block) ->
     let (var_init, env_init) = translate_instructions genv type_env init in
-    let (init_cond, var_cond, reeval_cond, env_cond) = translate_expression env_init type_env cond in
+    let (init_cond, var_cond, reeval_cond, env_cond) = translate_expression env_init type_env cond.contents in
     let (var_block, env_block) = translate_instructions env_cond type_env block in
     let (var_it, env_it) = translate_instructions env_block type_env it in
-    let var_it = extend reeval_cond var_it in
+    let init = extend var_init init_cond in
+    let var_it = extend var_it reeval_cond in
     (
-      append instr_acc (For ((to_list var_init), var_cond, (to_list var_it), (to_list var_block))),
+      append instr_acc (For ((to_list init), var_cond, (to_list var_it), (to_list var_block))),
       genv
     )
 
@@ -601,5 +962,43 @@ and translate_instructions genv type_env is =
       translate_instruction acc_instr acc_env type_env i
   ) (empty_cycle, genv) is
 
+let translate_globals genv type_env g =
+  let rec inter acc g =
+    match g with
+    |[] -> acc
+    |x :: s ->
+      begin
+        match x with
+        |Fun f -> 
+          let (block_var_fun, new_env) = translate_instructions genv type_env f.block in
+          let new_params_list = List.map (
+              fun (p: parameter) ->
+                { reference = p.reference; name = p.name}
+            ) f.params in
+          let var_globals = VARTree.Fun {
+              name = f.name; block = to_list block_var_fun; params = new_params_list
+            } in
+          inter (var_globals::acc) s
+        |Var (_, name, t_expr) ->
+          let init, var_expr, reeval, new_env = translate_expression genv type_env t_expr.contents in
+          let var_globals = VARTree.Var (name, var_expr) in
+          inter (var_globals::acc) s
+        |Type t -> 
+          inter acc s
+      end in
+  inter [] g
+
+
 let typ_to_tpl typ_prog =
-  ()
+  try
+    check_global_declaration typ_prog.genv typ_prog._type typ_prog.tree;
+    let syntax_tree = translate_globals typ_prog.genv typ_prog._type typ_prog.tree in
+    let tag_set = List.fold_left (
+        fun acc (name_global, _) ->
+          Tagset.add name_global acc
+      ) Tagset.empty (StringMap.bindings typ_prog.genv) in
+    {syntax_tree; tag_set}
+  with
+  |TypeError (msg, line, column) ->
+    Printf.printf "%s at %d, %d\n" msg line column;
+    failwith ""

@@ -22,6 +22,8 @@ typ/typ/TYPParser.mli
 typ/typ/TYPParser.ml
 typ/typ/TYPLexer.ml
 typ/typ/TYPCompiler
+test/typ/*.tpl
+test/typ/*.var
 test/typ/*.fun
 test/typ/*.cll
 test/typ/*.imp

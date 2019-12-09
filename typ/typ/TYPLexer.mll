@@ -1,5 +1,5 @@
 {
-  open VARParser
+  open TYPParser
 }
 
 let digit = ['0'-'9']
@@ -104,6 +104,8 @@ rule token = parse
       { COLON }
   | ","
       { COMMA }
+  | "|"
+      { PIPE }
   | "("
       { LP }
   | ")"
@@ -116,8 +118,8 @@ rule token = parse
       { LS }
   | "]"
       { RS }
-  | "'" _ as c "'"
-      { INT(int_of_char c) }
+  | "'" (_ as c) "'"
+      { INT (int_of_char c) }
   | "."
       { DOT }
 
@@ -142,4 +144,4 @@ and comment = parse
   | "/*"  {comment lexbuf; comment lexbuf}
   | '\n'  {Lexing.new_line lexbuf; comment lexbuf}
   | _     {comment lexbuf}
-  | eof   {raise (SyntaxError("Reached end of file while still parsing comment"))}
+  | eof   {failwith ("Reached end of file while still parsing comment")}
