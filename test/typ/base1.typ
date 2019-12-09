@@ -4,23 +4,55 @@ int f(int t){
     return t + 2;
 }
 
+int h(int[] tab){
+    return tab[1] + 1;
+}
+
+int[] init_tab(int size, int elt){
+    return [size | elt];
+}
+
 int main(){
     int j := f(97);
     print(j);
-    (int,fun (int -> int),int) tuple1 := <(97, &f, 20)>;
-    int gg := tuple1.(0);
-    int t := (*(tuple1.(1)))(97);
-    print(t);
+    (int,fun (int -> int),int) tuple1 := <(97, &f, 100)>;
+    int gg := tuple1.(2);
+    print(gg);
+    
+    #int t := (*(tuple1.(1)))(97);
+    #print(t);
 
-    int[] tab1 := [10 | 5];
+    
+    int[] tab1 := [10 | 97];
 
-    int[] tab2 := [1;2;3];
+    print(tab1[9]);
+    print(10);
+    print(10);
 
-    int v := tab1[5];
+    for(int i := 0; i < 10; i++){
+        print(tab1[i]);
+        print(10);
+    }
 
-    int v2 := tab2[1] + 3 - tab1[2];
+    int[] tab2 := [100;tab1[5];102];
 
-    int v3 := tuple1.(0);
+    for(int i := 0; i < 3; i++){
+        print(tab2[i]);
+        print(10);
+    }
+    print(10);
+    print(h(tab2));
+    print(10);
+    int[] tab3 := init_tab(20, 99);
+    
+    for(int i := 0; i < 20; i++){
+        print(tab3[i]);
+        print(10);
+    }
 
-    return 0;
+    print(10);
+    print(10);
+    print(f([101;98;99;100][0]));
+
+    exit;
 }
