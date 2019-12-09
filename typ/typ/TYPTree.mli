@@ -18,43 +18,43 @@ and _type =
   |TTuple of _type list
   |TAlias of string node
 
-type record_field = string node * typ_expression
-and typ_expression =
-  | Int of int
-  | Bool of bool
-  | Id of string node
-  | Deref of typ_expression
-  | Unop of unop * typ_expression
-  | Binop of typ_expression * binop * typ_expression
-  | Call of typ_expression * (typ_expression list)
-  | RecordAccess of typ_expression * string node
-  | NewRecord of _type * record_field list
-  | ArrayAccess of typ_expression * typ_expression
-  | NewArray of typ_expression * typ_expression
-  | TupleAccess of typ_expression * int
-  | NewTuple of typ_expression list
-  | InitArray of typ_expression list
-
-type variable = _type * string node * typ_expression
-type declaration_type = string node * _type
-(** Instructions en REC *)
-type typ_instr =
-  | Nop
-  | Exit
-  | Return of typ_expression
-  | Break of unit node
-  | Continue of unit node
-  | Print of typ_expression
-  | UnopAssign of typ_expression * assign_unop
-  | BinopAssign of typ_expression * assign_binop * typ_expression
-  | IfElse of typ_expression * typ_instrs * typ_instrs
-  | If of typ_expression * typ_instrs
-  | While of typ_expression * typ_instrs
-  | For of typ_instrs * typ_expression * typ_instrs * typ_instrs
-  | Call of typ_expression * (typ_expression list)
-  | Declaration of variable
-
-and typ_instrs = typ_instr list
+  type record_field = string node * typ_expression node
+  and typ_expression =
+    | Int of int
+    | Bool of bool
+    | Id of string node
+    | Deref of typ_expression node
+    | Unop of unop * typ_expression node
+    | Binop of typ_expression node * binop * typ_expression node
+    | Call of typ_expression node * (typ_expression node list)
+    | RecordAccess of typ_expression node * string node
+    | NewRecord of _type * record_field list
+    | ArrayAccess of typ_expression node * typ_expression node
+    | NewArray of typ_expression node * typ_expression node
+    | TupleAccess of typ_expression node * int
+    | NewTuple of typ_expression node list
+    | InitArray of typ_expression node list
+  
+  type variable = _type * string node * typ_expression node
+  type declaration_type = string node * _type
+  (** Instructions en TYP *)
+  type typ_instr =
+    | Nop
+    | Exit
+    | Return of typ_expression node
+    | Break of unit node
+    | Continue of unit node
+    | Print of typ_expression node
+    | UnopAssign of typ_expression node * assign_unop
+    | BinopAssign of typ_expression node * assign_binop * typ_expression node
+    | IfElse of typ_expression node * typ_instrs * typ_instrs
+    | If of typ_expression node * typ_instrs
+    | While of typ_expression node * typ_instrs
+    | For of typ_instrs * typ_expression node * typ_instrs * typ_instrs
+    | Call of typ_expression node * (typ_expression node list)
+    | Declaration of variable
+  
+  and typ_instrs = typ_instr list
 
 type parameter = {
   name : string node;

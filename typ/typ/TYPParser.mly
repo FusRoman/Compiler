@@ -80,8 +80,8 @@
 %type <TYPTree.parameter> parameter
 %type <TYPTree.typ_function> function_definition
 %type <TYPTree.typ_instrs> instructions
-%type <TYPTree.typ_expression> expr
-%type <TYPTree.typ_expression> simple_expr
+%type <TYPTree.typ_expression ARTTree.node> expr
+%type <TYPTree.typ_expression ARTTree.node> simple_expr
 %type <TYPTree.typ_instr> instruction
 %type <TYPTree.typ_instrs> block
 %type <TYPTree.typ_instr> control
@@ -135,9 +135,9 @@ global_variable_declaration:
 
 immediat:
 | i=INT
-    { Int i }
+    { make_node $startpos (Int i) }
 | b=BOOL
-    { Bool b }
+    { make_node $startpos (Bool b) }
 ;
 
 type_declaration:
@@ -248,42 +248,42 @@ instructions:
 
 expr:
 | e1=expr op=binop e2=expr
-    { Binop(e1, op, e2) }
+    { make_node $startpos (Binop(e1, op, e2)) }
 | op=unop e=expr
-    { Unop(op, e) }
+    { make_node $startpos (Unop(op, e)) }
 | f=simple_expr LP args=separated_list(COMMA, expr) RP
-    { Call((get_left $startpos $endpos f), args) }
+    { make_node $startpos ((Call((get_left $startpos $endpos f.contents), args)): TYPTree.typ_expression) }
 | e=simple_expr
-    { e }
+    { make_node $startpos e.contents }
 | l=simple_expr LS e=expr RS
-    { Deref (ArrayAccess(l, e)) }
+    { make_node $startpos (Deref (make_node $startpos (ArrayAccess(l, e))))  }
 | l=simple_expr DOT f=LABEL
-    { Deref (RecordAccess(l, make_node $startpos(f) f)) }
+    { make_node $startpos (Deref (make_node $startpos (RecordAccess(l, make_node $startpos(f) f)))) }
 | l=simple_expr DOT LP i=INT RP
-    { Deref (TupleAccess (l, i)) }
+    { make_node $startpos (Deref (make_node $startpos (TupleAccess (l, i)))) }
 ;
 
 simple_expr:
 | i=INT
-    { Int i }
+    { make_node $startpos (Int i) }
 | b=BOOL
-    { Bool b }
+    { make_node $startpos (Bool b) }
 | t=LABEL
-    { Deref(Id(make_node $startpos t)) }
+    { make_node $startpos (Deref( make_node $startpos (Id(make_node $startpos t)))) }
 | LP e=expr RP
-    { e }
+    { make_node $startpos e.contents }
 | MULT l=simple_expr
-    { Deref l }
+    { make_node $startpos (Deref l) }
 | ADDRESS l=simple_expr
-    { get_left $startpos $endpos l }
+    { make_node $startpos (get_left $startpos $endpos l.contents).contents }
 | LB LT t_e=type_expr GT fields=separated_nonempty_list(SEMI, field_instanciation) RB
-    { NewRecord (t_e,fields) }
+    { make_node $startpos (NewRecord (t_e,fields)) }
 | LS size=expr PIPE init_elt=expr RS
-    { NewArray (size,init_elt) }
+    { make_node $startpos (NewArray (size,init_elt)) }
 | LS l=separated_nonempty_list(SEMI, expr) RS
-    { InitArray (l) }
+    { make_node $startpos (InitArray (l)) }
 | LT LP l=separated_nonempty_list(COMMA, expr) RP GT
-    { NewTuple (l) }
+    { make_node $startpos (NewTuple (l)) }
 ;
 
 %inline binop:
@@ -337,17 +337,17 @@ instruction:
 
 | l=expr op=assign_binop e=expr
     {
-      BinopAssign(get_left $startpos $endpos l, op, e)
+      BinopAssign(get_left $startpos $endpos l.contents, op, e)
     }
 
 | l=expr op=assign_unop
     {
-      UnopAssign(get_left $startpos $endpos l, op)
+      UnopAssign(get_left $startpos $endpos l.contents, op)
     }
 
 | f=simple_expr LP args=separated_list(COMMA, expr) RP
     {
-      Call(get_left $startpos $endpos f, args)
+      Call(get_left $startpos $endpos f.contents, args)
     }
 
 | v=variable_declaration

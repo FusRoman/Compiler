@@ -7,7 +7,7 @@ let _ =
 let input = open_in input_file
 let lexing_buffer = Lexing.from_channel input
 
-let output_file = (Filename.chop_suffix input_file ".tpl") ^ ".fun"
+let output_file = (Filename.chop_suffix input_file ".typ") ^ ".tpl"
 let output = open_out output_file
 
 let _ =
