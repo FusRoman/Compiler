@@ -1,24 +1,31 @@
-var memory_break := (&stack_pointer)+1;
+# heap_pointer et memory_break sont initialisés dans TPLTree
+var heap_pointer@ := 0;
+var memory_break@ := 0;
 
 malloc(n) {
-    var a := memory_break;
-    memory_break += n;
-    if (stack_pointer <= memory_break){
-        print(109);print(97);print(108);print(108);print(111);print(99); #malloc
-        print(95); #_
-        print(101);print(114);print(114);print(111);print(114); #error
+    var r := memory_break@;
+    memory_break@ += n;
+    if (stack_pointer <= memory_break@) {
+        # malloc
+        print(109);
+        print(97);
+        print(108);
+        print(108);
+        print(111);
+        print(99);
+
+        # _
+        print(95);
+
+        # error
+        print(101);
+        print(114);
+        print(114);
+        print(111);
+        print(114);
+
         print(10);
         exit;
-    }else{
-        return a;
     }
-}
-
-make_tuple(&d,s){
-    d := malloc(s);
-    return 0;
-}
-
-tuple_access(t,i){
-    return t + i;
+    return r;
 }

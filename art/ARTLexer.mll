@@ -5,8 +5,8 @@
 
 }
 
-let letter = ['a'-'z' 'A'-'Z' '_']
-let id = letter(letter|['0'-'9'])*
+let character = ['a'-'z' 'A'-'Z' '_' '@']
+let id = character(character|['0'-'9'])*
 let integer = ['0'-'9']+
 let boolean = "true"|"false"
 let blank = [' ' '\t' '\r'] (* Il devrait y avoir un caractère spécial *)

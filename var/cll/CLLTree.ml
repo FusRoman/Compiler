@@ -1,10 +1,9 @@
 open Printf
 open Cycle
-open Tagset
 open ARTTree
 open IMPTree
 
-let cll_variables = add "frame_pointer" imp_variables
+let cll_variables = Tagset.add "frame_pointer" imp_variables
 
 let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
@@ -210,7 +209,7 @@ let translate_procedures tag_set maker procs acc =
   tr_not_main tag_set maker procs acc'
 
 let cll_to_imp cll_prog =
-  let tag_set = union_duplicate cll_variables cll_prog.tag_set in
+  let tag_set = Tagset.union_duplicate cll_variables cll_prog.tag_set in
   let maker = Tagset.make_tag_maker tag_set in
 
   let syntax_tree, data = 
@@ -229,7 +228,7 @@ let cll_to_imp cll_prog =
     (instr, data)
   in
 
-  { tag_set = get_updated_set maker; syntax_tree = TextData(syntax_tree, data) }
+  {tag_set = Tagset.get_updated_set maker; syntax_tree = TextData(syntax_tree, data)}
 
 let write_tabs file depth =
   for i = 1 to depth do

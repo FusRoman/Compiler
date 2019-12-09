@@ -628,8 +628,8 @@
       String.sub s 0 !i
 }
 
-let letter = ['a'-'z' 'A'-'Z' '_']
-let tag = letter(letter|['0'-'9'])*
+let character = ['a'-'z' 'A'-'Z' '_' '@']
+let tag = character(character|['0'-'9'])*
 let integer = '-'?['0'-'9']+
 let blank = [' ' '\t'] (* Il devrait y avoir un caractère spécial *)
 let comment = '#' [^ '\n']* ('\n' | eof)

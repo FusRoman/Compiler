@@ -4,7 +4,8 @@
 
 let digit = ['0'-'9']
 let number = digit+
-let label = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
+let character = ['a'-'z' 'A'-'Z' '_' '@']
+let label = character(character|['0'-'9'])*
 let comment = '#' [^ '\n']* ('\n' | eof)
   
 rule token = parse

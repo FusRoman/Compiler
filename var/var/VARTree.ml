@@ -1,6 +1,5 @@
 open Printf
 open Cycle
-open Tagset
 open ARTTree
 open IMPTree
 open CLLTree
@@ -175,7 +174,7 @@ let translate_expression e compiler =
     if Env.mem id.contents compiler.lenv then
       let index = Env.find id.contents compiler.lenv in
       ARTTree.Binop(LStar(Id frame_pointer), Sub, Int(index + 2))
-    else if mem id.contents compiler.genv then
+    else if Tagset.mem id.contents compiler.genv then
       Id id
     else
       raise (UnboundValue(compiler.fct.name, id))
@@ -587,7 +586,7 @@ let translate_function acc fct genv =
   (* On rajoute à l'environnement global car FUN se charge de la traduction des paramètres *)
   let genv = 
     List.fold_left (fun acc (p: parameter) ->
-      add_duplicate p.name.contents acc
+      Tagset.add_duplicate p.name.contents acc
     ) genv fct.params 
   in
   let (block, variables) = extract_declarations fct.block in
@@ -629,7 +628,7 @@ let translate_global_declaration fct_acc data_acc init_acc decl main genv =
       (fct_acc, (v, 0)::data_acc, init_acc)
 
 let var_to_fun var =
-  let genv = union_duplicate var_variables var.tag_set in
+  let genv = Tagset.union_duplicate var_variables var.tag_set in
   let main = ref None in
   let (fct, data, init) = List.fold_left (fun (fct_acc, data_acc, init_acc) decl -> 
     translate_global_declaration fct_acc data_acc init_acc decl main genv
@@ -851,5 +850,5 @@ let write_var file var =
     | Var(v, e) ->
       fprintf file "var %s := " v.contents;
       write_var_right_expr file e;
-      fprintf file ";\n"
+      fprintf file ";\n\n"
   ) var.syntax_tree
