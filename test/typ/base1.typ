@@ -22,8 +22,9 @@ int main(){
     #int t := (*(tuple1.(1)))(97);
     #print(t);
 
+    int size := 10;
     
-    int[] tab1 := [10 | 97];
+    int[] tab1 := [size | 97];
 
     print(tab1[9]);
     print(10);
@@ -52,7 +53,9 @@ int main(){
 
     print(10);
     print(10);
-    print(f([101;98;99;100][0]));
+    int a := 97;
+    int b := 2;
+    print(f([a+b;98;99;100][0]));
 
     exit;
 }

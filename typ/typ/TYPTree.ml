@@ -315,6 +315,12 @@ let rec check_expression genv type_env e =
       |_ -> failwith "erreur sur les records"
     end
   |InitArray expr_list ->
+
+    List.iter (
+      fun (key, _) ->
+        print_string (key ^ "\n")
+    ) (StringMap.bindings genv);
+
     let first_true_type = find_type_alias type_env (check_expression genv type_env (List.hd expr_list).contents) in
     List.iter (
       fun expr ->
