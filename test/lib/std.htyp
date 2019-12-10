@@ -1,0 +1,23 @@
+// Les strings ne sont en fait que des tableaux d'entiers
+type string := int[];
+
+// Enrobage de print dans une fonction
+print_char: fun (char -> int);
+
+// Affiche un caractère et saute une ligne
+println_char: fun (char -> int);
+
+// Affiche un entier, positif ou négatif
+print_int: fun (int -> int);
+
+// Affiche un entier et saute une ligne
+println_int: fun (int -> int);
+
+// Affiche une string
+print_string: fun (string -> int);
+
+// Affiche une string et saute une ligne
+println_string: fun (string -> int);
+
+// Convertit une string en entier
+parse_int: fun (string -> int);

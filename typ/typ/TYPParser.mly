@@ -94,6 +94,7 @@
 %left ADD SUB
 %left MULT DIV REM
 %left NOT CPL
+%left DOT
 
 %%
 
@@ -127,17 +128,10 @@ global_declaration:
 ;
 
 global_variable_declaration:
-| VAR name=LABEL ASSIGN e=immediat
+| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr
   {
-    (TInt, make_node $startpos name, e)
+    (typ, make_node $startpos name, e)
   }
-;
-
-immediat:
-| i=INT
-    { make_node $startpos (Int i) }
-| b=BOOL
-    { make_node $startpos (Bool b) }
 ;
 
 type_declaration:
@@ -148,19 +142,19 @@ type_declaration:
 ;
 
 variable_declaration:
-| type_variable=type_expr name=LABEL ASSIGN e=expr
+| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr
     {
-      (type_variable,make_node $startpos name, e)
+      (typ, make_node $startpos name, e)
     }
 ;
 
 parameter:
-| params_type=type_expr name=LABEL
+| name=LABEL COLON params_type=type_expr 
     {
       {name = make_node $startpos name; reference = false; params_type}
     }
 
-| params_type=type_expr ADDRESS name=LABEL
+| ADDRESS name=LABEL COLON params_type=type_expr
     {
       {name = make_node $startpos name; reference = true; params_type}
     }
@@ -175,29 +169,33 @@ function_definition:
 
 
 type_expr:
-|TINT
+| TINT
   {
     TInt
   }
-|TSTRING
+| TSTRING
   {
     (TPointer (TArray (TInt)))
   }
-|TFUN LP ps=separated_list(COMMA, type_expr) ARROW ty=type_expr RP
+| TFUN LP ps=separated_list(COMMA, type_expr) ARROW ty=type_expr RP
   {
     (TPointer (TFun (ps, ty)))
   }
-| LT l = LABEL GT
+| l = LABEL
   {
     TAlias (make_node $startpos l)
   }
-|t = type_expr LS RS
+| t = type_expr LS RS
   {
     (TPointer (TArray (t)))
   }
-|LP t = separated_nonempty_list(COMMA, type_expr) RP
+| LP t=type_expr RP
   {
-    (TPointer (TTuple t))
+    t
+  }
+| LP fst=type_expr COMMA t=separated_nonempty_list(COMMA, type_expr) RP
+  {
+    (TPointer (TTuple (fst::t)))
   }
 | t=type_expr MULT
   {
@@ -257,9 +255,9 @@ expr:
     { make_node $startpos e.contents }
 | l=simple_expr LS e=expr RS
     { make_node $startpos (Deref (make_node $startpos (ArrayAccess(l, e))))  }
-| l=simple_expr DOT f=LABEL
+| l=expr DOT f=LABEL
     { make_node $startpos (Deref (make_node $startpos (RecordAccess(l, make_node $startpos(f) f)))) }
-| l=simple_expr DOT LP i=INT RP
+| l=expr DOT LP i=INT RP
     { make_node $startpos (Deref (make_node $startpos (TupleAccess (l, i)))) }
 ;
 
@@ -282,8 +280,8 @@ simple_expr:
     { make_node $startpos (NewArray (size,init_elt)) }
 | LS l=separated_nonempty_list(SEMI, expr) RS
     { make_node $startpos (InitArray (l)) }
-| LT LP l=separated_nonempty_list(COMMA, expr) RP GT
-    { make_node $startpos (NewTuple (l)) }
+| LP fst=expr COMMA l=separated_nonempty_list(COMMA, expr) RP
+    { make_node $startpos (NewTuple (fst::l)) }
 ;
 
 %inline binop:

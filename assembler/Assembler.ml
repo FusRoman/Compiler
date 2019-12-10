@@ -164,15 +164,14 @@ let is_comment l =
   | Invalid_argument msg ->
     failwith (Printf.sprintf "Raised an 'Invalid_argument %s' while parsing line '%s'" msg l)
     
-(** Chargement des instructions du fichier dans le tableau [instructions] *)
-let input_file = Sys.argv.(1)
+(* Nombre de lignes hors étiquettes *)
+let line_count = ref 0
 
-let _ =
+(** Chargement des instructions d'un seul fichier dans le tableau [instructions] *)
+let load_file input_file =
   if not (Filename.check_suffix input_file ".asm") then
     failwith "expected .asm extension";
   let input = open_in input_file in
-  (* Nombre de lignes hors étiquettes *)
-  let line_count = ref 0 in
   try
     while true do
       (* Lecture ligne à ligne *)
@@ -185,7 +184,11 @@ let _ =
       then ()
       else if is_label line
       then
-        Hashtbl.add label_map (get_label line) !line_count
+        let label = get_label line in
+        if Hashtbl.mem label_map label then
+          failwith (Printf.sprintf "Duplicate tag '%s'" label)
+        else
+          Hashtbl.add label_map label !line_count
       else begin
         instructions.(!line_count) <- line;
         incr line_count
@@ -194,8 +197,16 @@ let _ =
   with
     | End_of_file -> close_in input
 
+let argc = Array.length Sys.argv
+
 let _ =
-  let output_file = (Filename.chop_suffix input_file ".asm") ^ ".btc" in
+  load_file Sys.argv.(argc - 1);
+  for i = 1 to argc - 2 do
+    load_file Sys.argv.(i)
+  done
+
+let _ =
+  let output_file = (Filename.chop_suffix Sys.argv.(argc - 1) ".asm") ^ ".btc" in
   let output = open_out_bin output_file in
   try
     Array.iter (fun l -> output_binary_int output (encode_line l)) instructions
