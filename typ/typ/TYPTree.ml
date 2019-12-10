@@ -315,12 +315,6 @@ let rec check_expression genv type_env e =
       |_ -> failwith "erreur sur les records"
     end
   |InitArray expr_list ->
-
-    List.iter (
-      fun (key, _) ->
-        print_string (key ^ "\n")
-    ) (StringMap.bindings genv);
-
     let first_true_type = find_type_alias type_env (check_expression genv type_env (List.hd expr_list).contents) in
     List.iter (
       fun expr ->
@@ -946,12 +940,12 @@ and translate_instruction instr_acc genv type_env i =
       append acc (IfElse (var_cond, (to_list var_block_if), (to_list var_block_else))),
       cond_env
     )
-  |Declaration (_, s, e) ->
+  |Declaration (_type, s, e) ->
     let (init_e, var_e, reeval_e, env_expr) = translate_expression genv type_env e.contents in
     let acc = extend instr_acc init_e in
     (
       append acc (Declaration (s, var_e)),
-      env_expr
+      StringMap.add s.contents _type env_expr
     )
   |Call (function_name, function_param) ->
     let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name.contents in

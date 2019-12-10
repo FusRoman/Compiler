@@ -55,7 +55,7 @@ int main(){
     print(10);
     int a := 97;
     int b := 2;
-    print(f([a+b;98;99;100][0]));
+    print(f([f(a+b);98;99;100][0]));
 
     exit;
 }
