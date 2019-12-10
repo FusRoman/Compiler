@@ -94,56 +94,66 @@ exception TypeError of string * int * int
 
 let malloc = default_node "malloc"
 
-let rec string_of_type type_env t =
+let rec string_of_type t =
   let rec aux separator l =
     match l with
     |[] -> ""
-    |[x] -> string_of_type type_env x
+    |[x] -> string_of_type x
     |x :: s ->
-      (string_of_type type_env x) ^ separator ^ (aux separator s) in
+      (string_of_type x) ^ separator ^ (aux separator s) in
   match t with
   |TInt -> "int"
   |TPointer x ->
-    "pointer of " ^ (string_of_type type_env x)
+    "pointer of " ^ (string_of_type x)
   |TArray x ->
-    "array of " ^ (string_of_type type_env x)
+    "array of " ^ (string_of_type x)
   |TFun (params, return) ->
-    "fun " ^ (aux "," params) ^ " -> " ^ (string_of_type type_env return)
+    "fun " ^ (aux "," params) ^ " -> " ^ (string_of_type return)
   |TRecord env ->
     let rec aux l = 
       match l with
       |[] -> ""
-      |[(key, (_type, _))] -> key ^ "=" ^ (string_of_type type_env _type)
+      |[(key, (_type, _))] -> key ^ "=" ^ (string_of_type _type)
       |(key, (_type, _)) :: s ->
-        key ^ "=" ^(string_of_type type_env _type) ^ ";" ^ (aux s) in
+        key ^ "=" ^(string_of_type _type) ^ ";" ^ (aux s) in
     "{" ^ (aux (StringMap.bindings env)) ^ "}"
   |TTuple t ->
     (aux "*" t)
   |TAlias s ->
-    begin
-      match StringMap.find_opt s.contents type_env with
-      |None -> raise (TypeError 
-                        ("this alias" ^ s.contents ^ "was never declared before", 
-                         s.line, 
-                         s.column)
-                     )
-      |Some _type ->
-        string_of_type type_env _type
-    end
+    s.contents
 
-let find_type_alias type_env a =
+let raise_type_error got expected line column =
+  raise (TypeError(Printf.sprintf
+    "This expression has type %s, but an expression was expected of type %s."
+    (string_of_type got) expected,
+  line, column))
+
+let rec find_type_alias type_env a =
   match a with
+  |TInt -> a
   |TAlias alias ->
     begin
       match StringMap.find_opt alias.contents type_env with
       |None -> raise (TypeError 
-                        ("this alias" ^ alias.contents ^ "was never declared before", 
+                        ("type '" ^ alias.contents ^ "' was never declared before", 
                          alias.line, 
                          alias.column)
                      )
-      |Some t -> t
+      |Some t ->
+        find_type_alias type_env t
     end
-  |x -> x
+  |TPointer t ->
+    TPointer (find_type_alias type_env t)
+  |TArray t ->
+    TArray (find_type_alias type_env t)
+  |TFun (args, return) ->
+    TFun(List.map (find_type_alias type_env) args, find_type_alias type_env return)
+  |TRecord renv ->
+    TRecord (StringMap.map (fun (t, o) ->
+      (find_type_alias type_env t, o)
+    ) renv)
+  |TTuple t ->
+    TTuple(List.map (find_type_alias type_env) t)
 
 let rec check_expression genv type_env e = 
   match e with
@@ -163,24 +173,16 @@ let rec check_expression genv type_env e =
       let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
       match true_type with
       | TPointer t -> t
-      | x -> raise (TypeError (
-          "This expression has type " ^ (string_of_type type_env x) ^
-          "\nbut an expression was expected of type pointer of 'a",
-          e.line,
-          e.column
-        ))
+      | x -> 
+        raise_type_error x "pointer" e.line e.column
     end
   |Unop (_, e) -> 
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
       match true_type with
       |TInt -> TInt
-      |x -> raise (TypeError (
-          "This expression has type " ^ (string_of_type type_env x) ^
-          "\nbut an expression was expected of type int",
-          e.line,
-          e.column
-        ))
+      |x -> 
+        raise_type_error x "int" e.line e.column
     end
   |Binop (e1, op, e2) ->
     begin
@@ -193,38 +195,31 @@ let rec check_expression genv type_env e =
       |x,y -> 
         let s_op = string_of_binop op in
         raise (TypeError (
-            "This expression has type " ^
-            (string_of_type type_env x) ^ s_op ^ (string_of_type type_env y) ^
-            "\nbut an expression was expected of type int " ^ s_op ^ "int, pointer " ^ s_op ^ "int or
-        int " ^ s_op ^ "pointer",
+            Printf.sprintf "Cannot perform '%s' on values of type %s and %s" s_op (string_of_type x) (string_of_type y),
             e1.line,
             e1.column
           ))
     end
   |Call (s, expr_list) ->
-
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
       match true_type with
       | TPointer (TFun (type_params, return_type)) ->
-        List.iter2 (
-          fun expr param_type ->
-            let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
-            if not (true_type = param_type) then
-              raise (TypeError (
-                  "This expression has type " ^ (string_of_type type_env true_type) ^
-                  "\nbut an expression was expected of type " ^ (string_of_type type_env param_type),
-                  expr.line,
-                  expr.column
-                ))
-        ) expr_list type_params;
+        begin try
+          List.iter2 (
+            fun expr param_type ->
+              let actual_type = check_expression genv type_env expr.contents in
+              let true_type = find_type_alias type_env actual_type in
+              let true_type_param = find_type_alias type_env param_type in
+              if not (true_type = true_type_param) then
+                raise_type_error actual_type (string_of_type param_type) expr.line expr.column
+          ) expr_list type_params
+        with Not_found ->
+          raise (TypeError("Invalid number of arguments provided", s.line, s.column))
+        end;
         return_type
-      |x -> raise (TypeError (
-          "This expression has type " ^ (string_of_type type_env x) ^
-          "\nbut an expression was expected of type pointer of function",
-          s.line,
-          s.column
-        )) 
+      |x ->
+        raise_type_error x "pointer of function" s.line s.column
     end
   |RecordAccess (expression, field) ->
     begin
@@ -240,12 +235,8 @@ let rec check_expression genv type_env e =
                          )
           |Some (_type,_) -> TPointer _type
         end
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type pointer of record", 
-                      expression.line, 
-                      expression.column)
-                  )
+      |x ->
+        raise_type_error x "pointer of record" expression.line expression.column
     end
   |ArrayAccess (name_tab, index) ->
     let type_index = find_type_alias type_env (check_expression genv type_env index.contents) in
@@ -254,26 +245,10 @@ let rec check_expression genv type_env e =
       match type_index, type_name_tab with
       |TInt, TPointer (TArray _type_array) -> 
         TPointer _type_array
-      |TInt,y -> raise (TypeError 
-                          ("This expression has type " ^ (string_of_type type_env y) ^
-                           "\nbut an expression was expected of type pointer of array", 
-                           name_tab.line, 
-                           name_tab.column)
-                       )
-      |x, TPointer (TArray _type_array) ->
-        raise (TypeError 
-                 ("This expression has type " ^ (string_of_type type_env x) ^
-                  "\nbut an expression was expected of type int", 
-                  index.line, 
-                  index.column)
-              )
-      |x,y -> raise (TypeError 
-                       ("This expression has type " ^ (string_of_type type_env x) ^
-                        "\nfor the index and type " ^ (string_of_type type_env y) ^ "for the name array" ^
-                        "\nbut an expression was expected of type int for index and pointer of array for the name array", 
-                        name_tab.line, 
-                        name_tab.column)
-                    )
+      |TInt,y ->
+        raise_type_error y "pointer of array" name_tab.line name_tab.column
+      |x, _ ->
+        raise_type_error x "int" index.line index.column
     end
   |NewArray (size, array_elt) ->
     let type_size = find_type_alias type_env (check_expression genv type_env size.contents) in
@@ -281,17 +256,14 @@ let rec check_expression genv type_env e =
     begin
       match type_size, type_array with
       |TInt, t -> TPointer (TArray t)
-      |x, _ -> raise (TypeError 
-                        ("This expression has type " ^ (string_of_type type_env x) ^
-                         "\nbut an expression was expected of type int", 
-                         size.line, 
-                         size.column)
-                     )
+      |x, _ ->
+        raise_type_error x "int" size.line size.column
     end
   |NewRecord (type_record,list_field) ->
     begin
-      match type_record with
-      |TRecord e ->  
+      let true_type_record = find_type_alias type_env type_record in
+      match true_type_record with
+      |TPointer (TRecord e) ->  
         List.iter (
           fun (name_node, expr) ->
             match StringMap.find_opt name_node.contents e with
@@ -302,30 +274,25 @@ let rec check_expression genv type_env e =
                                0)
                            )
             |Some (_type,_) ->
-              let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
-              if not (true_type = _type) then
-                raise (TypeError 
-                         ("This expression has type " ^ (string_of_type type_env true_type) ^
-                          "\nbut an expression was expected of type " ^ (string_of_type type_env _type), 
-                          expr.line, 
-                          expr.column)
-                      )
+              let actual_type = check_expression genv type_env expr.contents in
+              let true_type = find_type_alias type_env actual_type in
+              let true_type_field = find_type_alias type_env _type in
+              if not (true_type = true_type_field) then
+                raise_type_error actual_type (string_of_type _type) expr.line expr.column
         ) list_field;
         type_record
-      |_ -> failwith "erreur sur les records"
+      |_ ->
+        raise_type_error type_record "pointer of record" 0 0
     end
   |InitArray expr_list ->
-    let first_true_type = find_type_alias type_env (check_expression genv type_env (List.hd expr_list).contents) in
+    let first_type = check_expression genv type_env (List.hd expr_list).contents in
+    let first_true_type = find_type_alias type_env first_type in
     List.iter (
       fun expr ->
-        let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+        let actual_type = check_expression genv type_env expr.contents in
+        let true_type = find_type_alias type_env actual_type in
         if not (true_type = first_true_type) then
-          raise (TypeError 
-                   ("This expression has type " ^ (string_of_type type_env true_type) ^
-                    "\nbut an expression was expected of type " ^ (string_of_type type_env first_true_type), 
-                    expr.line, 
-                    expr.column)
-                )
+          raise_type_error actual_type (string_of_type first_type) expr.line expr.column
     ) (List.tl expr_list);
     TPointer (TArray first_true_type)
   |TupleAccess (tpl, i) ->
@@ -341,12 +308,8 @@ let rec check_expression genv type_env e =
                     tpl.line, 
                     tpl.column)
                 )
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type pointer of tuple", 
-                      tpl.line, 
-                      tpl.column)
-                  )
+      |x ->
+        raise_type_error x "pointer of tuple" tpl.line tpl.column
     end
   |NewTuple l ->
     let type_list = List.fold_right (
@@ -364,58 +327,41 @@ let rec check_instruction genv type_env f i =
     begin
       match f with
       |Some fonction ->
-        let true_type_return = find_type_alias type_env (check_expression genv type_env e.contents) in
-        if not (true_type_return = fonction.return_type) then
-          raise (TypeError 
-                   ("This expression has type " ^ (string_of_type type_env true_type_return) ^
-                    "\nbut an expression was expected of type " ^ (string_of_type type_env fonction.return_type), 
-                    e.line, 
-                    e.column)
-                )
+        let type_return = check_expression genv type_env e.contents in
+        let true_type_return = find_type_alias type_env type_return in
+        let true_type_fun_return = find_type_alias type_env fonction.return_type in
+        if not (true_type_return = true_type_fun_return) then
+          raise_type_error type_return (string_of_type fonction.return_type) e.line e.column
       |None -> 
-        raise (SyntaxError ("no return find in this block function",0,0) )
+        raise (SyntaxError ("No return found in this function",0,0) )
     end
   |Print e ->
-    let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+    let actual_type = check_expression genv type_env e.contents in
+    let true_type = find_type_alias type_env actual_type in
     if not (true_type = TInt) then
-      raise (TypeError 
-               ("This expression has type " ^ (string_of_type type_env true_type) ^
-                "\nbut an expression was expected of type int", 
-                e.line, 
-                e.column)
-            )
+      raise_type_error actual_type "int" e.line e.column
   |UnopAssign (e, op) ->
     begin
-      let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
+      let actual_type = check_expression genv type_env e.contents in
+      let true_type = find_type_alias type_env actual_type in
       match true_type with
       |TPointer TInt |TPointer (TPointer _) -> ()
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type pointer of 'a with 'a has type int or pointer of 'b", 
-                      e.line, 
-                      e.column)
-                  )
+      |x ->
+        raise_type_error actual_type "pointer of int or pointer of pointer" e.line e.column
     end
   |BinopAssign (e1, op, e2) ->
     let t =
       let true_type = find_type_alias type_env (check_expression genv type_env e1.contents) in
       match true_type with
       |TPointer t -> t
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type pointer of 'a", 
-                      e1.line, 
-                      e1.column)
-                  )
+      |x ->
+        raise_type_error x "pointer" e1.line e1.column
     in
-    let true_type = find_type_alias type_env (check_expression genv type_env e2.contents) in
-    if not (true_type = t) then
-      raise (TypeError 
-               ("This expression has type " ^ (string_of_type type_env true_type) ^
-                "\nbut an expression was expected of type " ^ (string_of_type type_env t), 
-                e2.line, 
-                e2.column)
-            )
+    let actual_type = check_expression genv type_env e2.contents in
+    let true_type = find_type_alias type_env actual_type in
+    let true_type_of_t = find_type_alias type_env t in
+    if not (true_type = true_type_of_t) then
+      raise_type_error actual_type (string_of_type t) e2.line e2.column
   |IfElse (cond, block_if, block_else) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
@@ -423,12 +369,8 @@ let rec check_instruction genv type_env f i =
       |TInt ->
         check_list_instruction genv type_env f block_if;
         check_list_instruction genv type_env f block_else
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type int", 
-                      cond.line, 
-                      cond.column)
-                  )
+      |x -> 
+        raise_type_error x "bool/int" cond.line cond.column
     end
   |If (cond, block_if) ->
     begin
@@ -436,12 +378,8 @@ let rec check_instruction genv type_env f i =
       match true_type with
       |TInt -> 
         check_list_instruction genv type_env f block_if
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type int", 
-                      cond.line, 
-                      cond.column)
-                  )
+      |x ->
+        raise_type_error x "bool/int" cond.line cond.column
     end
   |While (cond, block_while) ->
     begin
@@ -449,12 +387,8 @@ let rec check_instruction genv type_env f i =
       match true_type with
       |TInt -> 
         check_list_instruction genv type_env f block_while
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type int", 
-                      cond.line, 
-                      cond.column)
-                  )
+      |x ->
+        raise_type_error x "bool/int" cond.line cond.column
     end
   |For (init, cond, iteration, block_for) ->
     begin
@@ -464,46 +398,35 @@ let rec check_instruction genv type_env f i =
       |TInt ->
         check_list_instruction local_env type_env f iteration;
         check_list_instruction local_env type_env f block_for
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type int", 
-                      cond.line, 
-                      cond.column)
-                  )
+      |x ->
+        raise_type_error x "bool/int" cond.line cond.column
     end
   |Call (s, expr_list) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
       match true_type with
       |TFun (type_params, return_type) ->
-        List.iter2 (
-          fun expr param_type ->
-            let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
-            if not (true_type = param_type) then
-              raise (TypeError 
-                       ("This expression has type " ^ (string_of_type type_env true_type) ^
-                        "\nbut an expression was expected of type " ^ (string_of_type type_env param_type), 
-                        expr.line, 
-                        expr.column)
-                    )
-        ) expr_list type_params
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type function", 
-                      s.line, 
-                      s.column)
-                  )
+        begin try 
+          List.iter2 (
+            fun expr param_type ->
+              let actual_type = check_expression genv type_env expr.contents in
+              let true_type = find_type_alias type_env actual_type in
+              let true_type_param = find_type_alias type_env param_type in
+              if not (true_type = true_type_param) then
+                raise_type_error actual_type (string_of_type param_type) expr.line expr.column
+          ) expr_list type_params
+        with Not_found ->
+          raise (TypeError("Invalid number of arguments provided", s.line, s.column))
+        end
+      |x ->
+        raise_type_error x "pointer of function" s.line s.column
     end
   |Declaration (_type_var, name_node, expr) ->
-    let true_type = find_type_alias type_env (check_expression genv type_env expr.contents) in
+    let actual_type = check_expression genv type_env expr.contents in
+    let true_type = find_type_alias type_env actual_type in
     let true_type2 = find_type_alias type_env _type_var in
     if not (true_type = true_type2) then
-      raise (TypeError 
-               ("This expression has type " ^ (string_of_type type_env true_type) ^
-                "\nbut an expression was expected of type " ^ (string_of_type type_env true_type2), 
-                expr.line, 
-                expr.column)
-            )
+      raise_type_error actual_type (string_of_type _type_var) expr.line expr.column
 
 and check_list_instruction genv type_env f l =
   match l with
@@ -546,20 +469,21 @@ and check_global_declaration genv type_env l =
           ) genv f.params in
         check_list_instruction env_with_param type_env (Some f) f.block
       |Var (_type_var, name_var, expr) ->
+        (* Tout ça c'est pas à jour du tout, faudra virer *)
         begin
           match _type_var with
           |TInt ->
             let true_type = find_type_alias type_env _type_var in
-            let type_expr = check_expression genv type_env expr.contents in
+            let type_expr = find_type_alias type_env (check_expression genv type_env expr.contents) in
             if not (type_expr = true_type) then
               raise (TypeError 
-                       ("This expression has type " ^ (string_of_type type_env true_type) ^
-                        "\nbut an expression was expected of type " ^ (string_of_type type_env _type_var), 
+                       ("This expression has type " ^ (string_of_type true_type) ^
+                        "\nbut an expression was expected of type " ^ (string_of_type _type_var), 
                         expr.line, 
                         expr.column)
                     )
           |x -> raise (TypeError 
-                         ("This expression has type " ^ (string_of_type type_env x) ^
+                         ("This expression has type " ^ (string_of_type x) ^
                           "\nbut an expression was expected of type int, only int are allowed for the globals variable declaration", 
                           0, 
                           0)
@@ -609,8 +533,8 @@ let rec translate_expression genv type_env e =
 
   |RecordAccess (name_record, field) ->
     begin
-      match check_expression genv type_env name_record.contents with
-      |TRecord env_record ->
+      match find_type_alias type_env (check_expression genv type_env name_record.contents) with
+      |TPointer (TRecord env_record) ->
         begin
           match StringMap.find_opt field.contents env_record with
           |Some (_type, offset) ->
@@ -622,12 +546,8 @@ let rec translate_expression genv type_env e =
                              field.column)
                          )
         end
-      |x -> raise (TypeError 
-                     ("This expression has type " ^ (string_of_type type_env x) ^
-                      "\nbut an expression was expected of type record", 
-                      name_record.line, 
-                      name_record.column)
-                  )
+      |x ->
+        raise_type_error x "pointer of record" name_record.line name_record.column
     end
 
 
@@ -643,6 +563,7 @@ let rec translate_expression genv type_env e =
 
 
   |NewRecord (_type, record_field) ->
+
     let (new_map, record_tag) = make_var_node _type genv in
 
     (* Allocation mémoire de l'enregistrement *)
@@ -653,8 +574,8 @@ let rec translate_expression genv type_env e =
     (* Initialise chaque champ d'un enregistrement *)
     let (var_instr, new_env) = List.fold_left (
         fun (var_instr_acc, map_acc) (field_name, expr_field) ->
-          let access_record = {line = 0; column = 0; contents = RecordAccess (
-              {line = 0; column = 0; contents= Id record_tag}, field_name)} in
+          let access_record = ARTTree.default_node (RecordAccess (
+              default_node (Deref (ARTTree.default_node (Id record_tag))), field_name)) in
           let (instr_init_field:typ_instr) = BinopAssign (access_record, Standard, expr_field) in
           let new_var_instr, new_map_acc = translate_instruction var_instr_acc map_acc type_env instr_init_field in
           (
@@ -665,7 +586,7 @@ let rec translate_expression genv type_env e =
 
     (
       prepend var_instr assign_return_malloc,
-      VARTree.Id record_tag,
+      Deref (Id record_tag),
       var_instr,
       new_env
     )
@@ -782,7 +703,7 @@ let rec translate_expression genv type_env e =
         fun (init_acc, reeval_acc, map_acc, index) e ->
           let (init, var_expr, reeval, s_map) = translate_expression map_acc type_env e.contents in
 
-          let access_array = VARTree.Binop (Id tuple_tag ,Add, Int index) in
+          let access_array = VARTree.Binop (Deref (Id tuple_tag) ,Add, Int index) in
           let assign_expr_to_tuple = VARTree.BinopAssign (access_array, Standard, var_expr) in
           let tmp_cycle = extend init_acc init in
           let tmp_cycle = append tmp_cycle assign_expr_to_tuple in
@@ -800,7 +721,7 @@ let rec translate_expression genv type_env e =
 
     (
       tmp_cycle,
-      Id tuple_tag,
+      Deref (Id tuple_tag),
       reeval,
       return_env
     )
