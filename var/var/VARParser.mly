@@ -82,7 +82,6 @@
 
 %start program
 %type <VARTree.var_prog ARTTree.compiler_type> program
-%type <string ARTTree.node * VARTree.var_expression> variable_declaration
 %type <FUNTree.parameter> parameter
 %type <VARTree.var_function> function_definition
 %type <VARTree.var_instrs> instructions
@@ -114,13 +113,6 @@ program:
     }
 ;
 
-variable_declaration:
-| VAR name=LABEL ASSIGN e=expr
-    {
-      (make_node $startpos name, e)
-    }
-;
-
 parameter:
 | name=LABEL 
     {
@@ -144,8 +136,15 @@ global_declaration:
 | f=function_definition
     { Fun f }
 
-| v=variable_declaration SEMI
-    { Var v }
+| VAR name=LABEL ASSIGN i=INT SEMI
+    {
+      Var(make_node $startpos name, Int i)
+    }
+
+| VAR name=LABEL ASSIGN b=BOOL SEMI
+    {
+      Var(make_node $startpos name, Bool b)
+    }
 ;
 
 instructions:
@@ -252,8 +251,10 @@ instruction:
       Call(get_left $startpos(f) $endpos(f) f, args) 
     }
 
-| v=variable_declaration
-    { Declaration v }
+| VAR name=LABEL ASSIGN e=expr
+    {
+      Declaration(make_node $startpos name, e)
+    }
 ;
 
 assign_binop:

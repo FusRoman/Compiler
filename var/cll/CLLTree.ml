@@ -177,7 +177,7 @@ and translate_procedure tag_set maker proc_def acc =
   let acc = append acc (TagDeclaration proc_def.name) in
   extend acc (translate_instructions tag_set maker proc_def.block)
 
-let translate_procedures tag_set maker procs acc =
+let translate_procedures lib tag_set maker procs acc =
   (* Compile toujours le main en premier *)
   let rec tr_main tag_set maker procs acc =
     if count_1 procs then
@@ -196,7 +196,10 @@ let translate_procedures tag_set maker procs acc =
       let (p, s) = take procs in
       let acc' =
         if p.name.contents = "main" then
-          acc
+          if lib then
+            raise (SyntaxError("Libraries are not allowed to define a procedure 'main'.", 0, 0))
+          else
+            acc
         else
           translate_procedure tag_set maker p acc
       in
@@ -205,10 +208,15 @@ let translate_procedures tag_set maker procs acc =
       acc
   in
 
-  let acc' = tr_main tag_set maker procs acc in
+  let acc' = 
+    if lib then
+      acc
+    else
+      tr_main tag_set maker procs acc
+  in
   tr_not_main tag_set maker procs acc'
 
-let cll_to_imp cll_prog =
+let cll_to_imp lib cll_prog =
   let tag_set = Tagset.union_duplicate cll_variables cll_prog.tag_set in
   let maker = Tagset.make_tag_maker tag_set in
 
@@ -224,7 +232,7 @@ let cll_to_imp cll_prog =
       *)
 
     } in
-    let instr = translate_procedures tag_set maker procs empty_cycle in
+    let instr = translate_procedures lib tag_set maker procs empty_cycle in
     (instr, data)
   in
 

@@ -54,6 +54,9 @@ let add_lib tpl =
   let syntax_tree = tpl_lib.syntax_tree @ ((Fun main')::decl) in
   {tag_set; syntax_tree}
 
-let tpl_to_var tpl =
+let tpl_to_var lib tpl =
   check_declarations tpl.syntax_tree;
-  add_lib tpl
+  if lib then
+    tpl
+  else
+    add_lib tpl

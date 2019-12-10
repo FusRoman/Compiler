@@ -5,6 +5,7 @@ open Sys
 let make_medium_file = ref false
 let language = ref "none"
 let copy = ref false
+let library = ref false
 
 let set_language l = 
   language := String.lowercase_ascii l 
@@ -12,7 +13,8 @@ let set_language l =
 let speclist = [
   ("-p", Arg.Set make_medium_file, "Generates the intermediate output files");
   ("-l", Arg.String set_language, "Specifies the source language. If not given, the program will try to guess based on the extension. Otherwise, the extension should not be given.");
-  ("-c", Arg.Set copy, "Generates a copy of the source from its abstract syntax tree (useful for debugging)")
+  ("-c", Arg.Set copy, "Generates a copy of the source from its abstract syntax tree (useful for debugging)");
+  ("--lib", Arg.Set library, "Compiles the source file as a library")
 ]
 
 (* Début des arguments du main *)
@@ -72,6 +74,9 @@ let translate t extension source =
     Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
     raise e
 
+let translate_lib t extension source =
+  translate (t !library) extension source
+
 let run_btc file =
   let line = ref ("./vm/VM test/" ^ file ^ ".btc ") in
   for i = !argv to (Array.length Sys.argv) - 1 do
@@ -111,7 +116,7 @@ let run_imp file =
   run_imp_inter imp file
 
 let run_cll_inter cll file =
-  let imp = translate CLLTree.cll_to_imp "cll" cll in
+  let imp = translate_lib CLLTree.cll_to_imp "cll" cll in
   write_opt IMPTree.write_imp "imp" imp file;
   run_imp_inter imp file
 
@@ -121,7 +126,7 @@ let run_cll file =
   run_cll_inter cll file
 
 let run_fun_inter _fun file =
-  let cll = translate FUNTree.fun_to_cll "fun" _fun in
+  let cll = translate_lib FUNTree.fun_to_cll "fun" _fun in
   write_opt CLLTree.write_cll "cll" cll file;
   run_cll_inter cll file
 
@@ -131,7 +136,7 @@ let run_fun file =
   run_fun_inter _fun file
 
 let run_var_inter var file =
-  let _fun = translate VARTree.var_to_fun "var" var in
+  let _fun = translate_lib VARTree.var_to_fun "var" var in
   write_opt FUNTree.write_fun "fun" _fun file;
   run_fun_inter _fun file
 
@@ -141,7 +146,7 @@ let run_var file =
   run_var_inter var file
 
 let run_tpl_inter tpl file =
-  let var = translate TPLTree.tpl_to_var "tpl" tpl in 
+  let var = translate_lib TPLTree.tpl_to_var "tpl" tpl in 
   write_opt VARTree.write_var "var" var file;
   run_var_inter var file
 

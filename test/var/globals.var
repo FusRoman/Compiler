@@ -1,8 +1,10 @@
 var i := true;
 var j := 45;
-var k := j + 52;
+#var k := j + 52;
+var k := 0;
 
 main() {
+  k := j + 52;
   if (i)
     print(k);
   print(l);

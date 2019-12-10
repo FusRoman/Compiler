@@ -14,7 +14,7 @@ let output = open_out output_file
 let _ =
   try
     let source = FUNParser.program FUNLexer.token lexing_buffer in
-    let target = fun_to_cll source in
+    let target = fun_to_cll false source in
     CLLTree.write_cll output target;
     close_out output;
     exit 0

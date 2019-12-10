@@ -274,7 +274,7 @@ let translate_function fct genv main acc =
   let block = translate_instructions fct.block fct genv in
   append acc {name = fct.name; block}
 
-let fun_to_cll fun_prog =
+let fun_to_cll lib fun_prog =
   let genv = union_duplicate fun_variables fun_prog.tag_set in
   let functions, data = fun_prog.syntax_tree in
   let main = ref false in
@@ -289,10 +289,13 @@ let fun_to_cll fun_prog =
     ) empty_cycle data 
   in
   let data_cycle = append data_cycle (default_node ("function_result", 0)) in
-  if !main then
+  match (!main, lib) with
+  | (true, false) | (false, true) ->
     {syntax_tree = (procedures, data_cycle); tag_set = genv}
-  else
+  | (false, false) ->
     raise (SyntaxError("No 'main' function defined.", 0, 0))
+  | (true, true) ->
+    raise (SyntaxError("Libraries are not allowed to define a function 'main'.", 0, 0))
 
 let write_tabs file depth =
   for i = 1 to depth do

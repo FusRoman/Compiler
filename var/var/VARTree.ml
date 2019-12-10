@@ -605,40 +605,37 @@ let translate_function acc fct genv =
   let (block, _) = translate_instructions_cycle block compiler in
   {name = fct.name; block = to_list block; params = fct.params}::acc 
 
-let translate_global_declaration fct_acc data_acc init_acc decl main genv =
+let translate_global_declaration fct_acc data_acc decl main genv =
   match decl with
   | Fun fct ->
     if fct.name.contents = "main" then
-    begin
-      main := Some fct;
-      (fct_acc, data_acc, init_acc)
-    end
-    else
-      let fct_acc = translate_function fct_acc fct genv in
-      (fct_acc, data_acc, init_acc)
+      main := true;
+    let fct_acc = translate_function fct_acc fct genv in
+    (fct_acc, data_acc)
 
   | Var(v, e) ->
     match e with
     | Int i -> 
-      (fct_acc, (v, i)::data_acc, init_acc)
+      (fct_acc, (v, i)::data_acc)
     | Bool b -> 
-      (fct_acc, (v, Arith.int_of_bool b)::data_acc, init_acc)
+      (fct_acc, (v, Arith.int_of_bool b)::data_acc)
     | _ ->
-      let init_acc = (BinopAssign(Id v, Standard, e))::init_acc in
-      (fct_acc, (v, 0)::data_acc, init_acc)
+      raise (SyntaxError("Initializing global variables with an expression other than an immediate value is not allowed in VAR.", 0, 0))
 
-let var_to_fun var =
+let var_to_fun lib var =
   let genv = Tagset.union_duplicate var_variables var.tag_set in
-  let main = ref None in
-  let (fct, data, init) = List.fold_left (fun (fct_acc, data_acc, init_acc) decl -> 
-    translate_global_declaration fct_acc data_acc init_acc decl main genv
-  ) ([], [], []) var.syntax_tree in
-  match !main with
-  | None -> 
+  let main = ref false in
+  let (fct, data) = 
+    List.fold_left (fun (fct_acc, data_acc) decl -> 
+      translate_global_declaration fct_acc data_acc decl main genv
+    ) ([], []) var.syntax_tree 
+  in
+  match (!main, lib) with
+  | (false, false) -> 
     raise (SyntaxError("No function 'main' defined.", 0, 0))
-  | Some main_fct ->
-    let main = {main_fct with block = (List.rev init) @ main_fct.block} in
-    let fct = translate_function fct main genv in
+  | (true, true) ->
+    raise (SyntaxError("Libraries are not allowed to define a function 'main'.", 0, 0))
+  | (false, true) | (true, false) ->
     {syntax_tree = (List.rev fct, List.rev data); tag_set = genv}
 
 
