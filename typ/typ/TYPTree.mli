@@ -18,6 +18,8 @@ and _type =
   |TTuple of _type list
   |TAlias of string node
 
+  type typ_binop = ARTBinop of binop | Seq
+
   type record_field = string node * typ_expression node
   and typ_expression =
     | Int of int
@@ -25,7 +27,7 @@ and _type =
     | Id of string node
     | Deref of typ_expression node
     | Unop of unop * typ_expression node
-    | Binop of typ_expression node * binop * typ_expression node
+    | Binop of typ_expression node * typ_binop * typ_expression node
     | Call of typ_expression node * (typ_expression node list)
     | RecordAccess of typ_expression node * string node
     | NewRecord of _type * record_field list

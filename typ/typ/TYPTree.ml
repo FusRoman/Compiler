@@ -18,6 +18,8 @@ and _type =
   |TTuple of _type list
   |TAlias of string node
 
+type typ_binop = ARTBinop of binop | Seq
+
 type record_field = string node * typ_expression node
 and typ_expression =
   | Int of int
@@ -25,7 +27,7 @@ and typ_expression =
   | Id of string node
   | Deref of typ_expression node
   | Unop of unop * typ_expression node
-  | Binop of typ_expression node * binop * typ_expression node
+  | Binop of typ_expression node * typ_binop * typ_expression node
   | Call of typ_expression node * (typ_expression node list)
   | RecordAccess of typ_expression node * string node
   | NewRecord of _type * record_field list
@@ -94,6 +96,11 @@ exception TypeError of string * int * int
 
 let malloc = default_node "malloc"
 
+let string_of_typ_binop op =
+  match op with
+  |ARTBinop op -> string_of_binop op
+  |Seq -> "="
+
 let rec string_of_type t =
   let rec aux separator l =
     match l with
@@ -124,9 +131,9 @@ let rec string_of_type t =
 
 let raise_type_error got expected line column =
   raise (TypeError(Printf.sprintf
-    "This expression has type %s, but an expression was expected of type %s."
-    (string_of_type got) expected,
-  line, column))
+                     "This expression has type %s, but an expression was expected of type %s."
+                     (string_of_type got) expected,
+                   line, column))
 
 let rec find_type_alias type_env a =
   match a with
@@ -150,10 +157,12 @@ let rec find_type_alias type_env a =
     TFun(List.map (find_type_alias type_env) args, find_type_alias type_env return)
   |TRecord renv ->
     TRecord (StringMap.map (fun (t, o) ->
-      (find_type_alias type_env t, o)
-    ) renv)
+        (find_type_alias type_env t, o)
+      ) renv)
   |TTuple t ->
     TTuple(List.map (find_type_alias type_env) t)
+
+
 
 let rec check_expression genv type_env e = 
   match e with
@@ -188,17 +197,23 @@ let rec check_expression genv type_env e =
     begin
       let true_type_e1 = find_type_alias type_env (check_expression genv  type_env e1.contents) in
       let true_type_e2 = find_type_alias type_env (check_expression genv type_env e2.contents) in
-      match (true_type_e1, true_type_e2) with
-      |TInt, TInt -> TInt
-      |TPointer t, TInt |TInt, TPointer t when op = Add || op = Sub ->
-        TPointer t
-      |x,y -> 
-        let s_op = string_of_binop op in
-        raise (TypeError (
-            Printf.sprintf "Cannot perform '%s' on values of type %s and %s" s_op (string_of_type x) (string_of_type y),
-            e1.line,
-            e1.column
-          ))
+      match op with
+      |Seq | ARTBinop Eq ->
+        TInt
+      |other_op ->
+        begin
+          match (true_type_e1, true_type_e2) with
+          |TInt, TInt -> TInt
+          |TPointer t, TInt |TInt, TPointer t when other_op = ARTBinop Add || other_op = ARTBinop Sub ->
+            TPointer t
+          |x,y -> 
+            let s_op = string_of_typ_binop other_op in
+            raise (TypeError (
+                Printf.sprintf "Cannot perform '%s' on values of type %s and %s" s_op (string_of_type x) (string_of_type y),
+                e1.line,
+                e1.column
+              ))
+        end
     end
   |Call (s, expr_list) ->
     begin
@@ -206,16 +221,16 @@ let rec check_expression genv type_env e =
       match true_type with
       | TPointer (TFun (type_params, return_type)) ->
         begin try
-          List.iter2 (
-            fun expr param_type ->
-              let actual_type = check_expression genv type_env expr.contents in
-              let true_type = find_type_alias type_env actual_type in
-              let true_type_param = find_type_alias type_env param_type in
-              if not (true_type = true_type_param) then
-                raise_type_error actual_type (string_of_type param_type) expr.line expr.column
-          ) expr_list type_params
-        with Not_found ->
-          raise (TypeError("Invalid number of arguments provided", s.line, s.column))
+            List.iter2 (
+              fun expr param_type ->
+                let actual_type = check_expression genv type_env expr.contents in
+                let true_type = find_type_alias type_env actual_type in
+                let true_type_param = find_type_alias type_env param_type in
+                if not (true_type = true_type_param) then
+                  raise_type_error actual_type (string_of_type param_type) expr.line expr.column
+            ) expr_list type_params
+          with Not_found ->
+            raise (TypeError("Invalid number of arguments provided", s.line, s.column))
         end;
         return_type
       |x ->
@@ -407,16 +422,16 @@ let rec check_instruction genv type_env f i =
       match true_type with
       |TFun (type_params, return_type) ->
         begin try 
-          List.iter2 (
-            fun expr param_type ->
-              let actual_type = check_expression genv type_env expr.contents in
-              let true_type = find_type_alias type_env actual_type in
-              let true_type_param = find_type_alias type_env param_type in
-              if not (true_type = true_type_param) then
-                raise_type_error actual_type (string_of_type param_type) expr.line expr.column
-          ) expr_list type_params
-        with Not_found ->
-          raise (TypeError("Invalid number of arguments provided", s.line, s.column))
+            List.iter2 (
+              fun expr param_type ->
+                let actual_type = check_expression genv type_env expr.contents in
+                let true_type = find_type_alias type_env actual_type in
+                let true_type_param = find_type_alias type_env param_type in
+                if not (true_type = true_type_param) then
+                  raise_type_error actual_type (string_of_type param_type) expr.line expr.column
+            ) expr_list type_params
+          with Not_found ->
+            raise (TypeError("Invalid number of arguments provided", s.line, s.column))
         end
       |x ->
         raise_type_error x "pointer of function" s.line s.column
@@ -519,7 +534,138 @@ let make_var_node _type env =
     Si None -> faire comme déjà fait, si Some -> optimisation.
     Quand on détecte BinopAssign(d, op, NewTruc), on peut appeler avec Some d.
 *)
-let rec translate_expression genv type_env e =
+
+let rec structural_equality genv type_env e1 e2 test_array from_array =
+  match (check_expression genv type_env e1.contents), (check_expression genv type_env e2.contents) with
+  |TInt, TInt ->
+    let (init1, var_e1, reeval1, env1) = translate_expression genv type_env e1.contents in
+    let (init2, var_e2, reeval2, env2) = translate_expression env1 type_env e2.contents in
+    let test_array = match from_array with
+      |Some t -> t
+      |None -> false in
+    if test_array then
+      (
+        Cycle.extend init1 init2,
+        VARTree.Binop (var_e1, Neq, var_e2),
+        Cycle.extend reeval1 reeval2,
+        env2,
+        false
+      )
+    else
+      (
+        Cycle.extend init1 init2,
+        VARTree.Binop (var_e1, Eq, var_e2),
+        Cycle.extend reeval1 reeval2,
+        env2,
+        false
+      )
+  |TPointer (TTuple l1), TPointer (TTuple l2) ->
+    let (init,var_equal ,reeval, env, t, _) = List.fold_left (
+        fun (acc_init,var_acc ,acc_reeval, acc_env, t , it) _ ->
+          let access_t1 = TupleAccess (e1, it) in
+          let access_t2 = TupleAccess (e2, it) in
+          let (init, var, reeval, new_env,t) = structural_equality acc_env type_env (default_node access_t1) (default_node access_t2) test_array from_array in
+          (
+            extend acc_init init,
+            append var_acc var,
+            extend acc_reeval reeval,
+            new_env,
+            t,
+            it + 1
+          )
+      ) (empty_cycle,empty_cycle ,empty_cycle, genv, false, 0) l1 in
+    let (head, tail) = take var_equal in
+    let test_tuple = match from_array with
+      |Some t -> t
+      |None -> false in
+    let cond_expr = iter tail (
+        fun simple_equal acc ->
+          if test_tuple then
+            VARTree.Binop (acc, Or, simple_equal)
+          else
+            VARTree.Binop (acc, And, simple_equal)
+      ) head in
+    (
+      init,
+      cond_expr,
+      reeval,
+      env,
+      false
+    )
+  |TPointer (TArray t1), TPointer (TArray t2) ->
+    let (init1, var_e1, reeval1, env1) = translate_expression genv type_env e1.contents in
+    let (init2, var_e2, reeval2, env2) = translate_expression env1 type_env e2.contents in
+    let (new_env, test_tag) = make_var_node TInt env2 in
+    let (new_env,i) = make_var_node TInt new_env in
+    let var_test = VARTree.Declaration (test_tag, Int 1) in
+    let var_i = VARTree.Declaration (i, Int 0) in
+    let access_size_array1 = VARTree.Binop (var_e1, Sub, Int 1) in
+    let access_size_array2 = VARTree.Binop (var_e2, Sub, Int 1) in
+    let test_size = VARTree.Binop (Deref access_size_array1, Neq, Deref access_size_array2) in
+    let test_tag_param = match test_array with
+      |None -> test_tag
+      |Some test_param -> test_param in
+    let block_if = VARTree.BinopAssign (Id test_tag_param, Standard, Int 0) in
+    let access_array1 = ArrayAccess (e1, default_node (Deref (default_node (Id i)))) in
+    let access_array2 = ArrayAccess (e2, default_node (Deref (default_node (Id i)))) in
+    let (init_test, test_if_block_for, reeval_test, env_test, to_tab) = structural_equality new_env type_env (default_node access_array1) (default_node access_array2) (Some test_tag_param) (Some true) in
+    let block_for = VARTree.If (test_if_block_for, [block_if]) in
+
+    let block_for = if to_tab then init_test else (append init_test block_for) in
+    let cond_for = VARTree.Binop (Deref (Id i), Lt, Deref access_size_array1) in
+    let it_for = VARTree.UnopAssign (Id i, Incr) in
+    let block_else = VARTree.For ([var_i], cond_for, [it_for], to_list block_for) in
+    let block_struct_equal = VARTree.IfElse (test_size, [block_if], [block_else]) in
+    let tmp_cycle = append empty_cycle var_test in
+    (
+      append tmp_cycle block_struct_equal,
+      Deref (Id test_tag_param),
+      reeval_test,
+      env_test,
+      true
+    )
+
+  |TPointer (TRecord env1), TPointer (TRecord env2) ->
+    let access_all_field_r1 = map (from_list (StringMap.bindings env1)) (
+        fun (s, _) ->
+          default_node (RecordAccess (e1, default_node s))
+      ) in
+    let access_all_field_r2 = map (from_list (StringMap.bindings env2)) (
+        fun (s, _) ->
+          default_node (RecordAccess (e2, default_node s))
+      ) in
+    let (a_r1, tail1) = take access_all_field_r1 in
+    let (a_r2, tail2) = take access_all_field_r2 in
+    let (first_init, first_var_expr, first_reeval, first_env,test) = structural_equality genv type_env a_r1 a_r2 test_array from_array in
+    iter2 tail1 tail2 (
+      fun a_r1 a_r2 (init_acc, var_acc, reeval_acc, env_acc, test_acc)   ->
+        let (init_r1, var_r1, reeval_r1, env_r1,t) = structural_equality env_acc type_env a_r1 a_r2 test_array from_array in
+        let test = match from_array with
+          |Some t -> t
+          |None -> false in
+        if test then
+          (
+            extend init_acc init_r1,
+            VARTree.Binop (var_acc, Or, var_r1),
+            extend reeval_acc reeval_r1,
+            env_r1,
+            t
+          )
+        else
+          (
+            extend init_acc init_r1,
+            VARTree.Binop (var_acc, And, var_r1),
+            extend reeval_acc reeval_r1,
+            env_r1,
+            t
+          )
+    ) (first_init, first_var_expr, first_reeval, first_env,test)  
+
+  |TPointer a, TPointer b ->
+    structural_equality genv type_env (default_node (Deref e1)) (default_node (Deref e2)) test_array from_array
+  |_,_ -> failwith "erreur égalité de structure"
+
+and translate_expression genv type_env e =
   match e with
   |TupleAccess (tpl, i) ->
     let (init_struct, name_tuple, reeval_struct, new_env) = translate_expression genv type_env tpl.contents in
@@ -765,14 +911,28 @@ let rec translate_expression genv type_env e =
       new_env
     )
   |Binop (e1, op, e2) ->
-    let (init1, var_e1, reeval1, new_env1) = translate_expression genv type_env e1.contents in
-    let (init2, var_e2, reeval2, new_env2) = translate_expression new_env1 type_env e2.contents in
-    (
-      Cycle.extend init1 init2,
-      Binop (var_e1, op, var_e2),
-      Cycle.extend reeval1 reeval2,
-      new_env2
-    )
+    begin
+      match op with
+      |ARTBinop op ->
+        let (init1, var_e1, reeval1, new_env1) = translate_expression genv type_env e1.contents in
+        let (init2, var_e2, reeval2, new_env2) = translate_expression new_env1 type_env e2.contents in
+        (
+          Cycle.extend init1 init2,
+          Binop (var_e1, op, var_e2),
+          Cycle.extend reeval1 reeval2,
+          new_env2
+        )
+      |Seq ->
+        begin
+          let (init, v, reeval, env, _) = structural_equality genv type_env e1 e2 None None in
+          (
+            init,
+            v,
+            reeval,
+            env
+          )
+        end
+    end
   |Call (function_name, function_block) ->
     let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name.contents in
     let (init_param, var_param, reeval_param, env_param) = List.fold_left (

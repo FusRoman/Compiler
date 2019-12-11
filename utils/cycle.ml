@@ -125,6 +125,19 @@ let rec iter q f acc =
   else
     acc
 
+let rec iter2 q1 q2 f acc =
+  let ok1 = count_1 q1 in
+  let ok2 = count_1 q2 in
+  match (ok1, ok2) with
+  | (true, true) ->
+    let (x1, q1') = take q1 in
+    let (x2, q2') = take q2 in
+    iter2 q1' q2' f (f x1 x2 acc)
+  | (false, true) | (true, false) ->
+    raise (Invalid_argument "Cycle.iter2: both arguments must have the same size")
+  | (false, false) ->
+    acc
+
 let rec to_list q =
   if count_1 q then
     let (x, q') = take q in
