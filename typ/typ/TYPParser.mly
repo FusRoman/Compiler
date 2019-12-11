@@ -65,6 +65,7 @@
 %}
 
 %token VAR TINT TSTRING TFUN TYPE ARROW EXTENDS
+%token NULL
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -87,7 +88,6 @@
 %token EOF
 
 %start program
-%start header
 %type <TYPTree.typ_prog TYPTree.program> program
 %type <TYPTree.variable> variable_declaration
 %type <TYPTree.parameter> parameter
@@ -99,7 +99,6 @@
 %type <TYPTree.typ_instrs> block
 %type <TYPTree.typ_instr> control
 %type <TYPTree._type> type_expr
-%type <unit> header
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -111,8 +110,6 @@
 %left DOT LS
 
 %%
-
-(* Programme (.typ) *)
 
 program:
 | globals=list(global_declaration) EOF
@@ -133,21 +130,21 @@ global_declaration:
       Fun f
     }
 
-| var=global_variable_declaration SEMI
-    {
-      Var var
-    }
+| VAR name=LABEL COLON typ=type_expr ASSIGN i=immediate
+  {
+    Var (typ, make_node $startpos name, i)
+  }
+
 | t=type_declaration SEMI
     { 
       Type t
     }
 ;
 
-global_variable_declaration:
-| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr
-  {
-    (typ, make_node $startpos name, e)
-  }
+immediate:
+| b=BOOL { make_node $startpos (Bool b) }
+| i=INT  { make_node $startpos (Int i) }
+| NULL   { make_node $startpos Null }
 ;
 
 type_declaration:
@@ -282,6 +279,8 @@ expr:
 ;
 
 simple_expr:
+| NULL
+    { make_node $startpos Null }
 | i=INT
     { make_node $startpos (Int i) }
 | b=BOOL
@@ -425,26 +424,3 @@ control:
 any_instruction:
 | i=instruction { i }
 | c=control { c }
-
-
-(* Header (.htyp) *)
-
-header:
-| l=list(header_declaration) EOF
-  {
-    ()
-  }
-;
-
-header_declaration:
-| name=LABEL COLON t=type_expr SEMI
-  { HVar(make_node $startpos name, t) }
-| TYPE name=LABEL SEMI
-  (* A modifier plus tard of course *)
-  { 
-    let name_node = make_node $startpos name in
-    HType(name_node, TAlias name_node) 
-  }
-| TYPE name=LABEL ASSIGN t=type_expr SEMI
-  { HType(make_node $startpos name, t) }
-;

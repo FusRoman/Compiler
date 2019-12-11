@@ -10,13 +10,14 @@ type env = _type StringMap.t
 and record_env = (_type * int) StringMap.t
 
 and _type =
-  |TInt
-  |TPointer of _type
-  |TArray of _type
-  |TFun of (_type list) * _type
-  |TRecord of record_env
-  |TTuple of _type list
-  |TAlias of string node
+  | TNull
+  | TInt
+  | TPointer of _type
+  | TArray of _type
+  | TFun of (_type list) * _type
+  | TRecord of record_env
+  | TTuple of _type list
+  | TAlias of string node
 
 and declarable_type =
   | TRegular of _type
@@ -26,6 +27,7 @@ type typ_binop = ARTBinop of binop | Seq | NSeq
 
 type record_field = string node * typ_expression node
 and typ_expression =
+  | Null
   | Int of int
   | Bool of bool
   | Id of string node

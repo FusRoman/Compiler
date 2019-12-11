@@ -12,6 +12,8 @@ rule token = parse
       { comment lexbuf; token lexbuf }
   | "extends"
     { EXTENDS }
+  | "null"
+    { NULL }
   | "var"
       { VAR }
   | "int"

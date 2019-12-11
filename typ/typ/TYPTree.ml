@@ -10,13 +10,14 @@ type env = _type StringMap.t
 and record_env = (_type * int) StringMap.t
 
 and _type =
-  |TInt
-  |TPointer of _type
-  |TArray of _type
-  |TFun of (_type list) * _type
-  |TRecord of record_env
-  |TTuple of _type list
-  |TAlias of string node
+  | TNull
+  | TInt
+  | TPointer of _type
+  | TArray of _type
+  | TFun of (_type list) * _type
+  | TRecord of record_env
+  | TTuple of _type list
+  | TAlias of string node
 
 and declarable_type =
   | TRegular of _type
@@ -26,6 +27,7 @@ type typ_binop = ARTBinop of binop | Seq | NSeq
 
 type record_field = string node * typ_expression node
 and typ_expression =
+  | Null
   | Int of int
   | Bool of bool
   | Id of string node
@@ -103,11 +105,13 @@ let string_of_typ_binop op =
 let rec string_of_type t =
   let rec aux separator l =
     match l with
-    |[] -> ""
-    |[x] -> string_of_type x
-    |x :: s ->
-      (string_of_type x) ^ separator ^ (aux separator s) in
+    | [] -> ""
+    | [x] -> string_of_type x
+    | x :: s ->
+      (string_of_type x) ^ separator ^ (aux separator s) 
+  in
   match t with
+  |TNull -> "?*"
   |TInt -> "int"
   |TPointer x ->
     "pointer of " ^ (string_of_type x)
@@ -136,7 +140,7 @@ let raise_type_error got expected line column =
 
 let rec find_type_alias type_env a =
   match a with
-  |TInt -> a
+  |TInt | TNull -> a
   |TAlias alias ->
     begin
       match StringMap.find_opt alias.contents type_env with
@@ -162,14 +166,16 @@ let rec find_type_alias type_env a =
     TTuple(List.map (find_type_alias type_env) t)
 
 (* 
-  La fonction de comparaison des types pour les paramètres de fonction varie un peu :
-  les records sont plus inclusifs. Si on attend un record avec a et b, on accepte aussi
-  un record avec a, b et c du moment que a et b ont le même décalage.
+  Fonction de comparaison des types.
+  Elle peut au choix être inclusive ou pas ; si inclusive,
+  on peut donner un record contenant tous les champs attendus avec le bon décalage et d'autres supplémentaires
+  lors du passage d'arguments, de la déclaration et de l'affectation.
 *)
-let compare_types_inclusive type_env expected actual =
+let compare_types inclusive type_env expected actual =
   let rec compare_rec t1 t2 =
     match (t1, t2) with
-    | (TInt, TInt) -> true
+    | (TInt, TInt) | (TNull, TNull) | (TPointer _, TNull) | (TNull, TPointer _) ->
+      true
 
     | (TPointer t1, TPointer t2) | (TArray t1, TArray t2) ->
       compare_rec t1 t2 
@@ -191,7 +197,7 @@ let compare_types_inclusive type_env expected actual =
       else
         false
 
-    | (TRecord renv1, TRecord renv2) ->
+    | (TRecord renv1, TRecord renv2) when inclusive ->
       StringMap.fold (fun field (t1, o1) acc ->
         if StringMap.mem field renv2 then
           let (t2, o2) = StringMap.find field renv2 in
@@ -199,6 +205,9 @@ let compare_types_inclusive type_env expected actual =
         else
           false
       ) renv1 true
+
+    | (TRecord renv1, TRecord renv2) ->
+      renv1 = renv2
 
     | (_, TAlias t) | (TAlias t, _) ->
       failwith (Printf.sprintf "TYPTree.compare_types_inclusive: unexpected (TAlias '%s')" t.contents)
@@ -210,10 +219,14 @@ let compare_types_inclusive type_env expected actual =
   let true_t2 = find_type_alias type_env actual in
   compare_rec true_t1 true_t2
 
+let compare_types_inclusive = compare_types true
+let compare_types_exclusive = compare_types false
+
 let rec check_expression genv type_env e = 
   match e with
   |Int _ -> TInt
   |Bool _ -> TInt
+  |Null -> TNull
   |Id s_node ->
     begin
       match StringMap.find_opt s_node.contents genv with
@@ -254,11 +267,16 @@ let rec check_expression genv type_env e =
           match (true_type_e1, true_type_e2) with
           |TInt, TInt -> TInt
           |TPointer t, TInt |TInt, TPointer t when other_op = ARTBinop Add || other_op = ARTBinop Sub ->
+            (* 
+              Arithmétique interdite sur null directement, cela dit rien n'empêche de faire 
+              var v: int* := null;
+              print( *(v + 5) );
+            *)
             TPointer t
           |x,y -> 
             let s_op = string_of_typ_binop other_op in
             raise (TypeError (
-                Printf.sprintf "Cannot perform '%s' on values of type %s and %s" s_op (string_of_type x) (string_of_type y),
+                Printf.sprintf "Can not perform '%s' on values of type %s and %s" s_op (string_of_type x) (string_of_type y),
                 e1.line,
                 e1.column
               ))
@@ -331,21 +349,29 @@ let rec check_expression genv type_env e =
       let true_type_record = find_type_alias type_env type_record.contents in
       match true_type_record with
       |TPointer (TRecord e) ->  
-        List.iter (
-          fun (name_node, expr) ->
+        let _, count =
+          List.fold_left (fun (acc, count) (name_node, expr) ->
+            if Tagset.mem name_node.contents acc then
+              raise (SyntaxError(
+                Printf.sprintf "Field '%s' was already initialized." name_node.contents,
+                name_node.line, name_node.column;
+              ));
             match StringMap.find_opt name_node.contents e with
             |None -> 
               raise (TypeError (
-                Printf.sprintf "Field '%s' was not initialized." name_node.contents, 
+                Printf.sprintf "Unknown field '%s'." name_node.contents, 
                 type_record.line, type_record.column
               ))
             |Some (_type,_) ->
               let actual_type = check_expression genv type_env expr.contents in
-              let true_type = find_type_alias type_env actual_type in
-              let true_type_field = find_type_alias type_env _type in
-              if not (true_type = true_type_field) then
+              if not (compare_types_inclusive type_env _type actual_type) then
                 raise_type_error actual_type (string_of_type _type) expr.line expr.column
-        ) list_field;
+              else
+                (Tagset.add name_node.contents acc, count + 1)
+          ) (Tagset.empty, 0) list_field
+        in
+        if count <> StringMap.cardinal e then
+          raise (SyntaxError("At least one field is not initialized.", type_record.line, type_record.column));
         type_record.contents
 
       |_ ->
@@ -354,15 +380,13 @@ let rec check_expression genv type_env e =
 
   |InitArray expr_list ->
     let first_type = check_expression genv type_env (List.hd expr_list).contents in
-    let first_true_type = find_type_alias type_env first_type in
     List.iter (
       fun expr ->
         let actual_type = check_expression genv type_env expr.contents in
-        let true_type = find_type_alias type_env actual_type in
-        if not (true_type = first_true_type) then
+        if not (compare_types_inclusive type_env first_type actual_type) then
           raise_type_error actual_type (string_of_type first_type) expr.line expr.column
     ) (List.tl expr_list);
-    TPointer (TArray first_true_type)
+    TPointer (TArray first_type)
 
   |TupleAccess (tpl, i) ->
     let true_type = find_type_alias type_env (check_expression genv type_env tpl.contents) in
@@ -398,13 +422,12 @@ let rec check_instruction genv type_env f i =
       match f with
       |Some fonction ->
         let type_return = check_expression genv type_env e.contents in
-        let true_type_return = find_type_alias type_env type_return in
-        let true_type_fun_return = find_type_alias type_env fonction.return_type in
-        if not (true_type_return = true_type_fun_return) then
+        if not (compare_types_inclusive type_env fonction.return_type type_return) then
           raise_type_error type_return (string_of_type fonction.return_type) e.line e.column
       |None -> 
         raise (SyntaxError ("No return found in this function",0,0) )
     end
+
   |Print e ->
     let actual_type = check_expression genv type_env e.contents in
     let true_type = find_type_alias type_env actual_type in
@@ -541,26 +564,9 @@ and check_global_declaration genv type_env l =
           ) genv f.params in
         check_list_instruction env_with_param type_env (Some f) f.block
       |Var (_type_var, name_var, expr) ->
-        (* Tout ça c'est pas à jour du tout, faudra virer *)
-        begin
-          match _type_var with
-          |TInt ->
-            let true_type = find_type_alias type_env _type_var in
-            let type_expr = find_type_alias type_env (check_expression genv type_env expr.contents) in
-            if not (type_expr = true_type) then
-              raise (TypeError 
-                       ("This expression has type " ^ (string_of_type true_type) ^
-                        "\nbut an expression was expected of type " ^ (string_of_type _type_var), 
-                        expr.line, 
-                        expr.column)
-                    )
-          |x -> raise (TypeError 
-                         ("This expression has type " ^ (string_of_type x) ^
-                          "\nbut an expression was expected of type int, only int are allowed for the globals variable declaration", 
-                          0, 
-                          0)
-                      )
-        end
+        let type_expr = check_expression genv type_env expr.contents in
+        if not (compare_types_inclusive type_env _type_var type_expr) then
+          raise_type_error _type_var (string_of_type _type_var) expr.line expr.column
       |_ -> ()
   ) l
 
@@ -575,7 +581,7 @@ let make_var_node _type env =
 
 (*
     Optimisation
-    Pour l'instant la compilation fait un truc un peu dégueu du genre
+    Pour l'instant la compilation ressemble à
     var r := {a := e1; b := e2};
     ->
     var tmp := malloc(2);
@@ -585,22 +591,23 @@ let make_var_node _type env =
     *(tmp+1) := e2';
     var r := tmp;
 
-    On peut virer la dernière affectation en utilisant r à la place de tmp.
+    On peut supprimer la dernière affectation en utilisant r à la place de tmp.
     Pour ce faire, sortir la traduction de NewArray, NewRecord et NewTuple de translate_expression et 
     les appeler dans translate_expression avec un argument en plus, une option d'expression.
     Si None -> faire comme déjà fait, si Some -> optimisation.
     Quand on détecte BinopAssign(d, op, NewTruc), on peut appeler avec Some d.
 *)
 
-
 let rec structural_equality genv type_env e1 e2 test_array from_array =
-  match (check_expression genv type_env e1.contents), (check_expression genv type_env e2.contents) with
+  match (check_expression genv type_env e1.contents, check_expression genv type_env e2.contents) with
   | TInt, TInt ->
     let (init1, var_e1, reeval1, env1) = translate_expression genv type_env e1.contents in
     let (init2, var_e2, reeval2, env2) = translate_expression env1 type_env e2.contents in
-    let test_array = match from_array with
+    let test_array = 
+      match from_array with
       |Some t -> t
-      |None -> false in
+      |None -> false 
+    in
     if test_array then
       (
         Cycle.extend init1 init2,
@@ -617,6 +624,9 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
         env2,
         false
       )
+
+  | TNull, TNull ->
+    (Cycle.empty_cycle, Bool true, Cycle.empty_cycle, genv, false)
 
   |TPointer (TTuple l1), TPointer (TTuple l2) ->
     let (init,var_equal ,reeval, env, t, _) = List.fold_left (
@@ -700,7 +710,7 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
       ) in
     let (a_r1, tail1) = take access_all_field_r1 in
     let (a_r2, tail2) = take access_all_field_r2 in
-    let (first_init, first_var_expr, first_reeval, first_env,test) = structural_equality genv type_env a_r1 a_r2 test_array from_array in
+    let (first_init, first_var_expr, first_reeval, first_env, test) = structural_equality genv type_env a_r1 a_r2 test_array from_array in
     iter2 tail1 tail2 (
       fun a_r1 a_r2 (init_acc, var_acc, reeval_acc, env_acc, test_acc)   ->
         let (init_r1, var_r1, reeval_r1, env_r1,t) = structural_equality env_acc type_env a_r1 a_r2 test_array from_array in
@@ -729,7 +739,16 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
 
   |TPointer a, TPointer b ->
     structural_equality genv type_env (default_node (Deref e1)) (default_node (Deref e2)) test_array from_array
-  |_,_ -> failwith "erreur égalité de structure"
+
+  |TPointer a, TNull ->
+    let (init, e1', reeval, env) = translate_expression genv type_env e1.contents in
+    (init, Binop(e1', Eq, Int 0), reeval, env, false)
+
+  |TNull, TPointer a ->
+    let (init, e2', reeval, env) = translate_expression genv type_env e2.contents in
+    (init, Binop(e2', Eq, Int 0), reeval, env, false)
+
+  |_,_ -> failwith "erreur égalité structurelle"
 
 
 and translate_expression genv type_env e =
@@ -752,11 +771,11 @@ and translate_expression genv type_env e =
           |Some (_type, offset) ->
             let (init_struct, name_record, reeval_struct, new_env) = translate_expression genv type_env name_record.contents in
             (init_struct, VARTree.Binop (name_record, Add, VARTree.Int offset), reeval_struct, new_env)
-          |None -> raise (TypeError 
-                            ("This field " ^ field.contents ^ "was not declared before.",
-                             field.line, 
-                             field.column)
-                         )
+          |None -> 
+            raise (TypeError(
+              Printf.sprintf "Unknown field '%s'" field.contents,
+              field.line, field.column
+            ))
         end
       |x ->
         raise_type_error x "pointer of record" name_record.line name_record.column
@@ -938,44 +957,26 @@ and translate_expression genv type_env e =
       return_env
     )
 
-
   |Int x ->
-    (
-      empty_cycle,
-      Int x,
-      empty_cycle,
-      genv
-    )
+    (empty_cycle, Int x, empty_cycle, genv)
+
+  |Null ->
+    (empty_cycle, Int 0, empty_cycle, genv)
+
   |Bool b ->
-    (
-      empty_cycle,
-      Bool b,
-      empty_cycle,
-      genv
-    )
+    (empty_cycle, Bool b, empty_cycle, genv)
+
   |Id s ->
-    (
-      empty_cycle,
-      Id s,
-      empty_cycle,
-      genv
-    )
+    (empty_cycle, Id s, empty_cycle, genv)
+
   |Deref e ->
     let (init, var_e, reeval, new_env) = translate_expression genv type_env e.contents in
-    (
-      init,
-      Deref var_e,
-      reeval,
-      new_env
-    )
+    (init, Deref var_e, reeval, new_env)
+
   |Unop (op, e) ->
     let (init, var_e, reeval, new_env) = translate_expression genv type_env e.contents in
-    (
-      init,
-      Unop (op, var_e),
-      reeval,
-      new_env
-    )
+    (init, Unop (op, var_e), reeval, new_env)
+
   |Binop (e1, op, e2) ->
     begin
       match op with
@@ -995,6 +996,7 @@ and translate_expression genv type_env e =
         let (init, v, reeval, env, _) = structural_equality genv type_env e1 e2 None None in
         (init, Unop(Not, v), reeval, env)
     end
+
   |Call (function_name, function_block) ->
     let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name.contents in
     let (init_param, var_param, reeval_param, env_param) = List.fold_left (
@@ -1143,18 +1145,20 @@ let translate_globals genv type_env g =
       begin
         match x with
         |Fun f -> 
-          let env_with_param = List.fold_left (
-              fun acc (p: parameter) ->
+          let env_with_param = 
+            List.fold_left (fun acc (p: parameter) ->
                 StringMap.add p.name.contents p.params_type acc
-            ) genv f.params in
+            ) genv f.params 
+          in
           let (block_var_fun, new_env) = translate_instructions env_with_param type_env f.block in
-          let new_params_list = List.map (
-              fun (p: parameter) ->
-                { reference = p.reference; name = p.name}
-            ) f.params in
+          let new_params_list = 
+            List.map (fun (p: parameter) ->
+              { reference = p.reference; name = p.name}
+            ) f.params 
+          in
           let var_globals = VARTree.Fun {
-              name = f.name; block = to_list block_var_fun; params = new_params_list
-            } in
+            name = f.name; block = to_list block_var_fun; params = new_params_list
+          } in
           inter (var_globals::acc) s
         |Var (_, name, t_expr) ->
           let init, var_expr, reeval, new_env = translate_expression genv type_env t_expr.contents in
@@ -1169,6 +1173,11 @@ let make_type_env types =
   let rec check_type acc alias _type =
     match _type with
     | TInt -> ()
+    | TNull ->
+      raise (SyntaxError(
+        "No value except 'null' can have type TNull",
+        alias.line, alias.column
+      ))
     | TAlias t ->
       if not (StringMap.mem t.contents acc) then
         raise (SyntaxError(

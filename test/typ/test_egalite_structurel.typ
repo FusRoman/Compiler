@@ -72,5 +72,25 @@ int main() {
     print_result(r1 = r2);
     print_result(r1 <> r3);
 
+    var i1: int := 97;
+    var i2: int := 98;
+
+    var p1: int* := &i1;
+    var p2: int* := &i1;
+    var p3: int* := &i2;
+
+    print_result(p1 = p2);
+    print_result(p1 <> p3);
+
+    var p1: int* := null;
+    var p2: int* := null;
+    var p3: int* := &i2;
+
+    print_result(p1 = p2);
+    print_result(p1 = null);
+    print_result(p1 == null);
+    print_result(p3 <> null);
+    print_result(p1 <> p3);
+
     exit;
 }
