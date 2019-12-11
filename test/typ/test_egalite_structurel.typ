@@ -31,7 +31,7 @@ int main() {
     #kkk(c=g);
 
     print_result(c = g);
-/*
+
     if (c = g) {
         print('o');
         print('k');
@@ -83,12 +83,12 @@ int main() {
 
     print_result(r1 = r2);
     print_result(r1 <> r3);
-*/
+
     var r1: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r2: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r3: re[] := [{<re> a:= 'a'; b:= 'g'}; {<re> a:= 'c'; b:= 'd'}];
 
-    /*if (r1 = r2) {
+    if (r1 = r2) {
         print('o');
         print('k');
         print(10);
@@ -97,10 +97,10 @@ int main() {
         print('o');
         print('n');
         print(10);
-    }*/
+    }
 
     print_result(r1 = r2);
-    #print_result(r1 <> r3);
+    print_result(r1 <> r3);
 
     exit;
 }
