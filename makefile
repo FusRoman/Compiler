@@ -266,7 +266,7 @@ clear:
 	rm -rf typ/typ/*.cmi typ/typ/*.cmo typ/typ/*.o typ/typ/TYPParser.ml typ/typ/TYPParser.mli typ/typ/TYPParser.automaton typ/typ/TYPParser.conflicts typ/typ/TYPLexer.ml typ/typ/TYPCompiler
 	rm -rf test/typ/*.btc test/typ/*.asm test/typ/*.stk test/typ/*.art test/typ/*.imp test/typ/*.cll test/typ/*.fun test/typ/*.var test/typ/*.tpl
 
-	rm -rf typ/cls/*.cmi typ/cls/*.cmo typ/cls/*.o typ/cls/CLSParser.ml typ/cls/CLSParser.mli typ/cls/CLSParser.automaton typ/cls/CLSParser.conflicts typ/cls/CLSLexer.ml typ/cls/CLSCompiler
+	rm -rf cls/cls/*.cmi cls/cls/*.cmo cls/cls/*.o cls/cls/CLSParser.ml cls/cls/CLSParser.mli cls/cls/CLSParser.automaton cls/cls/CLSParser.conflicts cls/cls/CLSLexer.ml cls/cls/CLSCompiler
 	rm -rf test/cls/*.btc test/cls/*.asm test/cls/*.stk test/cls/*.art test/cls/*.imp test/cls/*.cll test/cls/*.fun test/cls/*.var test/cls/*.tpl test/cls/*.typ
 
 	rm -rf compiler/*.cmi compiler/*.cmo compiler/ChainCompiler
