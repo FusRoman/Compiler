@@ -3,11 +3,15 @@ open Cycle
 open ARTTree
 open IMPTree
 
-let cll_variables = Tagset.add "frame_pointer" imp_variables
+(* 
+  function_address est utilisé pour évaluer l'expression de l'adresse d'une fonciton avant le Goto.
+  On aurait aussi pu utiliser le sommet de la pile pour stocker le résultat ou même function_result (a priori, à vérifier).
+*)
+let cll_variables = Tagset.(union (of_list ["frame_pointer"; "function_address"]) imp_variables)
 
 let stack_pointer = default_node "stack_pointer"
 let frame_pointer = default_node "frame_pointer"
-let function_result = default_node "function_result"
+let function_address = default_node "function_address"
 
 type cll_instr =
   | Nop
@@ -153,8 +157,9 @@ let rec translate_instruction tag_set maker i acc =
     let acc = append acc decr_sp in (* stack_pointer--; *)
     let acc = append acc (Assign(deref_sp, LStar(Id frame_pointer))) in (* *stack_pointer := frame_pointer; *)
     let acc = append acc decr_sp in (* stack_pointer--; *)
+    let acc = append acc (Assign(Id function_address, e)) in (* function_address := e *)
     let acc = append acc (Assign(Id frame_pointer, Binop(LStar(Id stack_pointer), Add, Int 2))) in (* frame_pointer := stack_pointer + 2; *)
-    let acc = append acc (Goto e) in (* goto(e); *)
+    let acc = append acc (Goto(LStar(Id function_address))) in (* goto( *function_address); *)
     append acc (TagDeclaration return) (* return: *)
 
   | Return ->
@@ -217,21 +222,24 @@ let translate_procedures lib tag_set maker procs acc =
   tr_not_main tag_set maker procs acc'
 
 let cll_to_imp lib cll_prog =
+  let add_var data var value =
+    append data {
+      line = var.line; 
+      column = var.column; 
+      contents = (var.contents, value)
+    }
+  in
   let tag_set = Tagset.union_duplicate cll_variables cll_prog.tag_set in
   let maker = Tagset.make_tag_maker tag_set in
 
   let syntax_tree, data = 
-    let procs, data = cll_prog.syntax_tree in 
-    let data = append data {
-      line = frame_pointer.line; 
-      column = frame_pointer.column; 
-      contents = (frame_pointer.contents, 65537)
-      (* 
-        65537 car la première variable du main est stockée en 65536 (pas de cellule d'appel),
-        et est accédée avec frame_pointer - 2 
-      *)
-
-    } in
+    let procs, data = cll_prog.syntax_tree in
+    (* 
+      65537 car la première variable du main est stockée en 65535 (pas de cellule d'appel),
+      et est accédée avec frame_pointer - 2 
+    *)
+    let data = add_var data frame_pointer 65537 in
+    let data = add_var data function_address 0 in
     let instr = translate_procedures lib tag_set maker procs empty_cycle in
     (instr, data)
   in

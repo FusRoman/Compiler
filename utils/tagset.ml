@@ -37,7 +37,7 @@ let make_tag_maker l =
   {
     set = l;
     cpt = 0;
-    base = String.make (max_length + 1) 'a'
+    base = String.make max_length 'a'
   }
 
 let make_tag maker =
