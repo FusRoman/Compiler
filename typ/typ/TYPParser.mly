@@ -130,7 +130,7 @@ global_declaration:
       Fun f
     }
 
-| VAR name=LABEL COLON typ=type_expr ASSIGN i=immediate
+| VAR name=LABEL COLON typ=type_expr ASSIGN i=immediate SEMI
   {
     Var (typ, make_node $startpos name, i)
   }

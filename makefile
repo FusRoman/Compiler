@@ -217,8 +217,7 @@ build_cls:
 
 # ------------------------------ ChainCompiler -------------------------------------
 
-build_chain_compiler: 
-	@$(MAKE) -s build_typ
+build_chain_compiler:
 	@$(MAKE) -s build_cls
 	ocamlc -o compiler/ChainCompiler \
 		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \

@@ -16,12 +16,12 @@ compiler_workspace
 
 cls/cls/*.cmi
 cls/cls/*.cmo
-cls/cls/TYPParser.conflicts
-cls/cls/TYPParser.automaton
-cls/cls/TYPParser.mli
-cls/cls/TYPParser.ml
-cls/cls/TYPLexer.ml
-cls/cls/TYPCompiler
+cls/cls/CLSParser.conflicts
+cls/cls/CLSParser.automaton
+cls/cls/CLSParser.mli
+cls/cls/CLSParser.ml
+cls/cls/CLSLexer.ml
+cls/cls/CLSCompiler
 test/cls/*.typ
 test/cls/*.tpl
 test/cls/*.var
