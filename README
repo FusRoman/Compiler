@@ -1,16 +1,28 @@
-Trucs à faire (Guilhem) :
-  VAR:
-    - remodifier l'ordre d'évaluation des expressions ?
-      Pour l'instant, si g modifie la variable dont l'adresse lui est donnée, a + g(&a) n'est pas évaluée correctement.
-      On pourrait régler le problème en empilant d'abord a, évaluer g(&a), puis l'additioner à là on a empilé a.
-      Par contre c'est pas ce qu'il y a de plus performant donc il faudra détecter quand c'est nécessaire.
-      (en supposant par ailleurs que si on ne lui file pas l'adresse de la variable, g est incapable de modifier sa valeur,
-      quand bien même si on sait comment est structurée la pile c'est en fait possible).
-    - virer FUN ?
+Organisation du projet :
+  Les compilateurs STK, ART et IMP ainsi que l'interpréteur VAR sont dans leur propre dossier à la racine du projet.
+  Le compilateur STK le plus récent est STKCompilerAlloc. STKCompiler est une vieille version qui date d'avant la réalisation de CLL.
 
-  - adapter tous les langages pour l'arrivée des librairies ->
-    autoriser @ dans les noms, sauf à partir de TYP. Nom d'une fonction f de la librairie l dans TYP: f@l (comme ça on est sûr que le nom est pas pris)
+  Les langages CLL, FUN et VAR sont regroupés dans le dossier var. Dans l'état actuel des choses, FUN reste nécessaire dans la chaîne de compilation,
+  mais à part le calcul de l'adresse des paramètres, VAR fait tout ce que fait FUN pour des raisons d'ordre de l'évaluation des sous-expressions.
+  Concrètement, la plupart du temps, c'est VAR qui empile les arguments d'une fonction et pas FUN.
 
+  Le dossier typ contient TPL, TYP et CLS. A cause notamment de gros écarts par rapport à la spécification des langages, 
+  REC et EXT ont été intégrés à TYP. TPL varie aussi beaucoup par rapport à sa spécification, puisqu'au final il s'agit de VAR
+  avec malloc. Les tuples n'y sont pas gérés, ce rôle a été délégué à TYP.
+
+  Le dossier test contient tous les fichiers test, organisés par langage source.
+
+  Pour compiler tous les compilateurs :
+    make build_chain_compiler
+
+  Pour compiler un programme :
+    ./compiler/ChainCompiler -p <path du fichier test, sans test/ au début et avec l'extension>
+  Plusieurs options sont disponibles avec l'option --help.
+
+Extensions réalisées :
+
+
+Lolilol :
 Adresse des paramètres dans les appels terminaux :
   Comme certains paramètres sont recopiés, leur adresse change. Exemple :
   # Terminal
@@ -40,24 +52,3 @@ Adresse des paramètres dans les appels terminaux :
     mais pas toujours,en fonction des optimisations.
   Ce comportement est indésirable. Lors de la recherche des paramètres à réempiler, il faut donc y inclure les paramètres dont on utilise 
   l'adresse ; de cette façon, il n'y a pas d'effets de bord indésirable.
-
-Bug de VAR :
-  Les expressions ne sont pas évaluées dans le bon ordre.
-  Dans terminal.var, l_control renvoie 'g' au lieu de 'f' parce que l_aux est appelé, puis a + b est évalué et empilé, et ensuite function_result.
-  L'ordre désirable est en fait
-    - évaluer et empiler a + b
-    - évaluer et empiler l_aux(&b)
-      -> l_aux(&b);
-         empiler function_result
-    - évaluer f et l'appeler
-  L'ordre visé actuel est le même, sauf pour f qui est évalué en premier. Il faudra changer ça.
-  Les arguments des appels devront donc être empilés par... VAR. FUN devient bien inutile.
-
-
-Comment être sûr d'avoir des tags uniques ?
-On peut pas prendre le timestamp, car c'est de l'ordre de la seconde et il est tout à fait possible que deux librairies aient été compilées dans la même seconde sur deux ordis différents ou même par un seul programme. Même à la main, la seconde est limite.
-
-On peut pas juste prendre Tagset.choose car on risque d'avoir deux fois le même tag.
-Par exemple, stack_pointer est dans le tagset de tous les programmes compilés, ça pose problème. Par contre si on peut le virer, alors yep c'est bon. Cependant, il n'est pas seul dans ce cas et à cause de TPLLib, on n'a aucune idée de combien il peut potentiellement y en avoir. La solution serait de passer un tagset "interdit" depuis le haut, qui serait concrètement imp_variables, cll_variables, etc. en fonction du langage source. Mais c'est vachement relou à faire et y a peut-être mieux à faire.
-
-Sinon on peut prendre le nom du fichier. Là c'est safe, non ? Mais c'est relou. Mais y a pas le choix aussi.

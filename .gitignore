@@ -14,6 +14,23 @@ a.out
 compiler/ChainCompiler
 compiler_workspace
 
+typ/cls/*.cmi
+typ/cls/*.cmo
+typ/cls/TYPParser.conflicts
+typ/cls/TYPParser.automaton
+typ/cls/TYPParser.mli
+typ/cls/TYPParser.ml
+typ/cls/TYPLexer.ml
+typ/cls/TYPCompiler
+test/cls/*.typ
+test/cls/*.tpl
+test/cls/*.var
+test/cls/*.fun
+test/cls/*.cll
+test/cls/*.imp
+test/cls/*.art
+test/cls/*.stk
+
 typ/typ/*.cmi
 typ/typ/*.cmo
 typ/typ/TYPParser.conflicts

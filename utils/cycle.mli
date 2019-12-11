@@ -56,6 +56,9 @@ val turn_last : 'a cycle -> 'a * ('a cycle)
 (** Itère sur un cycle, dans l'ordre *)
 val iter : 'a cycle -> ('a -> 'b -> 'b) -> 'b -> 'b
 
+(** Itère sur deux cycles en même temps *)
+val iter2 : 'a cycle -> 'b cycle -> ('a -> 'b -> 'c -> 'c) -> 'c -> 'c 
+
 (* Renvoie un cycle en tant que liste *)
 val to_list : 'a cycle -> 'a list
 

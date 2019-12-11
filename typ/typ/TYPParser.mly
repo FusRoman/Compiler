@@ -50,9 +50,13 @@
         Printf.sprintf "Line %d, character %d to line %d, character %d: this is not a left expression" line column (get_line _end) (get_column _end),
         line, column
       ))
+
+  type header_declaration =
+  | HVar of string node * _type
+  | HType of string node * _type
 %}
 
-%token VAR TINT TSTRING TFUN TYPE ARROW NEW
+%token VAR TINT TSTRING TFUN TYPE ARROW EXTENDS
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -75,7 +79,9 @@
 %token EOF
 
 %start program
+%start header
 %type <TYPTree.typ_prog TYPTree.program> program
+%type <unit> header
 %type <TYPTree.variable> variable_declaration
 %type <TYPTree.parameter> parameter
 %type <TYPTree.typ_function> function_definition
@@ -94,9 +100,11 @@
 %left ADD SUB
 %left MULT DIV REM
 %left NOT CPL
-%left DOT
+%left DOT LS
 
 %%
+
+(* Programme (.typ) *)
 
 program:
 | globals=list(global_declaration) EOF
@@ -214,6 +222,11 @@ type_expr:
     ) (StringMap.empty, 0) fields in
     TPointer (TRecord env)
   }
+| EXTENDS t=type_expr LB fields=separated_nonempty_list(SEMI, field_declaration) RB
+  {
+    (* à changer of course *)
+    t
+  }
 ;
 
 field_declaration:
@@ -253,7 +266,7 @@ expr:
     { make_node $startpos ((Call((get_left $startpos $endpos f.contents), args)): TYPTree.typ_expression) }
 | e=simple_expr
     { make_node $startpos e.contents }
-| l=simple_expr LS e=expr RS
+| l=expr LS e=expr RS
     { make_node $startpos (Deref (make_node $startpos (ArrayAccess(l, e))))  }
 | l=expr DOT f=LABEL
     { make_node $startpos (Deref (make_node $startpos (RecordAccess(l, make_node $startpos(f) f)))) }
@@ -403,4 +416,26 @@ control:
 any_instruction:
 | i=instruction { i }
 | c=control { c }
+
+
+(* Header (.htyp) *)
+
+header:
+| l=list(header_declaration) EOF
+  {
+    ()
+  }
+;
+
+header_declaration:
+| name=LABEL COLON t=type_expr SEMI
+  { HVar(make_node $startpos name, t) }
+| TYPE name=LABEL SEMI
+  (* A modifier plus tard of course *)
+  { 
+    let name_node = make_node $startpos name in
+    HType(name_node, TAlias name_node) 
+  }
+| TYPE name=LABEL ASSIGN t=type_expr SEMI
+  { HType(make_node $startpos name, t) }
 ;

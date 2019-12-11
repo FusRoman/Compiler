@@ -193,17 +193,36 @@ build_typ:
 	ocamlc -c -I typ/typ/ typ/typ/TYPLexer.ml
 
 	ocamlc -I utils/ -I art/ -I var/var/ -I typ/typ/ utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
-	art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo typ/typ/TYPTree.cmo \
-	typ/typ/TYPLexer.cmo typ/typ/TYPParser.cmo var/var/VARTree.cmo -o typ/typ/TYPCompiler \
-	typ/typ/TYPCompiler.ml
+		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo typ/typ/TYPTree.cmo \
+		typ/typ/TYPLexer.cmo typ/typ/TYPParser.cmo var/var/VARTree.cmo -o typ/typ/TYPCompiler \
+		typ/typ/TYPCompiler.ml
 
+# ------------------------------ Langage CLS ---------------------------------------
+
+build_cls:
+	@$(MAKE) -s build_typ
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ -I typ/cls/ \
+		typ/cls/CLSTree.mli typ/cls/CLSTree.ml
+	menhir -v typ/cls/CLSParser.mly
+	ocamllex typ/cls/CLSLexer.mll
+	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ -I typ/cls/ \
+		typ/cls/CLSParser.mli typ/cls/CLSParser.ml
+	ocamlc -c -I typ/cls/ typ/typ/CLSLexer.ml
+
+	ocamlc -I utils/ -I art/ -I var/var/ -I typ/typ/ -I typ/cls/ \
+		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
+		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo typ/typ/TYPTree.cmo typ/cls/CLSTree.cmo \
+		typ/cls/CLSLexer.cmo typ/cls/CLSParser.cmo var/var/VARTree.cmo -o typ/cls/CLSCompiler \
+		typ/cls/CLSCompiler.ml 
 
 # ------------------------------ ChainCompiler -------------------------------------
 
 build_chain_compiler: 
 	@$(MAKE) -s build_typ
+	#@$(MAKE) -s build_cls
 	ocamlc -o compiler/ChainCompiler \
 		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
+		\ # -I typ/cls/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
 		art/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
 		imp/IMPTree.cmo imp/IMPParser.cmo imp/IMPLexer.cmo \
@@ -212,6 +231,7 @@ build_chain_compiler:
 		var/var/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
 		typ/tpl/TPLTree.cmo \
 		typ/typ/TYPTree.cmo typ/typ/TYPParser.cmo typ/typ/TYPLexer.cmo \
+		\ # typ/cls/CLSTree.cmo typ/cls/CLSParser.cmo typ/cls/CLSLexer.cmo \
 		compiler/ChainCompiler.ml
 
 
@@ -248,5 +268,8 @@ clear:
 
 	rm -rf typ/typ/*.cmi typ/typ/*.cmo typ/typ/*.o typ/typ/TYPParser.ml typ/typ/TYPParser.mli typ/typ/TYPParser.automaton typ/typ/TYPParser.conflicts typ/typ/TYPLexer.ml typ/typ/TYPCompiler
 	rm -rf test/typ/*.btc test/typ/*.asm test/typ/*.stk test/typ/*.art test/typ/*.imp test/typ/*.cll test/typ/*.fun test/typ/*.var test/typ/*.tpl
+
+	rm -rf typ/cls/*.cmi typ/cls/*.cmo typ/cls/*.o typ/cls/CLSParser.ml typ/cls/CLSParser.mli typ/cls/CLSParser.automaton typ/cls/CLSParser.conflicts typ/cls/CLSLexer.ml typ/cls/CLSCompiler
+	rm -rf test/cls/*.btc test/cls/*.asm test/cls/*.stk test/cls/*.art test/cls/*.imp test/cls/*.cll test/cls/*.fun test/cls/*.var test/cls/*.tpl test/cls/*.typ
 
 	rm -rf compiler/*.cmi compiler/*.cmo compiler/ChainCompiler
