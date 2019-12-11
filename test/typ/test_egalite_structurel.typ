@@ -36,7 +36,7 @@ int main() {
     var tab4: int[][] := [[0;1]; [2;3]];
     var tab5: int[][] := [[0;1]; [2;4]];
     print_result(tab1 = tab4);
-    print_result(tab1 <> tab5);
+    #print_result(tab1 <> tab5);
 
     var t: char[] := ['a';'b'];
 
@@ -45,14 +45,14 @@ int main() {
     var t_a3: (int[], int) := (['a';'d'], 'c');
 
     print_result(t_a1 = t_a2);
-    print_result(t_a1 <> t_a3);
+    #print_result(t_a1 <> t_a3);
 
     var a_t1: (int, int)[] := [('a', 'b'); ('c', 'd'); ('e', 'f')];
     var a_t2: (int, int)[] := [('a', 'b'); ('c', 'd'); ('e', 'f')];
     var a_t3: (int, int)[] := [('a', 'd'); ('c', 'd'); ('e', 'f')];
  
     print_result(a_t1 = a_t2);
-    print_result(a_t1 <> a_t3);
+    #print_result(a_t1 <> a_t3);
 
     var t: (int,int)[][][] := [[[(1,2)]; [(1,5)]]; [[(3,4)]]];
     var t1: (int,int)[][][] := [[[(1,2)]; [(1,5)]]; [[(3,4)]]];
@@ -63,14 +63,14 @@ int main() {
     var r3: {a:(int,int)[][][]; b:int} := {<{a:(int,int)[][][]; b:int}> a := t2; b := 0};
 
     print_result(r1 = r2);
-    print_result(r1 <> r3);
+    #print_result(r1 <> r3);
 
     var r1: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r2: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r3: re[] := [{<re> a:= 'a'; b:= 'g'}; {<re> a:= 'c'; b:= 'd'}];
 
     print_result(r1 = r2);
-    print_result(r1 <> r3);
+    #print_result(r1 <> r3);
 
     exit;
 }
