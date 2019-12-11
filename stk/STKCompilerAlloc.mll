@@ -42,7 +42,7 @@
    *
    * *********************************************************************************************)
 
-  let nbarg = Array.length Sys.argv
+  let argc = Array.length Sys.argv
 
   let src = Sys.argv.(1)
   let lexbuf = Lexing.from_channel (open_in src)
@@ -51,11 +51,20 @@
       failwith "expected .stk extension"
 
   let output_file =
-    if nbarg >= 3 then
-      Sys.argv.(2)
-    else
-      (Filename.chop_suffix src ".stk") ^ ".asm"
+    (Filename.chop_suffix src ".stk") ^ ".asm"
   let output = open_out output_file
+
+  let lib =
+    if argc >= 3 then
+      if Sys.argv.(2) = "--lib" then
+        true
+      else 
+      begin
+        Printf.printf "Unknown option '%s'. Usage: STKCompilerAlloc <STK source file> [--lib]\n" Sys.argv.(2);
+        false
+      end
+    else
+      false
 
   let fmt = sprintf
 
@@ -116,7 +125,7 @@
   }
 
   (* Lancée lorsqu'une erreur dans le programme à compiler est détectée en seconde passe. *)
-  exception Compilation_Error of line_info * string * string
+  exception CompilationError of line_info * string * string
 
   (* Structure contenant toutes les informations utiles à la première passe *)
   type parser_info = {
@@ -481,7 +490,7 @@
   let pop state line instr =
     (* Rien à pop ! On lance une exception, même si le programme pourrait en fait être valide. *)
     if state.stack_depth = 0 then
-      raise (Compilation_Error(line, get_name_instr instr, 
+      raise (CompilationError(line, get_name_instr instr, 
         "Attempted pop with an empty stack. This compiler considers the stack to be empty at each label definition. " ^
         "This error should not occur if the STK source comes from the compilation of an ART program."));
     let stack_depth = state.stack_depth - 1 in
@@ -520,10 +529,11 @@
       push (Int v) state
 
     | PushTag s ->
-      if Tagset.mem s state.defined_tags then
+      (* frame_pointer, entre autres, n'est pas défini si on compile une librairie *)
+      if lib || Tagset.mem s state.defined_tags then
         push (Tag s) state
       else
-        raise (Compilation_Error(line, s, fmt "Undefined tag '%s'" s))
+        raise (CompilationError(line, s, fmt "Undefined tag '%s'" s))
 
     | DirectRead s ->
       push (DirectTag s) state
@@ -595,12 +605,18 @@
         compile_data data'
     in
 
-    fprintf output "ADDRESS %s stack_pointer\n" spa;
-    fprintf output "READ %s %s\n" sp spa;
+    if not lib then
+    begin
+      fprintf output "ADDRESS %s stack_pointer\n" spa;
+      fprintf output "READ %s %s\n" sp spa
+    end;
     compile_instrs state;
     compile_data state.remaining_data;
-    fprintf output "stack_pointer:\n65535\n";
-    fprintf output "argv:\n0\nargc:\n0"
+    if not lib then
+    begin
+      fprintf output "stack_pointer:\n65535\n";
+      fprintf output "argv:\n0\nargc:\n0"
+    end
     (* 
       La machine virtuelle va donner les bonnes valeurs à argv et argc,
       à condition que ce soit les dernières variables et déclarées dans cet ordre
@@ -686,7 +702,7 @@ and dater_points info previous =
   }
 
   | eof         {
-    raise (Compilation_Error(info.current_line, (Lexing.lexeme lexbuf), 
+    raise (CompilationError(info.current_line, (Lexing.lexeme lexbuf), 
       fmt "Syntax error: tag '%s' was not given a value" previous))
   }
 
@@ -720,7 +736,7 @@ and dater_data info previous =
   }
 
   | eof         {
-    raise (Compilation_Error(info.current_line, (Lexing.lexeme lexbuf),
+    raise (CompilationError(info.current_line, (Lexing.lexeme lexbuf),
       fmt "Syntax error: tag '%s' was not given a value" previous))
   }
 
@@ -868,7 +884,7 @@ and lexer info =
   | blank     { lexer (next_lexeme info) lexbuf }
   | '\n'      { lexer (next_line info) lexbuf }
   | eof       {
-    raise (Compilation_Error (info.current_line, "end of file", "Reached unexpected end of file while looking for '.text'"))
+    raise (CompilationError (info.current_line, "end of file", "Reached unexpected end of file while looking for '.text'"))
   }
   | _         { 
     error (next_lexeme info) (Lexing.lexeme lexbuf)
@@ -880,7 +896,7 @@ and lexer info =
 and error info token msg =
   parse
   | '\n'      
-  | eof       { raise (Compilation_Error(info.current_line, token, msg)) }
+  | eof       { raise (CompilationError(info.current_line, token, msg)) }
   | _         { error (next_lexeme info) token msg lexbuf }
 
 
@@ -895,7 +911,7 @@ and error info token msg =
       printf "Compilation STK -> ASM successful (%fs)\n" (Sys.time () -. beginning);
       exit 0
     with
-    | Compilation_Error (line, token, msg) ->
+    | CompilationError (line, token, msg) ->
       printf "[ERROR] Line %d, token '%s':\n%s\n%s\n" line.num token line.line msg;
       exit 1
     | Failure msg ->

@@ -8,6 +8,11 @@ succ(n) {
   return n + 1;
 }
 
+test(&f, v) {
+  print(f(v));
+  return 0;
+}
+
 main() {
   i := init();
   print(succ(i));
@@ -16,6 +21,11 @@ main() {
 
   for (i := 97; i < 123; i := succ(i))
     print(i);
+  print(10);
+
+  var f := &succ;
+  print(*f(96));
+  test(&succ, 96);
   print(10);
 
   exit;

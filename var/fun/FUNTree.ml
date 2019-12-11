@@ -288,7 +288,12 @@ let fun_to_cll lib fun_prog =
       append acc {contents = (t.contents, v); line = t.line; column = t.column}
     ) empty_cycle data 
   in
-  let data_cycle = append data_cycle (default_node ("function_result", 0)) in
+  let data_cycle =
+    if lib then
+      data_cycle
+    else
+      append data_cycle (default_node ("function_result", 0)) 
+  in
   match (!main, lib) with
   | (true, false) | (false, true) ->
     {syntax_tree = (procedures, data_cycle); tag_set = genv}

@@ -91,6 +91,8 @@ type typ_prog = global_declaration list
     _type: env;
     tree: 'a
   }
+
+  exception TypeError of string * int * int
   
 (** Renvoie un nom de variable qui n'existe pas encore dans l'environnement donné. *)
 val make_var_node : 'a -> 'a StringMap.t -> 'a StringMap.t * string node

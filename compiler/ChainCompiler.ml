@@ -12,8 +12,11 @@ let set_language l =
 
 let speclist = [
   ("-p", Arg.Set make_medium_file, "Generates the intermediate output files");
+  ("--print", Arg.Set make_medium_file, "Same as -p");
   ("-l", Arg.String set_language, "Specifies the source language. If not given, the program will try to guess based on the extension. Otherwise, the extension should not be given.");
+  ("--language", Arg.String set_language, "Same as -l");
   ("-c", Arg.Set copy, "Generates a copy of the source from its abstract syntax tree (useful for debugging)");
+  ("--copy", Arg.Set copy, "Same as -c");
   ("--lib", Arg.Set library, "Compiles the source file as a library")
 ]
 
@@ -49,6 +52,9 @@ let read f extension file =
   | FUNTree.UnboundValue(fct, var) ->
     Printf.printf "[%s ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" upper_ext var.contents fct.contents var.line var.column;
     exit 1
+  | TYPTree.TypeError(msg, line, column) ->
+    Printf.printf "[%s ERROR] Type error at line %d, column %d. Message:\n%s\n" upper_ext line column msg;
+    exit 1
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
     exit 1
@@ -56,7 +62,7 @@ let read f extension file =
     Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
     raise e
 
-let translate t extension source =
+let translate (t: 'a -> 'b) (extension: string) (source: 'a) =
   let upper_ext = String.uppercase_ascii extension in
   try
     t source
@@ -66,6 +72,9 @@ let translate t extension source =
     exit 1
   | FUNTree.UnboundValue(fct, var) ->
     Printf.printf "[%s ERROR] Unbound value '%s' in function '%s' at line %d, character %d.\n" upper_ext var.contents fct.contents var.line var.column;
+    exit 1
+  | TYPTree.TypeError(msg, line, column) ->
+    Printf.printf "[%s ERROR] Type error at line %d, column %d. Message:\n%s\n" upper_ext line column msg;
     exit 1
   | Failure msg ->
     Printf.printf "[%s ERROR] Syntax error. Message:\n%s\n" upper_ext msg;
@@ -78,6 +87,8 @@ let translate_lib t extension source =
   translate (t !library) extension source
 
 let run_btc file =
+  if !library then
+    Printf.printf "cannot run a library\n";
   let line = ref ("./vm/VM test/" ^ file ^ ".btc ") in
   for i = !argv to (Array.length Sys.argv) - 1 do
     line := !line ^ Sys.argv.(i) ^ " ";
@@ -85,14 +96,22 @@ let run_btc file =
   exit (command !line)
 
 let run_asm file =
+  if !library then
+    Printf.printf "cannot run a library\n";
   let code = command ("./assembler/Assembler test/" ^ file ^ ".asm") in
   if code = 0 then
     run_btc file;
   exit code
   
 let run_stk file =
-  let code = command ("./stk/STKCompilerAlloc test/" ^ file ^ ".stk") in
-  if code = 0 then
+  let base = "./stk/STKCompilerAlloc test/" ^ file ^ ".stk" in
+  let code = 
+    if !library then
+      command (base ^ " --lib") 
+    else
+      command base
+  in
+  if code = 0 && not !library then
     run_asm file;
   exit code
 
@@ -106,7 +125,7 @@ let run_art file =
   run_art_inter art file
 
 let run_imp_inter imp file =
-  let art = translate IMPTree.imp_to_art "imp" imp in
+  let art = translate (IMPTree.imp_to_art (file ^ ".imp")) "imp" imp in
   write_opt ARTTree.write_art "art" art file;
   run_art_inter art file
 
@@ -116,7 +135,7 @@ let run_imp file =
   run_imp_inter imp file
 
 let run_cll_inter cll file =
-  let imp = translate_lib CLLTree.cll_to_imp "cll" cll in
+  let imp = translate_lib (CLLTree.cll_to_imp (file ^ ".cll")) "cll" cll in
   write_opt IMPTree.write_imp "imp" imp file;
   run_imp_inter imp file
 
@@ -218,4 +237,5 @@ let start file =
   run file
 
 let _ =
-  Arg.parse speclist start "Usage: ./compiler/ChainCompiler -p -l <source language> <source file WITHOUT extension> [<parameter> ...]\nOr: ./compiler/ChainCompiler -p <source file WITH extension> [<parameter> ...]"
+  Arg.parse speclist start ("Usage: ./compiler/ChainCompiler -p -l <source language> <source file WITHOUT extension> [<parameter> ...]\n"
+    ^ "Or: ./compiler/ChainCompiler -p <source file WITH extension> [<parameter> ...]")

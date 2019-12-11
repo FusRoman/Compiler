@@ -52,3 +52,12 @@ Bug de VAR :
     - évaluer f et l'appeler
   L'ordre visé actuel est le même, sauf pour f qui est évalué en premier. Il faudra changer ça.
   Les arguments des appels devront donc être empilés par... VAR. FUN devient bien inutile.
+
+
+Comment être sûr d'avoir des tags uniques ?
+On peut pas prendre le timestamp, car c'est de l'ordre de la seconde et il est tout à fait possible que deux librairies aient été compilées dans la même seconde sur deux ordis différents ou même par un seul programme. Même à la main, la seconde est limite.
+
+On peut pas juste prendre Tagset.choose car on risque d'avoir deux fois le même tag.
+Par exemple, stack_pointer est dans le tagset de tous les programmes compilés, ça pose problème. Par contre si on peut le virer, alors yep c'est bon. Cependant, il n'est pas seul dans ce cas et à cause de TPLLib, on n'a aucune idée de combien il peut potentiellement y en avoir. La solution serait de passer un tagset "interdit" depuis le haut, qui serait concrètement imp_variables, cll_variables, etc. en fonction du langage source. Mais c'est vachement relou à faire et y a peut-être mieux à faire.
+
+Sinon on peut prendre le nom du fichier. Là c'est safe, non ? Mais c'est relou. Mais y a pas le choix aussi.

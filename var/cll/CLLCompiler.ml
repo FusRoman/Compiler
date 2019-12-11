@@ -13,7 +13,7 @@ let output = open_out output_file
 let _ =
   try
     let source = CLLParser.program CLLLexer.token lexing_buffer in
-    let target = CLLTree.cll_to_imp false source in
+    let target = CLLTree.cll_to_imp input_file false source in
     IMPTree.write_imp output target;
     close_out output;
     exit 0

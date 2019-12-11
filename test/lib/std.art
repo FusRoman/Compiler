@@ -1,0 +1,83 @@
+.text
+print_int_rec:
+jump aaaaaaaaaaaaaaaaa0 when ((*(frame_pointer + 1)) <= 0);
+*stack_pointer := ((*(frame_pointer + 1)) / 10);
+stack_pointer := (stack_pointer - 1);
+*stack_pointer := (&aaaaaaaaaaaaaaaa0);
+stack_pointer := (stack_pointer - 1);
+*stack_pointer := frame_pointer;
+stack_pointer := (stack_pointer - 1);
+function_address := (&print_int_rec);
+frame_pointer := (stack_pointer + 2);
+jump *function_address;
+aaaaaaaaaaaaaaaa0:
+stack_pointer := (stack_pointer + 1);
+print((((*(frame_pointer + 1)) % 10) + 48));
+aaaaaaaaaaaaaaaaa0:
+function_result := 0;
+stack_pointer := frame_pointer;
+frame_pointer := (*(stack_pointer - 1));
+jump **stack_pointer;
+print_int:
+jump aaaaaaaaaaaaaaaaa1 when ((*(frame_pointer + 1)) != 0);
+print(48);
+jump aaaaaaaaaaaaaaaaa2;
+aaaaaaaaaaaaaaaaa1:
+jump aaaaaaaaaaaaaaaaa3 when ((*(frame_pointer + 1)) >= 0);
+print(45);
+*stack_pointer := (-(*(frame_pointer + 1)));
+stack_pointer := (stack_pointer - 1);
+*stack_pointer := (&aaaaaaaaaaaaaaaa2);
+stack_pointer := (stack_pointer - 1);
+*stack_pointer := frame_pointer;
+stack_pointer := (stack_pointer - 1);
+function_address := (&print_int_rec);
+frame_pointer := (stack_pointer + 2);
+jump *function_address;
+aaaaaaaaaaaaaaaa2:
+stack_pointer := (stack_pointer + 1);
+jump aaaaaaaaaaaaaaaaa4;
+aaaaaaaaaaaaaaaaa3:
+*stack_pointer := (*(frame_pointer + 1));
+stack_pointer := (stack_pointer - 1);
+*stack_pointer := (&aaaaaaaaaaaaaaaa1);
+stack_pointer := (stack_pointer - 1);
+*stack_pointer := frame_pointer;
+stack_pointer := (stack_pointer - 1);
+function_address := (&print_int_rec);
+frame_pointer := (stack_pointer + 2);
+jump *function_address;
+aaaaaaaaaaaaaaaa1:
+stack_pointer := (stack_pointer + 1);
+aaaaaaaaaaaaaaaaa4:
+aaaaaaaaaaaaaaaaa2:
+function_result := 0;
+stack_pointer := frame_pointer;
+frame_pointer := (*(stack_pointer - 1));
+jump **stack_pointer;
+parse_int:
+stack_pointer := (stack_pointer - 4);
+*(frame_pointer - 2) := (*((*(frame_pointer + 1)) - 1));
+*(frame_pointer - 3) := 0;
+*(frame_pointer - 4) := 0;
+aaaaaaaaaaaaaaaaa6:
+jump aaaaaaaaaaaaaaaaa5 when ((*(frame_pointer - 4)) >= (*(frame_pointer - 2)));
+*(frame_pointer - 5) := (*((*(frame_pointer + 1)) + (*(frame_pointer - 4))));
+jump aaaaaaaaaaaaaaaaa7 when (!(((*(frame_pointer - 5)) < 48) || ((*(frame_pointer - 5)) > 57)));
+print(69);
+print(82);
+print(82);
+print(79);
+print(82);
+print(10);
+exit;
+aaaaaaaaaaaaaaaaa7:
+*(frame_pointer - 3) := (((*(frame_pointer - 3)) * 10) + ((*((*(frame_pointer + 1)) + (*(frame_pointer - 4)))) - 48));
+*(frame_pointer - 4) := ((*(frame_pointer - 4)) + 1);
+jump aaaaaaaaaaaaaaaaa6;
+aaaaaaaaaaaaaaaaa5:
+function_result := (*(frame_pointer - 3));
+stack_pointer := frame_pointer;
+frame_pointer := (*(stack_pointer - 1));
+jump **stack_pointer;
+.data

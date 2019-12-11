@@ -1,0 +1,55 @@
+print_int_rec() {
+	if (((*(frame_pointer + 1)) > 0)) {
+		*stack_pointer := ((*(frame_pointer + 1)) / 10);
+		stack_pointer--;
+		print_int_rec();
+		stack_pointer += 1;
+		print((((*(frame_pointer + 1)) % 10) + 48));
+	}
+	function_result := 0;
+	return;
+}
+
+print_int() {
+	if (((*(frame_pointer + 1)) == 0)) {
+		print(48);
+	} else {
+		if (((*(frame_pointer + 1)) < 0)) {
+			print(45);
+			*stack_pointer := (-(*(frame_pointer + 1)));
+			stack_pointer--;
+			print_int_rec();
+			stack_pointer += 1;
+		} else {
+			*stack_pointer := (*(frame_pointer + 1));
+			stack_pointer--;
+			print_int_rec();
+			stack_pointer += 1;
+		}
+	}
+	function_result := 0;
+	return;
+}
+
+parse_int() {
+	stack_pointer -= 4;
+	*(frame_pointer - 2) := (*((*(frame_pointer + 1)) - 1));
+	*(frame_pointer - 3) := 0;
+	for (*(frame_pointer - 4) := 0; ((*(frame_pointer - 4)) < (*(frame_pointer - 2))); *(frame_pointer - 4)++) {
+		*(frame_pointer - 5) := (*((*(frame_pointer + 1)) + (*(frame_pointer - 4))));
+		if ((((*(frame_pointer - 5)) < 48) || ((*(frame_pointer - 5)) > 57))) {
+			print(69);
+			print(82);
+			print(82);
+			print(79);
+			print(82);
+			print(10);
+			exit;
+		}
+		*(frame_pointer - 3) := (((*(frame_pointer - 3)) * 10) + ((*((*(frame_pointer + 1)) + (*(frame_pointer - 4)))) - 48));
+	}
+	function_result := (*(frame_pointer - 3));
+	return;
+}
+
+.data

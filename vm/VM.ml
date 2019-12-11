@@ -172,7 +172,13 @@ let _ =
 let _ =
   try
     while true do
-      exec_instruction memory.(!program_counter);
+      let i = 
+        try
+          memory.(!program_counter)
+        with Invalid_argument _ ->
+          raise (Invalid_argument "program_counter out of bounds")
+      in
+      exec_instruction i;
       incr program_counter
     done;
     exit 0
