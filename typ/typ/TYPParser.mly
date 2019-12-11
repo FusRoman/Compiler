@@ -64,7 +64,7 @@
 %token ASSIGN INCR DECR
 %token ADDASSIGN SUBASSIGN
 %token MULTASSIGN DIVASSIGN
-%token EQ NEQ
+%token EQ NEQ SEQ
 %token LT LE GT GE
 %token ADD SUB
 %token MULT DIV REM
@@ -96,7 +96,7 @@
 %nonassoc NO_ELSE
 %nonassoc ELSE
 %left AND OR
-%left EQ NEQ LT LE GT GE
+%left EQ NEQ LT LE GT GE SEQ
 %left ADD SUB
 %left MULT DIV REM
 %left NOT CPL
@@ -298,19 +298,20 @@ simple_expr:
 ;
 
 %inline binop:
-| ADD         { Add }
-| SUB         { Sub }
-| MULT        { Mult }
-| DIV         { Div }
-| REM         { Rem }
-| AND         { And }
-| OR          { Or }
-| LT          { Lt }
-| GT          { Gt }
-| LE          { Le }
-| GE          { Ge }
-| EQ          { Eq }
-| NEQ         { Neq }
+| ADD         { ARTBinop Add }
+| SUB         { ARTBinop Sub }
+| MULT        { ARTBinop Mult }
+| DIV         { ARTBinop Div }
+| REM         { ARTBinop Rem }
+| AND         { ARTBinop And }
+| OR          { ARTBinop Or }
+| LT          { ARTBinop Lt }
+| GT          { ARTBinop Gt }
+| LE          { ARTBinop Le }
+| GE          { ARTBinop Ge }
+| EQ          { ARTBinop Eq }
+| NEQ         { ARTBinop Neq }
+| SEQ         { Seq }
 ;
 
 %inline unop:

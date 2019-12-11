@@ -50,6 +50,8 @@ rule token = parse
       { CONTINUE }
   | "break"
       { BREAK }
+  | "="
+      { SEQ }
   | "->"
       { ARROW }
   | ":="
