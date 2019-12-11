@@ -23,13 +23,12 @@ int main() {
     var g: ((int,int),int) := (f, 3);
     var e: ((int,int),int) := ((1, 3), 3);
 
-<<<<<<< HEAD
 
     #var h : int  := kkk(2);
 
     #print(kkk(c = g));
 
-    kkk(c=g);
+    #kkk(c=g);
 
     print_result(c = g);
 /*
@@ -43,10 +42,8 @@ int main() {
         print('n');
         print(10);
     }
-=======
     print_result(c = g);
     print_result(c <> e);
->>>>>>> 583961b16bf8babdea8e752c2680867404a5a398
 
    #int[][] tab1 := [['a';'b'];['c';'d';'e']];
 
@@ -86,13 +83,12 @@ int main() {
 
     print_result(r1 = r2);
     print_result(r1 <> r3);
-
+*/
     var r1: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r2: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r3: re[] := [{<re> a:= 'a'; b:= 'g'}; {<re> a:= 'c'; b:= 'd'}];
 
-<<<<<<< HEAD
-    if (r1 = r2) {
+    /*if (r1 = r2) {
         print('o');
         print('k');
         print(10);
@@ -101,12 +97,10 @@ int main() {
         print('o');
         print('n');
         print(10);
-    }
-*/
-=======
-    print_result(r1 = r2);
-    print_result(r1 <> r3);
+    }*/
 
->>>>>>> 583961b16bf8babdea8e752c2680867404a5a398
+    print_result(r1 = r2);
+    #print_result(r1 <> r3);
+
     exit;
 }
