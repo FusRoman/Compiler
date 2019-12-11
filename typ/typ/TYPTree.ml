@@ -178,6 +178,7 @@ let rec check_expression genv type_env e =
           ))
       |Some t -> TPointer t
     end
+
   |Deref e ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
@@ -186,6 +187,7 @@ let rec check_expression genv type_env e =
       | x -> 
         raise_type_error x "pointer" e.line e.column
     end
+
   |Unop (_, e) -> 
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env e.contents) in
@@ -194,6 +196,7 @@ let rec check_expression genv type_env e =
       |x -> 
         raise_type_error x "int" e.line e.column
     end
+
   |Binop (e1, op, e2) ->
     begin
       let true_type_e1 = find_type_alias type_env (check_expression genv  type_env e1.contents) in
@@ -216,6 +219,7 @@ let rec check_expression genv type_env e =
               ))
         end
     end
+
   |Call (s, expr_list) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
@@ -237,6 +241,7 @@ let rec check_expression genv type_env e =
       |x ->
         raise_type_error x "pointer of function" s.line s.column
     end
+
   |RecordAccess (expression, field) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env expression.contents) in
@@ -254,6 +259,7 @@ let rec check_expression genv type_env e =
       |x ->
         raise_type_error x "pointer of record" expression.line expression.column
     end
+
   |ArrayAccess (name_tab, index) ->
     let type_index = find_type_alias type_env (check_expression genv type_env index.contents) in
     let type_name_tab = find_type_alias type_env (check_expression genv type_env name_tab.contents) in
@@ -266,6 +272,7 @@ let rec check_expression genv type_env e =
       |x, _ ->
         raise_type_error x "int" index.line index.column
     end
+
   |NewArray (size, array_elt) ->
     let type_size = find_type_alias type_env (check_expression genv type_env size.contents) in
     let type_array = find_type_alias type_env (check_expression genv type_env array_elt.contents) in
@@ -275,6 +282,7 @@ let rec check_expression genv type_env e =
       |x, _ ->
         raise_type_error x "int" size.line size.column
     end
+
   |NewRecord (type_record,list_field) ->
     begin
       let true_type_record = find_type_alias type_env type_record in
@@ -300,6 +308,7 @@ let rec check_expression genv type_env e =
       |_ ->
         raise_type_error type_record "pointer of record" 0 0
     end
+
   |InitArray expr_list ->
     let first_type = check_expression genv type_env (List.hd expr_list).contents in
     let first_true_type = find_type_alias type_env first_type in
@@ -311,6 +320,7 @@ let rec check_expression genv type_env e =
           raise_type_error actual_type (string_of_type first_type) expr.line expr.column
     ) (List.tl expr_list);
     TPointer (TArray first_true_type)
+
   |TupleAccess (tpl, i) ->
     let true_type = find_type_alias type_env (check_expression genv type_env tpl.contents) in
     begin
@@ -327,6 +337,7 @@ let rec check_expression genv type_env e =
       |x ->
         raise_type_error x "pointer of tuple" tpl.line tpl.column
     end
+
   |NewTuple l ->
     let type_list = List.fold_right (
         fun e acc ->
@@ -356,6 +367,7 @@ let rec check_instruction genv type_env f i =
     let true_type = find_type_alias type_env actual_type in
     if not (true_type = TInt) then
       raise_type_error actual_type "int" e.line e.column
+
   |UnopAssign (e, op) ->
     begin
       let actual_type = check_expression genv type_env e.contents in
@@ -365,6 +377,7 @@ let rec check_instruction genv type_env f i =
       |x ->
         raise_type_error actual_type "pointer of int or pointer of pointer" e.line e.column
     end
+
   |BinopAssign (e1, op, e2) ->
     let t =
       let true_type = find_type_alias type_env (check_expression genv type_env e1.contents) in
@@ -378,6 +391,7 @@ let rec check_instruction genv type_env f i =
     let true_type_of_t = find_type_alias type_env t in
     if not (true_type = true_type_of_t) then
       raise_type_error actual_type (string_of_type t) e2.line e2.column
+
   |IfElse (cond, block_if, block_else) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
@@ -388,6 +402,7 @@ let rec check_instruction genv type_env f i =
       |x -> 
         raise_type_error x "bool/int" cond.line cond.column
     end
+
   |If (cond, block_if) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
@@ -397,6 +412,7 @@ let rec check_instruction genv type_env f i =
       |x ->
         raise_type_error x "bool/int" cond.line cond.column
     end
+
   |While (cond, block_while) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env cond.contents) in
@@ -406,6 +422,7 @@ let rec check_instruction genv type_env f i =
       |x ->
         raise_type_error x "bool/int" cond.line cond.column
     end
+
   |For (init, cond, iteration, block_for) ->
     begin
       let local_env = check_list_instruction_with_return_new_env genv type_env f init in
@@ -417,6 +434,7 @@ let rec check_instruction genv type_env f i =
       |x ->
         raise_type_error x "bool/int" cond.line cond.column
     end
+
   |Call (s, expr_list) ->
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
@@ -437,6 +455,7 @@ let rec check_instruction genv type_env f i =
       |x ->
         raise_type_error x "pointer of function" s.line s.column
     end
+    
   |Declaration (_type_var, name_node, expr) ->
     let actual_type = check_expression genv type_env expr.contents in
     let true_type = find_type_alias type_env actual_type in
