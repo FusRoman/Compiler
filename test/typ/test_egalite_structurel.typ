@@ -5,13 +5,12 @@ int print_result(test: bool) {
     if (test) {
         print('o');
         print('k');
-        print(10);
     } else {
         print('n');
         print('o');
         print('n');
-        print(10);
     }
+    print(10);
     return test;
 }
 
@@ -23,27 +22,8 @@ int main() {
     var g: ((int,int),int) := (f, 3);
     var e: ((int,int),int) := ((1, 3), 3);
 
-
-    #var h : int  := kkk(2);
-
-    #print(kkk(c = g));
-
-    #kkk(c=g);
-
-    print_result(c = g);
-
-    if (c = g) {
-        print('o');
-        print('k');
-        print(10);
-    } else {
-        print('n');
-        print('o');
-        print('n');
-        print(10);
-    }
-    print_result(c = g);
-    print_result(c <> e);
+    #print_result(c = g);
+    #print_result(c <> e);
 
    #int[][] tab1 := [['a';'b'];['c';'d';'e']];
 
@@ -54,6 +34,7 @@ int main() {
     var tab1: int[][] := [[0;1]; [2;3]];
     var tab4: int[][] := [[0;1]; [2;3]];
     var tab5: int[][] := [[0;1]; [2;4]];
+
     print_result(tab1 = tab4);
     print_result(tab1 <> tab5);
 
@@ -87,17 +68,6 @@ int main() {
     var r1: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r2: re[] := [{<re> a:= 'a'; b:= 'b'}; {<re> a:= 'c'; b:= 'd'}];
     var r3: re[] := [{<re> a:= 'a'; b:= 'g'}; {<re> a:= 'c'; b:= 'd'}];
-
-    if (r1 = r2) {
-        print('o');
-        print('k');
-        print(10);
-    } else {
-        print('n');
-        print('o');
-        print('n');
-        print(10);
-    }
 
     print_result(r1 = r2);
     print_result(r1 <> r3);

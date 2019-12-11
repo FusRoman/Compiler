@@ -26,19 +26,27 @@
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 
-  let make_env = List.fold_left (
-    fun (genv, type_env, tree) elt ->
-      match elt with
-      |Type (s, t) ->
-        (genv, StringMap.add s.contents t type_env,tree)
-      |Var (t, s, e) -> (StringMap.add s.contents t genv, type_env, (Var (t,s,e)) :: tree)
-      |Fun f -> 
-        let param_list = List.map (
-          fun param ->
-            param.params_type
-        ) f.params in
-        (StringMap.add f.name.contents (TFun (param_list, f.return_type)) genv, type_env, (Fun f)::tree)
-  ) (StringMap.empty, StringMap.empty, [])
+  let make_env decl = 
+    let genv, types, tree =
+      List.fold_left (
+        fun (genv, types, tree) elt ->
+          match elt with
+          |Type (s, t) ->
+            (genv, (s, t)::types, tree)
+          |Var (t, s, e) -> 
+            (StringMap.add s.contents t genv, types, (Var (t,s,e)) :: tree)
+          |Fun f -> 
+            let param_list = List.map (
+              fun param ->
+                param.params_type
+              ) f.params 
+            in
+            (StringMap.add f.name.contents (TFun (param_list, f.return_type)) genv, 
+              types, (Fun f)::tree)
+      ) (StringMap.empty, [], []) decl
+    in
+    (* L'ordre compte pour les types *)
+    (genv, List.rev types, tree)
 
   let get_left start _end  e =
     match e with
@@ -81,7 +89,6 @@
 %start program
 %start header
 %type <TYPTree.typ_prog TYPTree.program> program
-%type <unit> header
 %type <TYPTree.variable> variable_declaration
 %type <TYPTree.parameter> parameter
 %type <TYPTree.typ_function> function_definition
@@ -92,6 +99,7 @@
 %type <TYPTree.typ_instrs> block
 %type <TYPTree.typ_instr> control
 %type <TYPTree._type> type_expr
+%type <unit> header
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -109,8 +117,8 @@
 program:
 | globals=list(global_declaration) EOF
     {
-      let (genv, _type, tree) = make_env globals in
-      {genv; _type; tree}
+      let (genv, types, tree) = make_env globals in
+      {genv; types; tree}
     }
 
 | error
@@ -145,7 +153,11 @@ global_variable_declaration:
 type_declaration:
 | TYPE name_type=LABEL ASSIGN _type=type_expr
   {
-    (make_node $startpos name_type, _type)
+    (make_node $startpos name_type, TRegular _type)
+  }
+| TYPE alias=LABEL EXTENDS t=type_expr LB fields=separated_nonempty_list(SEMI, field_declaration) RB
+  {
+    (make_node $startpos alias, TExtended(make_node $startpos t, fields))
   }
 ;
 
@@ -222,11 +234,6 @@ type_expr:
     ) (StringMap.empty, 0) fields in
     TPointer (TRecord env)
   }
-| EXTENDS t=type_expr LB fields=separated_nonempty_list(SEMI, field_declaration) RB
-  {
-    (* à changer of course *)
-    t
-  }
 ;
 
 field_declaration:
@@ -288,7 +295,7 @@ simple_expr:
 | ADDRESS l=simple_expr
     { make_node $startpos (get_left $startpos $endpos l.contents).contents }
 | LB LT t_e=type_expr GT fields=separated_nonempty_list(SEMI, field_instanciation) RB
-    { make_node $startpos (NewRecord (t_e,fields)) }
+    { make_node $startpos (NewRecord (make_node $startpos t_e,fields)) }
 | LS size=expr PIPE init_elt=expr RS
     { make_node $startpos (NewArray (size,init_elt)) }
 | LS l=separated_nonempty_list(SEMI, expr) RS

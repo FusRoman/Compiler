@@ -11,12 +11,16 @@ and record_env = (_type * int) StringMap.t
 
 and _type =
   |TInt
-  |TPointer of _type 
+  |TPointer of _type
   |TArray of _type
   |TFun of (_type list) * _type
   |TRecord of record_env
   |TTuple of _type list
   |TAlias of string node
+
+and declarable_type =
+  | TRegular of _type
+  | TExtended of _type node * (string node * _type) list
 
 type typ_binop = ARTBinop of binop | Seq | NSeq
 
@@ -30,7 +34,7 @@ and typ_expression =
   | Binop of typ_expression node * typ_binop * typ_expression node
   | Call of typ_expression node * (typ_expression node list)
   | RecordAccess of typ_expression node * string node
-  | NewRecord of _type * record_field list
+  | NewRecord of _type node * record_field list
   | ArrayAccess of typ_expression node * typ_expression node
   | NewArray of typ_expression node * typ_expression node
   | TupleAccess of typ_expression node * int
@@ -38,7 +42,7 @@ and typ_expression =
   | InitArray of typ_expression node list
 
 type variable = _type * string node * typ_expression node
-type declaration_type = string node * _type
+type type_declaration = string node * declarable_type
 (** Instructions en TYP *)
 type typ_instr =
   | Nop
@@ -76,19 +80,13 @@ type typ_function = typ_instrs function_definition
 type global_declaration =
   | Fun of typ_function
   | Var of variable
-  | Type of declaration_type
+  | Type of type_declaration
 
 type typ_prog = global_declaration list
-
-
-(*
-  genv est une map permettant d'étiqueter chaque label avec son type.
-  _type est une map de tous les types et alias de type déclaré dans le programme.
-  tree est l'AST du programme ecrit en langage typ
-*)
+  
 type 'a program = {
   genv: env;
-  _type: env;
+  types: (string node * declarable_type) list;
   tree: 'a
 }
 
@@ -163,7 +161,54 @@ let rec find_type_alias type_env a =
   |TTuple t ->
     TTuple(List.map (find_type_alias type_env) t)
 
+(* 
+  La fonction de comparaison des types pour les paramètres de fonction varie un peu :
+  les records sont plus inclusifs. Si on attend un record avec a et b, on accepte aussi
+  un record avec a, b et c du moment que a et b ont le même décalage.
+*)
+let compare_types_inclusive type_env expected actual =
+  let rec compare_rec t1 t2 =
+    match (t1, t2) with
+    | (TInt, TInt) -> true
 
+    | (TPointer t1, TPointer t2) | (TArray t1, TArray t2) ->
+      compare_rec t1 t2 
+
+    | (TTuple types1, TTuple types2) ->
+    begin
+      try
+        List.fold_left2 (fun acc t1 t2 ->
+          acc && compare_rec t1 t2
+        ) true types1 types2
+      with Invalid_argument _ -> false
+    end
+
+    | (TFun(args1, return1), TFun(args2, return2)) ->
+      if compare_rec return1 return2 then
+        List.fold_left2 (fun acc t1 t2 ->
+          acc && compare_rec t1 t2
+        ) true args1 args2
+      else
+        false
+
+    | (TRecord renv1, TRecord renv2) ->
+      StringMap.fold (fun field (t1, o1) acc ->
+        if StringMap.mem field renv2 then
+          let (t2, o2) = StringMap.find field renv2 in
+          acc && o1 = o2 && compare_rec t1 t2
+        else
+          false
+      ) renv1 true
+
+    | (_, TAlias t) | (TAlias t, _) ->
+      failwith (Printf.sprintf "TYPTree.compare_types_inclusive: unexpected (TAlias '%s')" t.contents)
+
+    | _ -> false
+  in
+
+  let true_t1 = find_type_alias type_env expected in
+  let true_t2 = find_type_alias type_env actual in
+  compare_rec true_t1 true_t2
 
 let rec check_expression genv type_env e = 
   match e with
@@ -229,9 +274,7 @@ let rec check_expression genv type_env e =
             List.iter2 (
               fun expr param_type ->
                 let actual_type = check_expression genv type_env expr.contents in
-                let true_type = find_type_alias type_env actual_type in
-                let true_type_param = find_type_alias type_env param_type in
-                if not (true_type = true_type_param) then
+                if not (compare_types_inclusive type_env param_type actual_type) then
                   raise_type_error actual_type (string_of_type param_type) expr.line expr.column
             ) expr_list type_params
           with Not_found ->
@@ -250,7 +293,7 @@ let rec check_expression genv type_env e =
         begin
           match StringMap.find_opt field.contents env with
           |None -> raise (TypeError 
-                            ("this field" ^ field.contents ^ "was never declared before", 
+                            ("Unknown field " ^ field.contents, 
                              field.line, 
                              field.column)
                          )
@@ -283,20 +326,19 @@ let rec check_expression genv type_env e =
         raise_type_error x "int" size.line size.column
     end
 
-  |NewRecord (type_record,list_field) ->
+  |NewRecord (type_record, list_field) ->
     begin
-      let true_type_record = find_type_alias type_env type_record in
+      let true_type_record = find_type_alias type_env type_record.contents in
       match true_type_record with
       |TPointer (TRecord e) ->  
         List.iter (
           fun (name_node, expr) ->
             match StringMap.find_opt name_node.contents e with
-            |None -> raise (TypeError 
-                              ("This field " ^ name_node.contents ^ "was not declared in the 
-                              record type declaration.", 
-                               0, 
-                               0)
-                           )
+            |None -> 
+              raise (TypeError (
+                Printf.sprintf "Field '%s' was not initialized." name_node.contents, 
+                type_record.line, type_record.column
+              ))
             |Some (_type,_) ->
               let actual_type = check_expression genv type_env expr.contents in
               let true_type = find_type_alias type_env actual_type in
@@ -304,9 +346,10 @@ let rec check_expression genv type_env e =
               if not (true_type = true_type_field) then
                 raise_type_error actual_type (string_of_type _type) expr.line expr.column
         ) list_field;
-        type_record
+        type_record.contents
+
       |_ ->
-        raise_type_error type_record "pointer of record" 0 0
+        raise_type_error type_record.contents "pointer of record" type_record.line type_record.column
     end
 
   |InitArray expr_list ->
@@ -387,9 +430,7 @@ let rec check_instruction genv type_env f i =
         raise_type_error x "pointer" e1.line e1.column
     in
     let actual_type = check_expression genv type_env e2.contents in
-    let true_type = find_type_alias type_env actual_type in
-    let true_type_of_t = find_type_alias type_env t in
-    if not (true_type = true_type_of_t) then
+    if not (compare_types_inclusive type_env t actual_type) then
       raise_type_error actual_type (string_of_type t) e2.line e2.column
 
   |IfElse (cond, block_if, block_else) ->
@@ -444,9 +485,7 @@ let rec check_instruction genv type_env f i =
             List.iter2 (
               fun expr param_type ->
                 let actual_type = check_expression genv type_env expr.contents in
-                let true_type = find_type_alias type_env actual_type in
-                let true_type_param = find_type_alias type_env param_type in
-                if not (true_type = true_type_param) then
+                if not (compare_types_inclusive type_env param_type actual_type) then
                   raise_type_error actual_type (string_of_type param_type) expr.line expr.column
             ) expr_list type_params
           with Not_found ->
@@ -458,9 +497,7 @@ let rec check_instruction genv type_env f i =
     
   |Declaration (_type_var, name_node, expr) ->
     let actual_type = check_expression genv type_env expr.contents in
-    let true_type = find_type_alias type_env actual_type in
-    let true_type2 = find_type_alias type_env _type_var in
-    if not (true_type = true_type2) then
+    if not (compare_types_inclusive type_env _type_var actual_type) then
       raise_type_error actual_type (string_of_type _type_var) expr.line expr.column
 
 and check_list_instruction genv type_env f l =
@@ -739,7 +776,7 @@ and translate_expression genv type_env e =
 
   |NewRecord (_type, record_field) ->
 
-    let (new_map, record_tag) = make_var_node _type genv in
+    let (new_map, record_tag) = make_var_node _type.contents genv in
 
     (* Allocation mémoire de l'enregistrement *)
     let (call_to_malloc: var_expression) = VARTree.Call ( Id malloc, [Int (List.length record_field)] ) in
@@ -1128,10 +1165,75 @@ let translate_globals genv type_env g =
       end in
   inter [] g
 
+let make_type_env types =
+  let rec check_type acc alias _type =
+    match _type with
+    | TInt -> ()
+    | TAlias t ->
+      if not (StringMap.mem t.contents acc) then
+        raise (SyntaxError(
+          Printf.sprintf "Unknow type '%s' in declaration of type '%s'. Note that mutual recursion for types is not allowed." t.contents alias.contents,
+          t.line, t.column
+        ))
+    | TPointer t | TArray t ->
+      check_type acc alias t
+    | TFun(args, return) ->
+      List.iter (fun t -> check_type acc alias t) args;
+      check_type acc alias return
+    | TRecord renv ->
+      StringMap.iter (fun _ (t, o) -> check_type acc alias t) renv
+    | TTuple types ->
+      List.iter (fun t -> check_type acc alias t) types
+  in
+
+  List.fold_left (fun acc (alias, t) ->
+    if StringMap.mem alias.contents acc then
+      raise (SyntaxError(
+        Printf.sprintf "Type '%s' is already declared." alias.contents,
+        alias.line, alias.column
+      ));
+    match t with
+    | TRegular _type ->
+      check_type acc alias _type;
+      StringMap.add alias.contents _type acc
+
+    | TExtended(extended, fields) ->
+      check_type acc alias extended.contents;
+      match find_type_alias acc extended.contents with
+      | TPointer (TRecord renv) ->
+        (* Calcul de l'offset du premier attribut déclaré *)
+        let initial_offset = 
+          StringMap.fold (fun _ (_, o) acc ->
+              max acc o
+          ) renv (-1)
+        in
+
+        (* Calcul du nouveau record_env *)
+        let new_renv, _ =
+          List.fold_left (fun (renv, offset) (name, _type) ->
+            check_type acc alias _type;
+            if StringMap.mem name.contents renv then
+              raise (SyntaxError(
+                Printf.sprintf "Field '%s' is declared at least twice in type '%s'" name.contents alias.contents,
+                alias.line, alias.column
+              ));
+            (StringMap.add name.contents (_type, offset) renv, offset + 1)
+          ) (renv, initial_offset + 1) fields
+        in
+
+        StringMap.add alias.contents (TPointer (TRecord new_renv)) acc
+
+      | _ ->
+        raise (SyntaxError(
+          Printf.sprintf "Only records are extendable.",
+          extended.line, extended.column
+        ))
+  ) StringMap.empty types
 
 let typ_to_tpl typ_prog =
-  check_global_declaration typ_prog.genv typ_prog._type typ_prog.tree;
-  let syntax_tree = translate_globals typ_prog.genv typ_prog._type typ_prog.tree in
+  let type_env = make_type_env typ_prog.types in
+  check_global_declaration typ_prog.genv type_env typ_prog.tree;
+  let syntax_tree = translate_globals typ_prog.genv type_env typ_prog.tree in
   let tag_set = List.fold_left (
       fun acc (name_global, _) ->
         Tagset.add name_global acc
