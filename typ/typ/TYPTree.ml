@@ -535,6 +535,7 @@ let make_var_node _type env =
     Quand on détecte BinopAssign(d, op, NewTruc), on peut appeler avec Some d.
 *)
 
+
 let rec structural_equality genv type_env e1 e2 test_array from_array =
   match (check_expression genv type_env e1.contents), (check_expression genv type_env e2.contents) with
   |TInt, TInt ->
