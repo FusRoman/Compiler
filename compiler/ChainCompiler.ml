@@ -104,7 +104,13 @@ let run_asm file =
   exit code
   
 let run_stk file =
-  let code = command ("./stk/STKCompilerAlloc test/" ^ file ^ ".stk") in
+  let base = "./stk/STKCompilerAlloc test/" ^ file ^ ".stk" in
+  let code = 
+    if !library then
+      command (base ^ " --lib") 
+    else
+      command base
+  in
   if code = 0 && not !library then
     run_asm file;
   exit code

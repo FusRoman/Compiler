@@ -42,7 +42,7 @@
    *
    * *********************************************************************************************)
 
-  let nbarg = Array.length Sys.argv
+  let argc = Array.length Sys.argv
 
   let src = Sys.argv.(1)
   let lexbuf = Lexing.from_channel (open_in src)
@@ -51,11 +51,20 @@
       failwith "expected .stk extension"
 
   let output_file =
-    if nbarg >= 3 then
-      Sys.argv.(2)
-    else
-      (Filename.chop_suffix src ".stk") ^ ".asm"
+    (Filename.chop_suffix src ".stk") ^ ".asm"
   let output = open_out output_file
+
+  let lib =
+    if argc >= 3 then
+      if Sys.argv.(2) = "--lib" then
+        true
+      else 
+      begin
+        Printf.printf "Unknown option '%s'. Usage: STKCompilerAlloc <STK source file> [--lib]\n" Sys.argv.(2);
+        false
+      end
+    else
+      false
 
   let fmt = sprintf
 
@@ -520,7 +529,8 @@
       push (Int v) state
 
     | PushTag s ->
-      if Tagset.mem s state.defined_tags then
+      (* frame_pointer, entre autres, n'est pas défini si on compile une librairie *)
+      if lib || Tagset.mem s state.defined_tags then
         push (Tag s) state
       else
         raise (CompilationError(line, s, fmt "Undefined tag '%s'" s))
@@ -595,12 +605,18 @@
         compile_data data'
     in
 
-    fprintf output "ADDRESS %s stack_pointer\n" spa;
-    fprintf output "READ %s %s\n" sp spa;
+    if not lib then
+    begin
+      fprintf output "ADDRESS %s stack_pointer\n" spa;
+      fprintf output "READ %s %s\n" sp spa
+    end;
     compile_instrs state;
     compile_data state.remaining_data;
-    fprintf output "stack_pointer:\n65535\n";
-    fprintf output "argv:\n0\nargc:\n0"
+    if not lib then
+    begin
+      fprintf output "stack_pointer:\n65535\n";
+      fprintf output "argv:\n0\nargc:\n0"
+    end
     (* 
       La machine virtuelle va donner les bonnes valeurs à argv et argc,
       à condition que ce soit les dernières variables et déclarées dans cet ordre

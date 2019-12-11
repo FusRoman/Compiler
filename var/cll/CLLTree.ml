@@ -238,8 +238,13 @@ let cll_to_imp lib cll_prog =
       65537 car la première variable du main est stockée en 65535 (pas de cellule d'appel),
       et est accédée avec frame_pointer - 2 
     *)
-    let data = add_var data frame_pointer 65537 in
-    let data = add_var data function_address 0 in
+    let data =
+      if lib then 
+        data 
+      else
+        let data = add_var data frame_pointer 65537 in
+        add_var data function_address 0
+    in
     let instr = translate_procedures lib tag_set maker procs empty_cycle in
     (instr, data)
   in
