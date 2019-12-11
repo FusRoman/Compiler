@@ -18,7 +18,7 @@ and _type =
   |TTuple of _type list
   |TAlias of string node
 
-type typ_binop = ARTBinop of binop | Seq
+type typ_binop = ARTBinop of binop | Seq | NSeq
 
 type record_field = string node * typ_expression node
 and typ_expression =
@@ -100,6 +100,7 @@ let string_of_typ_binop op =
   match op with
   |ARTBinop op -> string_of_binop op
   |Seq -> "="
+  |NSeq -> "<>"
 
 let rec string_of_type t =
   let rec aux separator l =
@@ -198,7 +199,7 @@ let rec check_expression genv type_env e =
       let true_type_e1 = find_type_alias type_env (check_expression genv  type_env e1.contents) in
       let true_type_e2 = find_type_alias type_env (check_expression genv type_env e2.contents) in
       match op with
-      |Seq | ARTBinop Eq ->
+      | Seq | NSeq | ARTBinop Neq | ARTBinop Eq ->
         TInt
       |other_op ->
         begin
@@ -337,7 +338,7 @@ let rec check_expression genv type_env e =
 
 let rec check_instruction genv type_env f i =
   match i with
-  |Nop | Exit |Break _ |Continue _ -> ()
+  |Nop | Exit | Break _ | Continue _ -> ()
   |Return e ->
     begin
       match f with
@@ -420,7 +421,7 @@ let rec check_instruction genv type_env f i =
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
       match true_type with
-      |TFun (type_params, return_type) ->
+      |TPointer (TFun (type_params, return_type)) ->
         begin try 
             List.iter2 (
               fun expr param_type ->
@@ -537,7 +538,7 @@ let make_var_node _type env =
 
 let rec structural_equality genv type_env e1 e2 test_array from_array =
   match (check_expression genv type_env e1.contents), (check_expression genv type_env e2.contents) with
-  |TInt, TInt ->
+  | TInt, TInt ->
     let (init1, var_e1, reeval1, env1) = translate_expression genv type_env e1.contents in
     let (init2, var_e2, reeval2, env2) = translate_expression env1 type_env e2.contents in
     let test_array = match from_array with
@@ -559,6 +560,7 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
         env2,
         false
       )
+
   |TPointer (TTuple l1), TPointer (TTuple l2) ->
     let (init,var_equal ,reeval, env, t, _) = List.fold_left (
         fun (acc_init,var_acc ,acc_reeval, acc_env, t , it) _ ->
@@ -575,9 +577,11 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
           )
       ) (empty_cycle,empty_cycle ,empty_cycle, genv, false, 0) l1 in
     let (head, tail) = take var_equal in
-    let test_tuple = match from_array with
+    let test_tuple = 
+      match from_array with
       |Some t -> t
-      |None -> false in
+      |None -> false 
+    in
     let cond_expr = iter tail (
         fun simple_equal acc ->
           if test_tuple then
@@ -592,6 +596,7 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
       env,
       false
     )
+
   |TPointer (TArray t1), TPointer (TArray t2) ->
     let (init1, var_e1, reeval1, env1) = translate_expression genv type_env e1.contents in
     let (init2, var_e2, reeval2, env2) = translate_expression env1 type_env e2.contents in
@@ -602,9 +607,11 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
     let access_size_array1 = VARTree.Binop (var_e1, Sub, Int 1) in
     let access_size_array2 = VARTree.Binop (var_e2, Sub, Int 1) in
     let test_size = VARTree.Binop (Deref access_size_array1, Neq, Deref access_size_array2) in
-    let test_tag_param = match test_array with
+    let test_tag_param = 
+      match test_array with
       |None -> test_tag
-      |Some test_param -> test_param in
+      |Some test_param -> test_param 
+    in
     let block_if = VARTree.BinopAssign (Id test_tag_param, Standard, Int 0) in
     let access_array1 = ArrayAccess (e1, default_node (Deref (default_node (Id i)))) in
     let access_array2 = ArrayAccess (e2, default_node (Deref (default_node (Id i)))) in
@@ -640,9 +647,11 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
     iter2 tail1 tail2 (
       fun a_r1 a_r2 (init_acc, var_acc, reeval_acc, env_acc, test_acc)   ->
         let (init_r1, var_r1, reeval_r1, env_r1,t) = structural_equality env_acc type_env a_r1 a_r2 test_array from_array in
-        let test = match from_array with
+        let test = 
+          match from_array with
           |Some t -> t
-          |None -> false in
+          |None -> false 
+        in
         if test then
           (
             extend init_acc init_r1,
@@ -665,6 +674,7 @@ let rec structural_equality genv type_env e1 e2 test_array from_array =
     structural_equality genv type_env (default_node (Deref e1)) (default_node (Deref e2)) test_array from_array
   |_,_ -> failwith "erreur égalité de structure"
 
+
 and translate_expression genv type_env e =
   match e with
   |TupleAccess (tpl, i) ->
@@ -675,7 +685,6 @@ and translate_expression genv type_env e =
       reeval_struct,
       new_env
     )
-
 
   |RecordAccess (name_record, field) ->
     begin
@@ -923,15 +932,11 @@ and translate_expression genv type_env e =
           new_env2
         )
       |Seq ->
-        begin
-          let (init, v, reeval, env, _) = structural_equality genv type_env e1 e2 None None in
-          (
-            init,
-            v,
-            reeval,
-            env
-          )
-        end
+        let (init, v, reeval, env, _) = structural_equality genv type_env e1 e2 None None in
+        (init, v, reeval, env)
+      |NSeq ->
+        let (init, v, reeval, env, _) = structural_equality genv type_env e1 e2 None None in
+        (init, Unop(Not, v), reeval, env)
     end
   |Call (function_name, function_block) ->
     let (init_fun, var_fun, reeval_fun, env_fun) = translate_expression genv type_env function_name.contents in
@@ -1104,15 +1109,10 @@ let translate_globals genv type_env g =
 
 
 let typ_to_tpl typ_prog =
-  try
-    check_global_declaration typ_prog.genv typ_prog._type typ_prog.tree;
-    let syntax_tree = translate_globals typ_prog.genv typ_prog._type typ_prog.tree in
-    let tag_set = List.fold_left (
-        fun acc (name_global, _) ->
-          Tagset.add name_global acc
-      ) Tagset.empty (StringMap.bindings typ_prog.genv) in
-    {syntax_tree; tag_set}
-  with
-  |TypeError (msg, line, column) ->
-    Printf.printf "%s at %d, %d\n" msg line column;
-    failwith ""
+  check_global_declaration typ_prog.genv typ_prog._type typ_prog.tree;
+  let syntax_tree = translate_globals typ_prog.genv typ_prog._type typ_prog.tree in
+  let tag_set = List.fold_left (
+      fun acc (name_global, _) ->
+        Tagset.add name_global acc
+    ) Tagset.empty (StringMap.bindings typ_prog.genv) in
+  {syntax_tree; tag_set}

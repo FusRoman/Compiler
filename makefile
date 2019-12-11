@@ -222,7 +222,6 @@ build_chain_compiler:
 	#@$(MAKE) -s build_cls
 	ocamlc -o compiler/ChainCompiler \
 		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
-		\ # -I typ/cls/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
 		art/ARTTree.cmo art/ARTParser.cmo art/ARTLexer.cmo \
 		imp/IMPTree.cmo imp/IMPParser.cmo imp/IMPLexer.cmo \
@@ -231,7 +230,6 @@ build_chain_compiler:
 		var/var/VARTree.cmo var/var/VARParser.cmo var/var/VARLexer.cmo \
 		typ/tpl/TPLTree.cmo \
 		typ/typ/TYPTree.cmo typ/typ/TYPParser.cmo typ/typ/TYPLexer.cmo \
-		\ # typ/cls/CLSTree.cmo typ/cls/CLSParser.cmo typ/cls/CLSLexer.cmo \
 		compiler/ChainCompiler.ml
 
 

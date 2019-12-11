@@ -64,7 +64,7 @@
 %token ASSIGN INCR DECR
 %token ADDASSIGN SUBASSIGN
 %token MULTASSIGN DIVASSIGN
-%token EQ NEQ SEQ
+%token EQ NEQ SEQ NSEQ
 %token LT LE GT GE
 %token ADD SUB
 %token MULT DIV REM
@@ -96,7 +96,7 @@
 %nonassoc NO_ELSE
 %nonassoc ELSE
 %left AND OR
-%left EQ NEQ LT LE GT GE SEQ
+%left EQ NEQ LT LE GT GE SEQ NSEQ
 %left ADD SUB
 %left MULT DIV REM
 %left NOT CPL
@@ -312,6 +312,7 @@ simple_expr:
 | EQ          { ARTBinop Eq }
 | NEQ         { ARTBinop Neq }
 | SEQ         { Seq }
+| NSEQ        { NSeq }
 ;
 
 %inline unop:

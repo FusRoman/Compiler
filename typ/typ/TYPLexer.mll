@@ -52,6 +52,8 @@ rule token = parse
       { BREAK }
   | "="
       { SEQ }
+  | "<>"
+      { NSEQ }
   | "->"
       { ARROW }
   | ":="
