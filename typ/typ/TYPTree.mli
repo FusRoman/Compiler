@@ -18,6 +18,10 @@ and _type =
   |TTuple of _type list
   |TAlias of string node
 
+and declarable_type =
+  | TRegular of _type
+  | TExtended of _type node * (string node * _type) list
+
 type typ_binop = ARTBinop of binop | Seq | NSeq
 
 type record_field = string node * typ_expression node
@@ -30,7 +34,7 @@ and typ_expression =
   | Binop of typ_expression node * typ_binop * typ_expression node
   | Call of typ_expression node * (typ_expression node list)
   | RecordAccess of typ_expression node * string node
-  | NewRecord of _type * record_field list
+  | NewRecord of _type node * record_field list
   | ArrayAccess of typ_expression node * typ_expression node
   | NewArray of typ_expression node * typ_expression node
   | TupleAccess of typ_expression node * int
@@ -38,7 +42,7 @@ and typ_expression =
   | InitArray of typ_expression node list
 
 type variable = _type * string node * typ_expression node
-type declaration_type = string node * _type
+type type_declaration = string node * declarable_type
 (** Instructions en TYP *)
 type typ_instr =
   | Nop
@@ -76,23 +80,23 @@ type typ_function = typ_instrs function_definition
 type global_declaration =
   | Fun of typ_function
   | Var of variable
-  | Type of declaration_type
+  | Type of type_declaration
 
 type typ_prog = global_declaration list
   
   
-  (**
-    genv est une map permettant d'étiqueter chaque label avec son type.
-    _type est une map de tous les types et alias de type déclaré dans le programme.
-    tree est l'AST du programme ecrit en langage typ
-  *)
-  type 'a program = {
-    genv: env;
-    _type: env;
-    tree: 'a
-  }
+(**
+  genv est une map associant chaque variable à son type.
+  types est une liste de déclarations de type.
+  tree est l'AST du programme ecrit en langage typ
+*)
+type 'a program = {
+  genv: env;
+  types: (string node * declarable_type) list;
+  tree: 'a
+}
 
-  exception TypeError of string * int * int
+exception TypeError of string * int * int
   
 (** Renvoie un nom de variable qui n'existe pas encore dans l'environnement donné. *)
 val make_var_node : 'a -> 'a StringMap.t -> 'a StringMap.t * string node
