@@ -420,7 +420,7 @@ let rec check_instruction genv type_env f i =
     begin
       let true_type = find_type_alias type_env (check_expression genv type_env s.contents) in
       match true_type with
-      |TFun (type_params, return_type) ->
+      |TPointer (TFun (type_params, return_type)) ->
         begin try 
             List.iter2 (
               fun expr param_type ->

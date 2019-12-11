@@ -1,6 +1,24 @@
 
 type re := {a:int; b:int};
 
+int kkk (g : int){
+    return 96 + g;
+}
+
+int print_result(test: bool) {
+    if (test) {
+        print('o');
+        print('k');
+        print(10);
+    } else {
+        print('n');
+        print('o');
+        print('n');
+        print(10);
+    }
+    return test;
+}
+
 int main() {
     var f: (int,int) := (1,2);
 
@@ -8,6 +26,15 @@ int main() {
     var d: ((int,int),int) := ((1,2), 3);
     var g: ((int,int),int) := (f, 3);
     var e: ((int,int),int) := ((1, 3), 3);
+
+
+    var h : int  := kkk(2);
+
+    print(kkk(c = g));
+
+    kkk(c=g);
+
+    print_result(c = g);
 
     if (c = g) {
         print('o');
