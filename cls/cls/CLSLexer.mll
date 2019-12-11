@@ -1,5 +1,5 @@
 {
-  open TYPParser
+  open CLSParser
 }
 
 let digit = ['0'-'9']
@@ -54,6 +54,8 @@ rule token = parse
       { BREAK }
   | "="
       { SEQ }
+  | "<>"
+      { NSEQ }
   | "->"
       { ARROW }
   | ":="

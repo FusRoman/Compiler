@@ -201,25 +201,25 @@ build_typ:
 
 build_cls:
 	@$(MAKE) -s build_typ
-	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ -I typ/cls/ \
-		cls/cls/CLSTree.mli typ/cls/CLSTree.ml
+	ocamlc -c -I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ -I cls/cls/ \
+		cls/cls/CLSTree.mli cls/cls/CLSTree.ml
 	menhir -v cls/cls/CLSParser.mly
 	ocamllex cls/cls/CLSLexer.mll
-	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ -I typ/cls/ \
+	ocamlc -c -I utils -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ -I cls/cls/ \
 		cls/cls/CLSParser.mli cls/cls/CLSParser.ml
-	ocamlc -c -I cls/cls/ cls/typ/CLSLexer.ml
+	ocamlc -c -I cls/cls/ cls/cls/CLSLexer.ml
 
-	ocamlc -I utils/ -I art/ -I var/var/ -I typ/typ/ -I typ/cls/ \
+	ocamlc -I utils/ -I art/ -I var/var/ -I typ/typ/ -I cls/cls/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \
 		art/ARTTree.cmo imp/IMPTree.cmo var/cll/CLLTree.cmo var/fun/FUNTree.cmo typ/typ/TYPTree.cmo cls/cls/CLSTree.cmo \
 		cls/cls/CLSLexer.cmo cls/cls/CLSParser.cmo var/var/VARTree.cmo -o cls/cls/CLSCompiler \
-		typ/cls/CLSCompiler.ml 
+		cls/cls/CLSCompiler.ml 
 
 # ------------------------------ ChainCompiler -------------------------------------
 
 build_chain_compiler: 
 	@$(MAKE) -s build_typ
-	#@$(MAKE) -s build_cls
+	@$(MAKE) -s build_cls
 	ocamlc -o compiler/ChainCompiler \
 		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \

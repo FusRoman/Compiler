@@ -5,6 +5,7 @@
   open IMPTree
   open FUNTree
   open TYPTree
+  open CLSTree
 
   let get_line pos =
     pos.pos_lnum
@@ -26,19 +27,17 @@
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 
+
   let make_env = List.fold_left (
-    fun (genv, type_env, tree) elt ->
+    fun (class_env, tree) elt ->
       match elt with
-      |Type (s, t) ->
-        (genv, StringMap.add s.contents t type_env,tree)
-      |Var (t, s, e) -> (StringMap.add s.contents t genv, type_env, (Var (t,s,e)) :: tree)
-      |Fun f -> 
-        let param_list = List.map (
-          fun param ->
-            param.params_type
-        ) f.params in
-        (StringMap.add f.name.contents (TFun (param_list, f.return_type)) genv, type_env, (Fun f)::tree)
-  ) (StringMap.empty, StringMap.empty, [])
+      |Class (name_class, elt) ->
+        (StringMap.add name_class.contents (TAlias name_class)) class_env, (Class (name_class, elt)::tree)
+      |ClassFille (name_class, mother_class, elt) ->
+        (StringMap.add name_class.contents (TAlias name_class)) class_env, (ClassFille (name_class, mother_class, elt)::tree)
+      |x ->
+        (class_env, x::tree)
+  ) (StringMap.empty, [])
 
   let get_left start _end  e =
     match e with
@@ -64,7 +63,7 @@
 %token ASSIGN INCR DECR
 %token ADDASSIGN SUBASSIGN
 %token MULTASSIGN DIVASSIGN
-%token EQ NEQ SEQ
+%token EQ NEQ SEQ NSEQ
 %token LT LE GT GE
 %token ADD SUB
 %token MULT DIV REM
@@ -80,23 +79,23 @@
 
 %start program
 %start header
-%type <TYPTree.typ_prog TYPTree.program> program
+%type <CLSTree.cls_prog CLSTree.program> program
 %type <unit> header
-%type <TYPTree.variable> variable_declaration
-%type <TYPTree.parameter> parameter
-%type <TYPTree.typ_function> function_definition
-%type <TYPTree.typ_instrs> instructions
-%type <TYPTree.typ_expression ARTTree.node> expr
-%type <TYPTree.typ_expression ARTTree.node> simple_expr
-%type <TYPTree.typ_instr> instruction
-%type <TYPTree.typ_instrs> block
-%type <TYPTree.typ_instr> control
+%type <CLSTree.variable> variable_declaration
+%type <CLSTree.parameter> parameter
+%type <CLSTree.cls_function> function_definition
+%type <CLSTree.cls_instrs> instructions
+%type <CLSTree.cls_expression ARTTree.node> expr
+%type <CLSTree.cls_expression ARTTree.node> simple_expr
+%type <CLSTree.cls_instr> instruction
+%type <CLSTree.cls_instrs> block
+%type <CLSTree.cls_instr> control
 %type <TYPTree._type> type_expr
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
 %left AND OR
-%left EQ NEQ LT LE GT GE SEQ
+%left EQ NEQ LT LE GT GE SEQ NSEQ
 %left ADD SUB
 %left MULT DIV REM
 %left NOT CPL
@@ -109,8 +108,8 @@
 program:
 | globals=list(global_declaration) EOF
     {
-      let (genv, _type, tree) = make_env globals in
-      {genv; _type; tree}
+      let (class_env, tree) = make_env globals in
+      {class_env; tree}
     }
 
 | error
@@ -133,22 +132,37 @@ global_declaration:
     { 
       Type t
     }
-| CLASS l=LABEL LS l=list(class_declaration) RS
+| CLASS name_class=LABEL LS l=list(class_declaration) RS
     {
-
+      Class (make_node $startpos name_class, l)
+    }
+| CLASS name_class=LABEL EXTENDS mother_class=LABEL LS l=list(class_declaration) RS
+    {
+      ClassFille (make_node $startpos name_class, mother_class, l)
     }
 ;
 
 class_declaration:
 | f=function_definition
     {
-      Fun f
+      Method f
     }
 
-| var=global_variable_declaration SEMI
+| var=attribute_declaration SEMI
     {
-      Var var
+      Attribute var
     }
+;
+
+attribute_declaration:
+| VAR name=LABEL COLON typ=type_expr
+  {
+    Var (typ, make_node $startpos name)
+  }
+| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr
+  {
+    InitVar (typ, make_node $startpos name, e)
+  }
 ;
 
 global_variable_declaration:
@@ -173,7 +187,7 @@ variable_declaration:
 ;
 
 parameter:
-| name=LABEL COLON params_type=type_expr 
+| name=LABEL COLON params_type=type_expr
     {
       {name = make_node $startpos name; reference = false; params_type}
     }
@@ -279,7 +293,7 @@ expr:
 | op=unop e=expr
     { make_node $startpos (Unop(op, e)) }
 | f=simple_expr LP args=separated_list(COMMA, expr) RP
-    { make_node $startpos ((Call((get_left $startpos $endpos f.contents), args)): TYPTree.typ_expression) }
+    { make_node $startpos ((Call((get_left $startpos $endpos f.contents), args)): CLSTree.cls_expression) }
 | e=simple_expr
     { make_node $startpos e.contents }
 | l=expr LS e=expr RS
@@ -288,6 +302,8 @@ expr:
     { make_node $startpos (Deref (make_node $startpos (RecordAccess(l, make_node $startpos(f) f)))) }
 | l=expr DOT LP i=INT RP
     { make_node $startpos (Deref (make_node $startpos (TupleAccess (l, i)))) }
+| n_class=expr DOT m=LABEL LP args=separated_list(COMMA,expr) RP
+    { make_node $startpos (MethodAccess (n_class, make_node $startpos m, args)) }
 ;
 
 simple_expr:
@@ -328,6 +344,7 @@ simple_expr:
 | EQ          { ARTBinop Eq }
 | NEQ         { ARTBinop Neq }
 | SEQ         { Seq }
+| NSEQ        { NSeq }
 ;
 
 %inline unop:
