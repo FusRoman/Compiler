@@ -1066,6 +1066,7 @@ and translate_instruction instr_acc genv type_env i =
           )
       ) (init_fun, empty_cycle, reeval_fun, env_fun) function_param in
     let acc = extend instr_acc init_fun in
+    let acc = extend acc init_param in
     (
       append acc (Call (var_fun, (to_list var_param))),
       env_param
