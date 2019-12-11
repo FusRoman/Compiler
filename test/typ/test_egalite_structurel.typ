@@ -28,14 +28,14 @@ int main() {
     var e: ((int,int),int) := ((1, 3), 3);
 
 
-    var h : int  := kkk(2);
+    #var h : int  := kkk(2);
 
-    print(kkk(c = g));
+    #print(kkk(c = g));
 
     kkk(c=g);
 
     print_result(c = g);
-
+/*
     if (c = g) {
         print('o');
         print('k');
@@ -132,6 +132,6 @@ int main() {
         print('n');
         print(10);
     }
-
+*/
     exit;
 }

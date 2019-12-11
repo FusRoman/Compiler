@@ -74,10 +74,14 @@ type 'a function_definition = {
 
 type cls_function = cls_instrs function_definition
 
+type attribute = Var of variable list
+type methode = Fun of cls_function list
+
 type global_declaration =
   | Fun of cls_function
   | Var of variable
   | Type of declaration_type
+  | Class of attribute * methode
 
 type cls_prog = global_declaration list
   

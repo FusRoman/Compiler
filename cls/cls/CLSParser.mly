@@ -133,9 +133,22 @@ global_declaration:
     { 
       Type t
     }
+| CLASS l=LABEL LS l=list(class_declaration) RS
+    {
 
-| CLASS c=LABEL 
+    }
+;
 
+class_declaration:
+| f=function_definition
+    {
+      Fun f
+    }
+
+| var=global_variable_declaration SEMI
+    {
+      Var var
+    }
 ;
 
 global_variable_declaration:
