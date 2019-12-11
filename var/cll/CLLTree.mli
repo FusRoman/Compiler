@@ -58,8 +58,12 @@ and cll_prog = procedure_definitions * datas
   Si c'est le cas, aucune vérification n'est faite sur la présence ou l'abscence d'un procédure main.
   Si ce n'est pas une librairie, une procédure main doit être définie et elle sera toujours compilée
   en premier.
+
+  Le deuxième est le nom du fichier. Il est utilisé pour produire des tags automatiquement en garantissant
+  qu'ils soient différents de tous ceux de programmes avec un nom ou un emplacement différents,
+  garantie dont on a besoin à cause des librairies.
 *)
-val cll_to_imp : bool -> cll_prog compiler_type -> imp_prog compiler_type
+val cll_to_imp : string -> bool -> cll_prog compiler_type -> imp_prog compiler_type
 
 (** Ecris un programme CLL dans le fichier désigné. *)
 val write_cll : out_channel -> cll_prog compiler_type -> unit

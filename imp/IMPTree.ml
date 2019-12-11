@@ -232,7 +232,7 @@ and translate_instructions tag_set is maker _break _continue acc =
     let acc' = translate_instruction tag_set i maker _break _continue acc in
     translate_instructions tag_set s maker _break _continue acc'
 
-let imp_to_art imp =
+let imp_to_art file imp =
   let imp = {imp with tag_set = Tagset.union_duplicate imp_variables imp.tag_set} in
   (* Phase d'optimisation *)
   let opt_instrs, data = 
@@ -243,7 +243,7 @@ let imp_to_art imp =
       (fst (optimize_instructions i), d)
   in
   (* Phase de compilation vers ART *)
-  let tag_maker = Tagset.make_tag_maker imp.tag_set in
+  let tag_maker = Tagset.make_tag_maker imp.tag_set file in
   let art_instrs = translate_instructions imp.tag_set opt_instrs tag_maker None None Cycle.empty_cycle in
   {syntax_tree = ProgData(art_instrs, data); tag_set = Tagset.get_updated_set tag_maker}
 

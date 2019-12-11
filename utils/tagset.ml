@@ -15,6 +15,7 @@ let add x l =
 
 let mem = T.mem
 let singleton = T.singleton
+let choose = T.choose
 
 let union l1 l2 =
   T.fold (fun x acc -> add x acc) l1 l2
@@ -32,12 +33,48 @@ type tag_maker = {
   base: string;
 }
 
-let make_tag_maker l =
-  let max_length = fold (fun t acc -> max acc (String.length t)) l 1 in
+let transform_file file =
+  let is_alpha c =
+    (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c = '_' || c = '@'
+  in
+  let is_alphanumeric c =
+    is_alpha c || (c >= '0' && c <= '9')
+  in
+
+  let result = ref "" in
+  let add c =
+    result := !result ^ (Char.escaped c)
+  in
+
+  let length = String.length file in
+  if length = 0 then
+    raise (Invalid_argument "Tagset.make_tag_maker: empty file name, can not guarantee the uniqueness of automatically generated tags");
+
+  let fst = file.[0] in
+  if is_alpha fst then
+    add fst
+  else
+    add '@';  
+
+  for i = 1 to length - 1 do
+    let c = file.[i] in
+    if is_alphanumeric c then
+      add c
+    else
+      add '@'
+  done;
+  add '@';
+  !result
+
+let make_tag_maker l file =
+  (* on suppose que id est valide (i.e non vide, respecte la syntaxe du langage, etc.) *)
+  let file' = transform_file file in
+  let file_length = String.length file' in
+  let max_length = fold (fun t acc -> max acc (String.length t)) l file_length in
   {
     set = l;
     cpt = 0;
-    base = String.make max_length 'a'
+    base = file' ^ (String.make (max_length - file_length) 'a')
   }
 
 let make_tag maker =

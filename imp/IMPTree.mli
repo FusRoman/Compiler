@@ -63,8 +63,12 @@ val for_to_while : imp_instrs -> expression -> imp_instrs -> imp_instrs -> imp_i
   Transforme un arbre de syntaxe IMP en un arbre de syntaxe ART, qu'il est ensuite possible
   d'écrire dans un fichier ou de compiler en STK directement.
   Vérifie la correction du programme et tente de l'optimiser.
+
+  Le premier argument est le nom du fichier compilé. Il est utilisé pour garantir l'unicité
+  des tags générés automatiquement à travers ce fichier mais aussi tous les autres programmes
+  (du moment qu'ils n'ont pas le même nom).
 *)
-val imp_to_art : imp_prog compiler_type -> art_prog compiler_type
+val imp_to_art : string -> imp_prog compiler_type -> art_prog compiler_type
 
 (**
   'write_imp imp output' écrit le programme imp dans le fichier output.

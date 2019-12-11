@@ -21,6 +21,9 @@ val union: t -> t -> t
 (** L'ensemble formé d'un seul élément *)
 val singleton: elt -> t
 
+(** Renvoie un élément du tagset *)
+val choose: t -> elt
+
 (** *)
 val fold: (elt -> 'a -> 'a) -> t -> 'a -> 'a
 
@@ -38,8 +41,8 @@ val union_duplicate: t -> t -> t
 (** Type des tags maker *)
 type tag_maker
 
-(** Prend un ensemble de tags et renvoie un tag_maker qui renvoie à chaque appel de make_tag un tag différent, jamais déclaré *)
-val make_tag_maker: t -> tag_maker
+(** Prend un ensemble de tags et renvoie un tag_maker qui renvoie à chaque appel de make_tag un tag différent commençant par le second argument, jamais déclaré *)
+val make_tag_maker: t -> string -> tag_maker
 
 (** Renvoie un nouveau tag jamais déclaré *)
 val make_tag: tag_maker -> string

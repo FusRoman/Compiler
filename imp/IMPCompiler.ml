@@ -13,7 +13,7 @@ let output = open_out output_file
 let _ =
   try
     let source = IMPParser.program IMPLexer.token lexing_buffer in
-    let target = IMPTree.imp_to_art source in
+    let target = IMPTree.imp_to_art input_file source in
     write_art output target;
     close_out output;
     exit 0

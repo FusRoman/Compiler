@@ -62,7 +62,7 @@ let read f extension file =
     Printf.printf "[%s ERROR] Unknown error\n" upper_ext;
     raise e
 
-let translate t extension source =
+let translate (t: 'a -> 'b) (extension: string) (source: 'a) =
   let upper_ext = String.uppercase_ascii extension in
   try
     t source
@@ -125,7 +125,7 @@ let run_art file =
   run_art_inter art file
 
 let run_imp_inter imp file =
-  let art = translate IMPTree.imp_to_art "imp" imp in
+  let art = translate (IMPTree.imp_to_art (file ^ ".imp")) "imp" imp in
   write_opt ARTTree.write_art "art" art file;
   run_art_inter art file
 
@@ -135,7 +135,7 @@ let run_imp file =
   run_imp_inter imp file
 
 let run_cll_inter cll file =
-  let imp = translate_lib CLLTree.cll_to_imp "cll" cll in
+  let imp = translate_lib (CLLTree.cll_to_imp (file ^ ".cll")) "cll" cll in
   write_opt IMPTree.write_imp "imp" imp file;
   run_imp_inter imp file
 

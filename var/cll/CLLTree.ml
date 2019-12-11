@@ -221,7 +221,7 @@ let translate_procedures lib tag_set maker procs acc =
   in
   tr_not_main tag_set maker procs acc'
 
-let cll_to_imp lib cll_prog =
+let cll_to_imp file lib cll_prog =
   let add_var data var value =
     append data {
       line = var.line; 
@@ -230,7 +230,7 @@ let cll_to_imp lib cll_prog =
     }
   in
   let tag_set = Tagset.union_duplicate cll_variables cll_prog.tag_set in
-  let maker = Tagset.make_tag_maker tag_set in
+  let maker = Tagset.make_tag_maker tag_set file in
 
   let syntax_tree, data = 
     let procs, data = cll_prog.syntax_tree in
