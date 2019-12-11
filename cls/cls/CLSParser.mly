@@ -27,23 +27,17 @@
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 
+
   let make_env = List.fold_left (
-    fun (genv, type_env, class_env, tree) elt ->
+    fun (class_env, tree) elt ->
       match elt with
-      |Type (s, t) ->
-        (genv, StringMap.add s.contents t type_env, class_env, tree)
-      |Var (t, s, e) -> (StringMap.add s.contents t genv, type_env, class_env, (Var (t,s,e)) :: tree)
-      |Fun f -> 
-        let param_list = List.map (
-          fun param ->
-            param.params_type
-        ) f.params in
-        (StringMap.add f.name.contents (TFun (param_list, f.return_type)) genv, type_env, class_env, (Fun f)::tree)
-      |Class (name_class, gl) ->
-        genv, type_env, StringMap.add name_class.contents (TAlias name_class) class_env, (Class (name_class, gl)::tree)
-      |ClassFille (name_class, mother_class, gl) ->
-        genv, type_env, StringMap.add name_class.contents (TAlias name_class) class_env, (ClassFille (name_class, mother_class, gl)::tree)
-  ) (StringMap.empty, StringMap.empty, StringMap.empty, [])
+      |Class (name_class, elt) ->
+        (StringMap.add name_class.contents (TAlias name_class)) class_env, (Class (name_class, elt)::tree)
+      |ClassFille (name_class, mother_class, elt) ->
+        (StringMap.add name_class.contents (TAlias name_class)) class_env, (ClassFille (name_class, mother_class, elt)::tree)
+      |x ->
+        (class_env, x::tree)
+  ) (StringMap.empty, [])
 
   let get_left start _end  e =
     match e with
@@ -114,8 +108,8 @@
 program:
 | globals=list(global_declaration) EOF
     {
-      let (genv, _type, class_env, tree) = make_env globals in
-      {genv; _type; class_env; tree}
+      let (class_env, tree) = make_env globals in
+      {class_env; tree}
     }
 
 | error
@@ -193,7 +187,7 @@ variable_declaration:
 ;
 
 parameter:
-| name=LABEL COLON params_type=type_expr 
+| name=LABEL COLON params_type=type_expr
     {
       {name = make_node $startpos name; reference = false; params_type}
     }

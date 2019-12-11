@@ -86,8 +86,6 @@ type cls_prog = global_declaration list
    tree est l'AST du programme ecrit en langage typ
 *)
 type 'a program = {
-  genv: env;
-  _type: env;
   class_env: env;
   tree: 'a
 }

@@ -86,18 +86,19 @@ type cls_prog = global_declaration list
    tree est l'AST du programme ecrit en langage typ
 *)
 type 'a program = {
-  genv: TYPTree.env;
-  _type: TYPTree.env;
   class_env: TYPTree.env;
   tree: 'a
 }
 
 exception TypeError of string * int * int
 
+let rec translate_expression class_env e =
+  match e with
+  
 
 let cls_to_typ (cls_prog: cls_prog program) =
   {
-    genv = cls_prog.genv;
-    _type = cls_prog._type;
+    genv = StringMap.empty;
+    types = [];
     tree = [TYPTree.Var (TInt, default_node "toto", default_node (TYPTree.Int 0))]
   }
