@@ -91,9 +91,6 @@ type 'a program = {
 }
 
 exception TypeError of string * int * int
-
-let rec translate_expression class_env e =
-  match e with
   
 
 let cls_to_typ (cls_prog: cls_prog program) =
