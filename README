@@ -1,4 +1,7 @@
 Organisation du projet :
+  Lien vers le github : https://github.com/FusRoman/Compiler
+  (mais le répertoire est privé alors je sais pas trop pourquoi je mets ça là)
+
   Les compilateurs STK, ART et IMP ainsi que l'interpréteur VAR sont dans leur propre dossier à la racine du projet.
   Le compilateur STK le plus récent est STKCompilerAlloc. STKCompiler est une vieille version qui date d'avant la réalisation de CLL.
 
@@ -9,6 +12,9 @@ Organisation du projet :
   Le dossier typ contient TPL, TYP et CLS. A cause notamment de gros écarts par rapport à la spécification des langages, 
   REC et EXT ont été intégrés à TYP. TPL varie aussi beaucoup par rapport à sa spécification, puisqu'au final il s'agit de VAR
   avec malloc. Les tuples n'y sont pas gérés, ce rôle a été délégué à TYP.
+
+  CLS n'est pas fini. Nous avions projeté de faire les librairies en CLS mais comme nous n'avons pas eu le temps de finir, ça n'a pas été possible ;
+  cependant, le code jusqu'à TYP y est adapté (notamment l'assembleur).
 
   Le dossier test contient tous les fichiers test, organisés par langage source.
 
@@ -21,8 +27,48 @@ Organisation du projet :
 
 Extensions réalisées :
 
+- STK :
+  Accumulateur et allocation
+    La version accumulateur de STK est appelé STKCompiler. La plus récente est STKCompilerAlloc.
+    De plus, notre version de STKCompilerAlloc est cyclique : ce sont toujours les dernières valeurs qui sont empilées, pas les premières.
 
-Lolilol :
+- ART :
+  Messages d'erreur
+  Optimisation de l'utilisation des registres
+
+- IMP
+  Boucles for
+  break et continue
+
+- Interpréteur VAR
+  Arguments du main
+  Les pointeurs sont gérés, bien qu'un même programme manipulant les pointeurs de manière un peu poussée ne donne pas forcément le même résultat quand interprété ou compilé.
+
+- CLL, FUN et VAR
+  Déclarations au fil de l'eau
+  Initialisations enrichies
+  Appels de fonctions dans les expressions
+  Optimisation des appels terminaux
+  Passage par référence
+  Opérateur adresse
+  Paramètres du main
+    En réalité, main n'accepte toujours pas d'arguments. En revanche, deux variables globales argc et argv sont définies et permettent d'accéder aux arguments donnés par ligne de commande.
+
+
+- TPL, REC et TYP
+  Structures initialisées
+  Création de structures dans les expressions
+  Egalité structurelle
+
+  Le garbage collector n'a pas été fait puisque nous ne comprenons pas vraiment comment il fonctionne. Comment savoir ce qui est un pointeur et ce qui ne l'est pas ?
+
+- EXT et CLS
+  CLS n'est pas fini. Cependant, nous avons essayé de faire l'héritage, les attributs et méthodes statiques, et les attributs et méthodes privés / publics.
+  Nous avons également aménagé le code de tous les langages précédents pour accueillir facilement les librairies, i.e s'ils compilent une librairie ils ne rajouteront pas les variables globales telles que stack_pointer, etc.. Notamment, le caractère @ aurait été utilisé pour garantir l'unicité des noms à travers les librairies.
+
+
+
+Problème lié aux appels terminaux (réglé) :
 Adresse des paramètres dans les appels terminaux :
   Comme certains paramètres sont recopiés, leur adresse change. Exemple :
   # Terminal

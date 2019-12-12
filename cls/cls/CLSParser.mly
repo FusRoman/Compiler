@@ -5,7 +5,6 @@
   open IMPTree
   open FUNTree
   open TYPTree
-  open CLSTree
 
   let get_line pos =
     pos.pos_lnum
@@ -27,17 +26,26 @@
   let make_node pos contents =
     {line = get_line pos; column = get_column pos; contents}
 
-
-  let make_env = List.fold_left (
-    fun (class_env, tree) elt ->
-      match elt with
-      |Class (name_class, elt) ->
-        (StringMap.add name_class.contents (TAlias name_class)) class_env, (Class (name_class, elt)::tree)
-      |ClassFille (name_class, mother_class, elt) ->
-        (StringMap.add name_class.contents (TAlias name_class)) class_env, (ClassFille (name_class, mother_class, elt)::tree)
-      |x ->
-        (class_env, x::tree)
-  ) (StringMap.empty, [])
+  let make_env decl = 
+    let genv, types, tree =
+      List.fold_left (
+        fun (genv, types, tree) elt ->
+          match elt with
+          | Type(s, t) ->
+            (genv, (s, t)::types, tree)
+          | Var(t, s, e) -> 
+            (StringMap.add s.contents t genv, types, (Var (t,s,e)) :: tree)
+          | Fun f -> 
+            let param_list = List.map (
+              fun param ->
+                param.params_type
+              ) f.params 
+            in
+            (StringMap.add f.name.contents (TFun (param_list, f.return_type)) genv, 
+              types, (Fun f)::tree)
+      ) (StringMap.empty, [], []) decl
+    in
+    (genv, List.rev types, tree)
 
   let get_left start _end  e =
     match e with
@@ -49,13 +57,12 @@
         Printf.sprintf "Line %d, character %d to line %d, character %d: this is not a left expression" line column (get_line _end) (get_column _end),
         line, column
       ))
-
-  type header_declaration =
-  | HVar of string node * _type
-  | HType of string node * _type
 %}
 
-%token VAR TINT TSTRING TFUN TYPE ARROW EXTENDS CLASS
+%token VAR TINT TSTRING TFUN TYPE ARROW 
+%token EXTENDS CLASS7
+%token PRIVATE PUBLIC STATIC
+%token NULL
 %token NOP PRINT EXIT
 %token IF ELSE NO_ELSE
 %token WHILE FOR 
@@ -75,12 +82,11 @@
 %token <bool>BOOL
 %token <int>INT
 %token <string>LABEL
+%token <string>STRING
 %token EOF
 
 %start program
-%start header
-%type <CLSTree.cls_prog CLSTree.program> program
-%type <unit> header
+%type <CLSTree.cls_program> program
 %type <CLSTree.variable> variable_declaration
 %type <CLSTree.parameter> parameter
 %type <CLSTree.cls_function> function_definition
@@ -90,7 +96,7 @@
 %type <CLSTree.cls_instr> instruction
 %type <CLSTree.cls_instrs> block
 %type <CLSTree.cls_instr> control
-%type <TYPTree._type> type_expr
+%type <CLSTree.cls_type> type_expr
 
 %nonassoc NO_ELSE
 %nonassoc ELSE
@@ -103,13 +109,11 @@
 
 %%
 
-(* Programme (.typ) *)
-
 program:
 | globals=list(global_declaration) EOF
     {
-      let (class_env, tree) = make_env globals in
-      {class_env; tree}
+      let (genv, types, tree) = make_env globals in
+      {genv; types; tree}
     }
 
 | error
@@ -120,63 +124,56 @@ program:
 
 global_declaration:
 | f=function_definition
-    {
-      Fun f
-    }
+    { Fun f }
 
-| var=global_variable_declaration SEMI
-    {
-      Var var
-    }
+| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr SEMI
+  { Var (typ, make_node $startpos name, e) }
+
 | t=type_declaration SEMI
-    { 
-      Type t
-    }
-| CLASS name_class=LABEL LS l=list(class_declaration) RS
-    {
-      Class (make_node $startpos name_class, l)
-    }
-| CLASS name_class=LABEL EXTENDS mother_class=LABEL LS l=list(class_declaration) RS
-    {
-      ClassFille (make_node $startpos name_class, mother_class, l)
-    }
-;
+    { t }
 
-class_declaration:
-| f=function_definition
-    {
-      Method f
-    }
-
-| var=attribute_declaration SEMI
-    {
-      Attribute var
-    }
-;
-
-attribute_declaration:
-| VAR name=LABEL COLON typ=type_expr
-  {
-    Var (typ, make_node $startpos name)
-  }
-| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr
-  {
-    InitVar (typ, make_node $startpos name, e)
-  }
-;
-
-global_variable_declaration:
-| VAR name=LABEL COLON typ=type_expr ASSIGN e=expr
-  {
-    (typ, make_node $startpos name, e)
-  }
+| c=class_declaration
+    { c }
 ;
 
 type_declaration:
 | TYPE name_type=LABEL ASSIGN _type=type_expr
   {
-    (make_node $startpos name_type, _type)
+    Type(make_node $startpos name_type, TRegular _type)
   }
+| TYPE alias=LABEL EXTENDS t=type_expr LB fields=separated_nonempty_list(SEMI, field_declaration) RB
+  {
+    Type(make_node $startpos alias, TExtended(make_node $startpos t, fields))
+  }
+;
+
+class_declaration:
+| CLASS name=LABEL LB fields=list(class_field) RB
+  { Type(make_node $startpos name, {parent = None; fields}) }
+| CLASS name=LABEL EXTENDS t=LABEL LB fields=list(class_field) RB
+  { Type(make_node $startpos name, {parent = Some (make_node $startpos name); fields}) }
+;
+
+class_field:
+| (_static, _public)=modifiers name=LABEL COLON _type=type_expr ASSIGN init=expr SEMI
+  { Attribute {name = make_node $startpos name; _static; _public; _type; init} }
+| (_static, _public)=modifiers _fun=function_definition 
+  { Method {_static; _public; _fun} }
+;
+
+(* 
+  Il y a peu de qualificateurs, donc on peut énumérer toutes les possibilités 
+  (sinon il deviendrait plus pratique de juste renvoyer une liste de modifieurs et vérifier qu'ils sont corrects après) 
+*)
+modifiers:
+| STATIC | STATIC PUBLIC | PUBLIC STATIC
+  { (true, true)}
+| STATIC PRIVATE | PRIVATE STATIC
+  { (true, false) }
+| PRIVATE
+  { (false, false) }
+| PUBLIC | (* empty *)
+  { (false, true) }
 ;
 
 variable_declaration:
@@ -187,7 +184,7 @@ variable_declaration:
 ;
 
 parameter:
-| name=LABEL COLON params_type=type_expr
+| name=LABEL COLON params_type=type_expr 
     {
       {name = make_node $startpos name; reference = false; params_type}
     }
@@ -252,11 +249,6 @@ type_expr:
     ) (StringMap.empty, 0) fields in
     TPointer (TRecord env)
   }
-| EXTENDS t=type_expr LB fields=separated_nonempty_list(SEMI, field_declaration) RB
-  {
-    (* à changer of course *)
-    t
-  }
 ;
 
 field_declaration:
@@ -293,7 +285,7 @@ expr:
 | op=unop e=expr
     { make_node $startpos (Unop(op, e)) }
 | f=simple_expr LP args=separated_list(COMMA, expr) RP
-    { make_node $startpos ((Call((get_left $startpos $endpos f.contents), args)): CLSTree.cls_expression) }
+    { make_node $startpos ((Call((get_left $startpos $endpos f.contents), args)): TYPTree.typ_expression) }
 | e=simple_expr
     { make_node $startpos e.contents }
 | l=expr LS e=expr RS
@@ -302,11 +294,11 @@ expr:
     { make_node $startpos (Deref (make_node $startpos (RecordAccess(l, make_node $startpos(f) f)))) }
 | l=expr DOT LP i=INT RP
     { make_node $startpos (Deref (make_node $startpos (TupleAccess (l, i)))) }
-| n_class=expr DOT m=LABEL LP args=separated_list(COMMA,expr) RP
-    { make_node $startpos (MethodAccess (n_class, make_node $startpos m, args)) }
 ;
 
 simple_expr:
+| NULL
+    { make_node $startpos Null }
 | i=INT
     { make_node $startpos (Int i) }
 | b=BOOL
@@ -320,13 +312,25 @@ simple_expr:
 | ADDRESS l=simple_expr
     { make_node $startpos (get_left $startpos $endpos l.contents).contents }
 | LB LT t_e=type_expr GT fields=separated_nonempty_list(SEMI, field_instanciation) RB
-    { make_node $startpos (NewRecord (t_e,fields)) }
+    { make_node $startpos (NewRecord (make_node $startpos t_e,fields)) }
 | LS size=expr PIPE init_elt=expr RS
     { make_node $startpos (NewArray (size,init_elt)) }
 | LS l=separated_nonempty_list(SEMI, expr) RS
     { make_node $startpos (InitArray (l)) }
 | LP fst=expr COMMA l=separated_nonempty_list(COMMA, expr) RP
     { make_node $startpos (NewTuple (fst::l)) }
+| s=STRING
+    {
+      let rec make_array acc i =
+        if i < 0 then
+          acc
+        else
+          let e = make_node $startpos (Int (int_of_char s.[i])) in
+          make_array (e::acc) (i - 1)
+      in
+      let l = make_array [] ((String.length s) - 1) in
+      make_node $startpos (InitArray l)
+    }
 ;
 
 %inline binop:
@@ -450,26 +454,3 @@ control:
 any_instruction:
 | i=instruction { i }
 | c=control { c }
-
-
-(* Header (.htyp) *)
-
-header:
-| l=list(header_declaration) EOF
-  {
-    ()
-  }
-;
-
-header_declaration:
-| name=LABEL COLON t=type_expr SEMI
-  { HVar(make_node $startpos name, t) }
-| TYPE name=LABEL SEMI
-  (* A modifier plus tard of course *)
-  { 
-    let name_node = make_node $startpos name in
-    HType(name_node, TAlias name_node) 
-  }
-| TYPE name=LABEL ASSIGN t=type_expr SEMI
-  { HType(make_node $startpos name, t) }
-;

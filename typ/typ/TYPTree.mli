@@ -99,8 +99,18 @@ type 'a program = {
 }
 
 exception TypeError of string * int * int
+
+val typ_genv: _type StringMap.t
+
+(** Ajoute typ_genv à l'environnement, en favorisant ce dernier en cas de conflit *)
+val add_typ_genv: _type StringMap.t -> _type StringMap.t
   
 (** Renvoie un nom de variable qui n'existe pas encore dans l'environnement donné. *)
-val make_var_node : 'a -> 'a StringMap.t -> 'a StringMap.t * string node
+val make_var_node: 'a -> 'a StringMap.t -> 'a StringMap.t * string node
 
-val typ_to_tpl : typ_prog program -> var_prog compiler_type
+(** Vérifie que le type donné de nom alias n'utilise bien que des types déjà définis, rassemblés dans le premier argument *)
+val check_type: _type StringMap.t -> string node -> _type -> unit
+
+val translate_extended: _type StringMap.t -> string node -> _type node -> (string node * _type) list -> _type
+
+val typ_to_tpl: typ_prog program -> var_prog compiler_type

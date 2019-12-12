@@ -218,7 +218,8 @@ build_cls:
 # ------------------------------ ChainCompiler -------------------------------------
 
 build_chain_compiler:
-	@$(MAKE) -s build_cls
+	#@$(MAKE) -s build_cls
+	@$(MAKE) -s build_typ
 	ocamlc -o compiler/ChainCompiler \
 		-I utils/ -I art/ -I imp/ -I var/cll/ -I var/fun/ -I var/var/ -I typ/tpl/ -I typ/typ/ \
 		utils/tagset.cmo utils/cycle.cmo utils/arith.cmo \

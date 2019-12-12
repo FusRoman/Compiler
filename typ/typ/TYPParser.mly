@@ -58,10 +58,6 @@
         Printf.sprintf "Line %d, character %d to line %d, character %d: this is not a left expression" line column (get_line _end) (get_column _end),
         line, column
       ))
-
-  type header_declaration =
-  | HVar of string node * _type
-  | HType of string node * _type
 %}
 
 %token VAR TINT TSTRING TFUN TYPE ARROW EXTENDS
@@ -85,6 +81,7 @@
 %token <bool>BOOL
 %token <int>INT
 %token <string>LABEL
+%token <string>STRING
 %token EOF
 
 %start program
@@ -301,6 +298,18 @@ simple_expr:
     { make_node $startpos (InitArray (l)) }
 | LP fst=expr COMMA l=separated_nonempty_list(COMMA, expr) RP
     { make_node $startpos (NewTuple (fst::l)) }
+| s=STRING
+    {
+      let rec make_array acc i =
+        if i < 0 then
+          acc
+        else
+          let e = make_node $startpos (Int (int_of_char s.[i])) in
+          make_array (e::acc) (i - 1)
+      in
+      let l = make_array [] ((String.length s) - 1) in
+      make_node $startpos (InitArray l)
+    }
 ;
 
 %inline binop:

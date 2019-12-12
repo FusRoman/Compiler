@@ -8,8 +8,18 @@ let label = ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '0'-'9' '_']*
 let comment = '#' [^ '\n']* ('\n' | eof)
   
 rule token = parse
+  | "\""
+      { string_rule "" lexbuf }
   | "/*"
       { comment lexbuf; token lexbuf }
+  | "null"
+      { NULL }
+  | "private"
+      { PRIVATE }
+  | "public"
+      { PUBLIC }
+  | "static"
+      { STATIC }
   | "extends"
       { EXTENDS }
   | "class"
@@ -145,6 +155,14 @@ rule token = parse
       { EOF }
   | _
       { failwith ("Unknown character : " ^ (Lexing.lexeme lexbuf)) }
+
+and string_rule acc = parse
+  | "\""
+      { STRING acc }
+  | _ as c  
+      { string_rule (acc ^ (Char.escaped c)) lexbuf }
+  | eof
+      { failwith "Found end of file while parsing string" }
 
 (* Commentaires imbriqués *)
 and comment = parse

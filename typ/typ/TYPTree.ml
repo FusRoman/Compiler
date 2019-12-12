@@ -94,6 +94,16 @@ type 'a program = {
 
 exception TypeError of string * int * int
 
+let typ_genv =
+  List.fold_left (fun acc (v, t) ->
+    StringMap.add v t acc
+  ) StringMap.empty [("argc", TInt); ("argv", (TPointer(TArray(TPointer(TArray(TInt))))))]
+
+let add_typ_genv env =
+  StringMap.fold (fun v t acc ->
+    StringMap.add v t acc
+  ) env typ_genv
+
 let malloc = default_node "malloc"
 
 let string_of_typ_binop op =
@@ -232,7 +242,7 @@ let rec check_expression genv type_env e =
       match StringMap.find_opt s_node.contents genv with
       |None ->
         raise (SyntaxError (
-            (Printf.sprintf "tag %s undefined" s_node.contents),s_node.line,s_node.column 
+            (Printf.sprintf "Unbound value '%s'" s_node.contents),s_node.line,s_node.column 
           ))
       |Some t -> TPointer t
     end
@@ -317,6 +327,10 @@ let rec check_expression genv type_env e =
                          )
           |Some (_type,_) -> TPointer _type
         end
+
+      |TPointer (TArray t) when field.contents = "size" ->
+        TPointer TInt
+
       |x ->
         raise_type_error x "pointer of record" expression.line expression.column
     end
@@ -777,6 +791,11 @@ and translate_expression genv type_env e =
               field.line, field.column
             ))
         end
+
+      |TPointer (TArray _) when field.contents = "size" ->
+        let (init, address, reeval, new_env) = translate_expression genv type_env name_record.contents in
+        (init, Binop(address, Sub, Int 1), reeval, new_env)
+
       |x ->
         raise_type_error x "pointer of record" name_record.line name_record.column
     end
@@ -1169,8 +1188,8 @@ let translate_globals genv type_env g =
       end in
   inter [] g
 
-let make_type_env types =
-  let rec check_type acc alias _type =
+let check_type acc alias _type =
+  let rec check_rec _type =
     match _type with
     | TInt -> ()
     | TNull ->
@@ -1185,66 +1204,74 @@ let make_type_env types =
           t.line, t.column
         ))
     | TPointer t | TArray t ->
-      check_type acc alias t
+      check_rec t
     | TFun(args, return) ->
-      List.iter (fun t -> check_type acc alias t) args;
-      check_type acc alias return
+      List.iter (fun t -> check_rec t) args;
+      check_rec return
     | TRecord renv ->
-      StringMap.iter (fun _ (t, o) -> check_type acc alias t) renv
+      StringMap.iter (fun _ (t, o) -> check_rec t) renv
     | TTuple types ->
-      List.iter (fun t -> check_type acc alias t) types
+      List.iter (fun t -> check_rec t) types
   in
+  if StringMap.mem alias.contents acc then
+    raise (SyntaxError(
+      Printf.sprintf "Type '%s' is already declared." alias.contents,
+      alias.line, alias.column
+    ));
+  check_rec _type
 
+let translate_extended type_env alias extended fields =
+  check_type type_env alias extended.contents;
+  match find_type_alias type_env extended.contents with
+  | TPointer (TRecord renv) ->
+    (* Calcul de l'offset du premier attribut déclaré *)
+    let initial_offset = 
+      StringMap.fold (fun _ (_, o) acc ->
+          max acc o
+      ) renv (-1)
+    in
+
+    (* Calcul du nouveau record_env *)
+    let new_renv, _ =
+      List.fold_left (fun (renv, offset) (name, _type) ->
+        check_type type_env alias _type;
+        if StringMap.mem name.contents renv then
+          raise (SyntaxError(
+            Printf.sprintf "Field '%s' is declared at least twice in type '%s'" name.contents alias.contents,
+            alias.line, alias.column
+          ));
+        (StringMap.add name.contents (_type, offset) renv, offset + 1)
+      ) (renv, initial_offset + 1) fields
+    in
+
+    TPointer (TRecord new_renv)
+
+  | _ ->
+    raise (SyntaxError(
+      Printf.sprintf "Only records can be extended.",
+      extended.line, extended.column
+    ))
+
+let make_type_env types =
   List.fold_left (fun acc (alias, t) ->
-    if StringMap.mem alias.contents acc then
-      raise (SyntaxError(
-        Printf.sprintf "Type '%s' is already declared." alias.contents,
-        alias.line, alias.column
-      ));
     match t with
     | TRegular _type ->
       check_type acc alias _type;
       StringMap.add alias.contents _type acc
 
     | TExtended(extended, fields) ->
-      check_type acc alias extended.contents;
-      match find_type_alias acc extended.contents with
-      | TPointer (TRecord renv) ->
-        (* Calcul de l'offset du premier attribut déclaré *)
-        let initial_offset = 
-          StringMap.fold (fun _ (_, o) acc ->
-              max acc o
-          ) renv (-1)
-        in
-
-        (* Calcul du nouveau record_env *)
-        let new_renv, _ =
-          List.fold_left (fun (renv, offset) (name, _type) ->
-            check_type acc alias _type;
-            if StringMap.mem name.contents renv then
-              raise (SyntaxError(
-                Printf.sprintf "Field '%s' is declared at least twice in type '%s'" name.contents alias.contents,
-                alias.line, alias.column
-              ));
-            (StringMap.add name.contents (_type, offset) renv, offset + 1)
-          ) (renv, initial_offset + 1) fields
-        in
-
-        StringMap.add alias.contents (TPointer (TRecord new_renv)) acc
-
-      | _ ->
-        raise (SyntaxError(
-          Printf.sprintf "Only records are extendable.",
-          extended.line, extended.column
-        ))
+      let _type = translate_extended acc alias extended fields in
+      StringMap.add alias.contents _type acc
   ) StringMap.empty types
 
 let typ_to_tpl typ_prog =
   let type_env = make_type_env typ_prog.types in
-  check_global_declaration typ_prog.genv type_env typ_prog.tree;
-  let syntax_tree = translate_globals typ_prog.genv type_env typ_prog.tree in
-  let tag_set = List.fold_left (
-      fun acc (name_global, _) ->
-        Tagset.add name_global acc
-    ) Tagset.empty (StringMap.bindings typ_prog.genv) in
+  let genv = add_typ_genv typ_prog.genv in
+  check_global_declaration genv type_env typ_prog.tree;
+  let syntax_tree = translate_globals genv type_env typ_prog.tree in
+  let tag_set = 
+    List.fold_left (fun acc (name_global, _) ->
+      Tagset.add name_global acc
+    ) Tagset.empty (StringMap.bindings genv) 
+  in
   {syntax_tree; tag_set}

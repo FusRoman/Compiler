@@ -5,91 +5,64 @@ open IMPTree
 open FUNTree
 open TYPTree
 
+module StringMap: Map.S with type key = string
 
+type env = _type StringMap.t
+and record_env = (cls_type * int) StringMap.t
+
+and cls_type = _type
 
 type record_field = string node * cls_expression node
-and cls_expression =
-  | Int of int
-  | Bool of bool
-  | Id of string node
-  | Deref of cls_expression node
-  | Unop of unop * cls_expression node
-  | Binop of cls_expression node * typ_binop * cls_expression node
-  | Call of cls_expression node * (cls_expression node list)
-  | RecordAccess of cls_expression node * string node
-  | NewRecord of _type * record_field list
-  | ArrayAccess of cls_expression node * cls_expression node
-  | NewArray of cls_expression node * cls_expression node
-  | TupleAccess of cls_expression node * int
-  | NewTuple of cls_expression node list
-  | InitArray of cls_expression node list
-  | MethodAccess of cls_expression node * string node * cls_expression node list
+and cls_expression = typ_expression
 
-type variable = _type * string node * cls_expression node
-type not_init_variable = _type * string node
-type declaration_type = string node * _type
-(** Instructions en CLS *)
-type cls_instr =
-  | Nop
-  | Exit
-  | Return of cls_expression node
-  | Break of unit node
-  | Continue of unit node
-  | Print of cls_expression node
-  | UnopAssign of cls_expression node * assign_unop
-  | BinopAssign of cls_expression node * assign_binop * cls_expression node
-  | IfElse of cls_expression node * cls_instrs * cls_instrs
-  | If of cls_expression node * cls_instrs
-  | While of cls_expression node * cls_instrs
-  | For of cls_instrs * cls_expression node * cls_instrs * cls_instrs
-  | Call of cls_expression node * (cls_expression node list)
-  | Declaration of variable
+type cls_variable = cls_type * string node * cls_expression node
+type type_declaration = string node * cls_type
 
-and cls_instrs = cls_instr list
+type cls_instr = typ_instr
+type cls_instrs = cls_instr list
 
-type parameter = {
-  name : string node;
-  reference : bool;
-  params_type : _type
+type cls_function = cls_instrs TYPTree.function_definition
+
+type class_attribute = {
+  name: string node;
+  _type: cls_type;
+  _public: bool;
+  _static: bool;
+  init: cls_expression;
 }
 
-type 'a function_definition = {
-  name : string node;
-  params: parameter list;
-  block: 'a;
-  return_type : _type
+type class_method = {
+  _public: bool;
+  _static: bool;
+  _fun: cls_function;
 }
 
-type cls_function = cls_instrs function_definition
+type class_field =
+  | Method of class_method
+  | Attribute of class_attribute
 
-type attribute = 
-  |InitVar of variable
-  |Var of not_init_variable
+type cls_class = {
+  fields: class_field list;
+  parent: string node option
+}
 
-type class_element =
-  |Method of cls_function
-  |Attribute of attribute
+type cls_declarable_type =
+  | TRegular of cls_type
+  | TExtended of cls_type node * (string node * cls_type) list
+  | TClass of cls_class
 
 type global_declaration =
   | Fun of cls_function
-  | Var of variable
-  | Type of declaration_type
-  | Class of string node * class_element list
-  | ClassFille of string node * string * class_element list
+  | Var of cls_variable
+  | Type of string node * cls_declarable_type
 
 type cls_prog = global_declaration list
 
 
-(**
-   genv est une map permettant d'étiqueter chaque label avec son type.
-   _type est une map de tous les types et alias de type déclaré dans le programme.
-   tree est l'AST du programme ecrit en langage typ
-*)
-type 'a program = {
-  class_env: env;
+type cls_program = {
+  genv: cls_type StringMap.t;
+  types: cls_declarable_type list
   tree: 'a
 }
 
-exception TypeError of string * int * int
-
-val cls_to_typ : cls_prog program -> typ_prog TYPTree.program
+val cls_to_typ : cls_program -> typ_prog TYPTree.program
